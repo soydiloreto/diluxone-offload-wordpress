@@ -74,6 +74,7 @@ scripts
 .vscode
 
 # Build artifacts and logs
+build
 *.zip
 *.log
 *.tar
