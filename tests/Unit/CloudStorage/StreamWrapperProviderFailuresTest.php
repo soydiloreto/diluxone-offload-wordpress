@@ -51,6 +51,7 @@ class StreamWrapperProviderFailuresTest extends TestCase {
 
 	private function resetClient(): void {
 		$p = new \ReflectionProperty( CloudStreamWrapper::class, 'cloud_client' );
+		$p->setAccessible( true );
 		$p->setValue( null, null );
 	}
 

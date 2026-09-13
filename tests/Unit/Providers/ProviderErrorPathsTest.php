@@ -168,6 +168,7 @@ class ProviderErrorPathsTest extends TestCase {
 	private function azureAt( string $endpoint, string $container = 'media' ): AzureProvider {
 		$p    = new AzureProvider( array( 'storage_account' => 'eacct', 'container_name' => $container, 'access_key' => base64_encode( random_bytes( 32 ) ) ) );
 		$prop = new \ReflectionProperty( $p, 'endpoint' );
+		$prop->setAccessible( true );
 		$prop->setValue( $p, $endpoint );
 		return $p;
 	}
