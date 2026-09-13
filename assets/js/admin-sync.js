@@ -805,14 +805,14 @@ jQuery(document).ready(function($) {
 						processSyncBatch();
 					});
 				} else {
-					alert('Failed to take control: ' + (response.data || 'Unknown error'));
+					alert(DiluxOneOffloadSync.i18n.failed_to_take_control + ' ' + (response.data || DiluxOneOffloadSync.i18n.unknown_error));
 					// Restore inactive UI
 					$('#sync-container').empty();
 					showInactiveTabUI(response.data.sync_meta || {});
 				}
 			},
 			error: function(xhr, status, error) {
-				alert('Connection error while taking control');
+				alert(DiluxOneOffloadSync.i18n.connection_error_taking_control);
 				console.error('[DiluxOne Offload Multi-Tab] Take control error:', error);
 				// Restore inactive UI
 				$('#sync-container').empty();
@@ -2538,7 +2538,7 @@ jQuery(document).ready(function($) {
 				}
 			},
 			error: function() {
-				alert('Connection error. Please try again.');
+				alert(DiluxOneOffloadSync.i18n.connection_error_try_again);
 				button.prop('disabled', false).html('<span class="dashicons dashicons-cloud"></span> Deactivate Offloading');
 			}
 		});

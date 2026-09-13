@@ -606,6 +606,8 @@ class Admin {
 						'please_enter_the_new_access_key' => __( 'Please enter the new access key.', 'diluxone-offload' ),
 						'saving'                          => __( 'Saving...', 'diluxone-offload' ),
 						'save'                            => __( 'Save', 'diluxone-offload' ),
+						'error_deleting_configuration'    => __( 'Error deleting configuration:', 'diluxone-offload' ),
+						'error_saving_credentials'        => __( 'Error saving credentials:', 'diluxone-offload' ),
 					),
 					'data' => array(
 						'config_cloud_provider' => $template_data['config']['cloud_provider'] ?? '',
@@ -676,6 +678,9 @@ class Admin {
 						'enabling'                         => __( 'Enabling...', 'diluxone-offload' ),
 						'offloading_enabled_successfully'  => __( 'Offloading enabled successfully!', 'diluxone-offload' ),
 						'connection_error'                 => __( 'Connection error', 'diluxone-offload' ),
+						'connection_error_try_again'       => __( 'Connection error. Please try again.', 'diluxone-offload' ),
+						'failed_to_take_control'           => __( 'Failed to take control:', 'diluxone-offload' ),
+						'connection_error_taking_control'  => __( 'Connection error while taking control.', 'diluxone-offload' ),
 						'cancelling'                       => __( 'Cancelling...', 'diluxone-offload' ),
 						'cancelling_sync_please_wait'      => __( 'Cancelling sync... Please wait.', 'diluxone-offload' ),
 						'sync_cancelled_refreshing'        => __( 'Sync cancelled. Refreshing...', 'diluxone-offload' ),
