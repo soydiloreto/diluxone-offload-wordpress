@@ -83,8 +83,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<p class="status-details">
 						<?php
 						$provider_names   = array(
-							'diluxone' => 'DiluxOne Cloud',
-							'azure'    => 'Azure Blob Storage',
+							'azure' => 'Azure Blob Storage',
 						);
 						$provider_display = $provider_names[ $config['cloud_provider'] ?? '' ] ?? ucfirst( $config['cloud_provider'] ?? '' );
 						echo wp_kses(

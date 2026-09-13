@@ -432,8 +432,6 @@ class CloudStreamWrapper {
 			} else {
 				$host = $pc['storage_account'] . '.blob.core.windows.net';
 			}
-		} elseif ( $provider === 'diluxone' && ! empty( $pc['cdn_host'] ) ) {
-			$host = (string) $pc['cdn_host'];
 		}
 
 		self::$cloud_host_cache = strtolower( $host );

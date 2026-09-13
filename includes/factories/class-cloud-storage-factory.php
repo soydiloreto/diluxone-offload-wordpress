@@ -9,7 +9,6 @@ namespace DiluxOneOffload\Factories;
 
 use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
 use DiluxOneOffload\Providers\AzureProvider;
-use DiluxOneOffload\Providers\DiluxOneCloudProvider;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -32,9 +31,6 @@ class CloudStorageFactory {
 	 */
 	public static function create( $provider, $config = array() ) {
 		switch ( strtolower( $provider ) ) {
-			case 'diluxone':
-				return new DiluxOneCloudProvider( $config );
-
 			case 'azure':
 				return new AzureProvider( $config );
 
@@ -58,14 +54,7 @@ class CloudStorageFactory {
 	 */
 	public static function get_supported_providers() {
 		return array(
-			'diluxone' => array(
-				'name'          => 'DiluxOne Cloud (Managed)',
-				'implemented'   => true,
-				'config_fields' => array(
-					'api_key' => 'API Key',
-				),
-			),
-			'azure'    => array(
+			'azure' => array(
 				'name'          => 'Azure Blob Storage',
 				'implemented'   => true,
 				'config_fields' => array(
@@ -74,7 +63,7 @@ class CloudStorageFactory {
 					'access_key'      => 'Access Key',
 				),
 			),
-			'aws'      => array(
+			'aws'   => array(
 				'name'          => 'Amazon S3',
 				'implemented'   => false,
 				'config_fields' => array(
@@ -84,7 +73,7 @@ class CloudStorageFactory {
 					'region'            => 'Region',
 				),
 			),
-			'gcp'      => array(
+			'gcp'   => array(
 				'name'          => 'Google Cloud Storage',
 				'implemented'   => false,
 				'config_fields' => array(

@@ -22,20 +22,12 @@ jQuery(document).ready(function($) {
 			provider: provider
 		};
 
-		if (provider === 'diluxone') {
-			data.api_key = $section.find('#api_key').val() || $('#api_key').val();
-			if (!data.api_key) {
-				$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + DiluxOneOffloadProvider.i18n.please_enter_the_api_key + '</div>').show();
-				return;
-			}
-		} else {
-			data.account_name = $('#account_name').val();
-			data.account_key = $('#account_key').val();
-			data.container_name = $('#container_name').val();
-			if (!data.account_name || !data.account_key || !data.container_name) {
-				$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + DiluxOneOffloadProvider.i18n.please_fill_in_all_required_fields + '</div>').show();
-				return;
-			}
+		data.account_name = $('#account_name').val();
+		data.account_key = $('#account_key').val();
+		data.container_name = $('#container_name').val();
+		if (!data.account_name || !data.account_key || !data.container_name) {
+			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + DiluxOneOffloadProvider.i18n.please_fill_in_all_required_fields + '</div>').show();
+			return;
 		}
 
 		$button.prop('disabled', true);
@@ -135,14 +127,7 @@ jQuery(document).ready(function($) {
 	// Update Credentials Modal (provider-aware)
 	// ========================================================================
 	$(document).on('click', '.update-credentials-trigger', function() {
-		var provider = getCurrentProvider();
-		if (provider === 'diluxone') {
-			$('#modal-azure-fields').hide();
-			$('#modal-diluxone-fields').show();
-		} else {
-			$('#modal-azure-fields').show();
-			$('#modal-diluxone-fields').hide();
-		}
+		$('#modal-azure-fields').show();
 		$('#update-credentials-modal').show();
 		$('#modal-connection-result').empty();
 		$('#modal-save-credentials').prop('disabled', true);
@@ -151,14 +136,12 @@ jQuery(document).ready(function($) {
 	$('.modal-close, #update-credentials-modal .diluxone-offload-modal-overlay').on('click', function() {
 		$('#update-credentials-modal').hide();
 		$('#modal_account_key').val('');
-		$('#modal_api_key').val('');
 		$('#modal-connection-result').empty();
 		$('#modal-save-credentials').prop('disabled', true);
 	});
 
 	$('#modal_show_key').on('change', function() {
-		var $keyInput = getCurrentProvider() === 'diluxone' ? $('#modal_api_key') : $('#modal_account_key');
-		$keyInput.attr('type', $(this).is(':checked') ? 'text' : 'password');
+		$('#modal_account_key').attr('type', $(this).is(':checked') ? 'text' : 'password');
 	});
 
 	$('#modal-test-connection').on('click', function() {
@@ -172,20 +155,12 @@ jQuery(document).ready(function($) {
 			provider: provider
 		};
 
-		if (provider === 'diluxone') {
-			data.api_key = $('#modal_api_key').val();
-			if (!data.api_key) {
-				$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">' + DiluxOneOffloadProvider.i18n.please_enter_the_new_api_key + '</div>');
-				return;
-			}
-		} else {
-			data.account_name = $('#modal_account_name').text().trim();
-			data.account_key = $('#modal_account_key').val();
-			data.container_name = $('#modal_container_name').text().trim();
-			if (!data.account_key) {
-				$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">' + DiluxOneOffloadProvider.i18n.please_enter_the_new_access_key + '</div>');
-				return;
-			}
+		data.account_name = $('#modal_account_name').text().trim();
+		data.account_key = $('#modal_account_key').val();
+		data.container_name = $('#modal_container_name').text().trim();
+		if (!data.account_key) {
+			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">' + DiluxOneOffloadProvider.i18n.please_enter_the_new_access_key + '</div>');
+			return;
 		}
 
 		$button.prop('disabled', true);
@@ -226,13 +201,9 @@ jQuery(document).ready(function($) {
 			provider: provider
 		};
 
-		if (provider === 'diluxone') {
-			data.api_key = $('#modal_api_key').val();
-		} else {
-			data.account_name = $('#modal_account_name').text().trim();
-			data.account_key = $('#modal_account_key').val();
-			data.container_name = $('#modal_container_name').text().trim();
-		}
+		data.account_name = $('#modal_account_name').text().trim();
+		data.account_key = $('#modal_account_key').val();
+		data.container_name = $('#modal_container_name').text().trim();
 
 		$button.prop('disabled', true);
 		$button.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + DiluxOneOffloadProvider.i18n.saving);

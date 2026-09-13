@@ -1,5 +1,5 @@
 /**
- * DiluxOne Cloud Storage Admin JavaScript
+ * DiluxOne Offload — admin JavaScript
  */
 jQuery(document).ready(function($) {
 

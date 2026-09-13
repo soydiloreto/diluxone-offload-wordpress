@@ -99,7 +99,7 @@ class ConfigManager {
 	 */
 	const ENCRYPTED_FIELDS = array(
 		'access_key',          // Azure Blob Storage account key
-		'api_key',             // DiluxOne Cloud API key
+		'api_key',             // future managed provider
 		'account_key',         // legacy Azure (pre-1.0)
 		'secret_access_key',   // future AWS
 		'service_account_key', // future GCP
@@ -507,8 +507,7 @@ class ConfigManager {
 	 * cached value without instantiating a client — see get_cached_cloud_stats().
 	 */
 	const STATS_TRANSIENTS = array(
-		'azure'    => 'diluxone_offload_azure_stats',
-		'diluxone' => 'diluxone_offload_stats',
+		'azure' => 'diluxone_offload_azure_stats',
 	);
 
 	/**
@@ -882,7 +881,6 @@ class ConfigManager {
 
 		// Clear stats transients to prevent stale data
 		delete_transient( 'diluxone_offload_azure_stats' );
-		delete_transient( 'diluxone_offload_stats' );
 
 		Logger::warning( '[DiluxOne Offload ConfigManager] Connection failure recorded: ' . $error_code . ' - ' . $error_message . ' (source: ' . $source . ', consecutive: ' . $health['consecutive_failures'] . ')' );
 	}

@@ -183,16 +183,6 @@ class StreamWrapperExtrasTest extends TestCase {
 		$this->assertSame( 'https://cdn.example.net/a.jpg', CloudStreamWrapper::force_https_on_url( 'http://cdn.example.net/a.jpg' ) );
 	}
 
-	public function test_diluxone_provider_uses_its_cdn_host(): void {
-		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array(
-			'cloud_provider'       => 'diluxone',
-			'provider_config'      => array( 'api_key' => 'k', 'cdn_host' => 'Files.DiluxOne.Cloud' ),
-			'force_https_on_cloud' => true,
-		);
-		$this->resetHostCache();
-		$this->assertSame( 'https://files.diluxone.cloud/a.jpg', CloudStreamWrapper::force_https_on_url( 'http://files.diluxone.cloud/a.jpg' ) );
-	}
-
 	public function test_no_provider_means_no_upgrade(): void {
 		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array( 'cloud_provider' => '', 'provider_config' => array(), 'force_https_on_cloud' => true );
 		$this->resetHostCache();

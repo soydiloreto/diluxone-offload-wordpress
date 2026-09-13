@@ -107,16 +107,6 @@ class ProviderConfig {
 				}
 				break;
 
-			case 'diluxone':
-				$provider_config = array(
-					'api_key'      => sanitize_text_field( $post['api_key'] ?? '' ),
-					'cdn_base_url' => '',
-				);
-				if ( empty( $provider_config['api_key'] ) ) {
-					throw new \InvalidArgumentException( 'API Key is required' );
-				}
-				break;
-
 			// Future providers: aws, gcp
 			default:
 				throw new \InvalidArgumentException( 'Unsupported cloud provider: ' . esc_html( $cloud_provider ) );

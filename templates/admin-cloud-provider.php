@@ -28,16 +28,9 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 	// Mask credentials for read-only display
 	$provider_name         = $config['cloud_provider'] ?? '';
 	$provider_display_name = '';
-	$masked_key            = '';
 	$account_name          = '';
 	$container_name_val    = '';
-	if ( $provider_name === 'diluxone' ) {
-		$provider_display_name = 'DiluxOne Cloud';
-		$api_key               = $config['provider_config']['api_key'] ?? '';
-		$masked_key            = strlen( $api_key ) > 12
-			? substr( $api_key, 0, 8 ) . '...' . substr( $api_key, -4 )
-			: '****';
-	} elseif ( $provider_name === 'azure' ) {
+	if ( $provider_name === 'azure' ) {
 		$provider_display_name = 'Microsoft Azure Blob Storage';
 		$account_name          = $config['provider_config']['storage_account'] ?? $config['account_name'] ?? '';
 		$container_name_val    = $config['provider_config']['container_name'] ?? $config['container_name'] ?? '';
@@ -84,9 +77,6 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 						<td>
 							<select id="cloud_provider" name="cloud_provider" class="regular-text" onchange="showProviderConfig(this.value)">
 								<option value=""><?php esc_html_e( 'Select a provider...', 'diluxone-offload' ); ?></option>
-								<option value="diluxone" <?php selected( $config['cloud_provider'] ?? '', 'diluxone' ); ?>>
-									<?php esc_html_e( 'DiluxOne Cloud (Recommended)', 'diluxone-offload' ); ?>
-								</option>
 								<option value="azure" <?php selected( $config['cloud_provider'] ?? '', 'azure' ); ?>>
 									<?php esc_html_e( 'Microsoft Azure Blob Storage', 'diluxone-offload' ); ?>
 								</option>
@@ -97,51 +87,6 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 						</td>
 					</tr>
 				</table>
-			</div>
-
-			<!-- DiluxOne Config -->
-			<div class="settings-section provider-config" id="diluxone-config" style="<?php echo ( $config['cloud_provider'] ?? '' ) === 'diluxone' ? '' : 'display: none;'; ?>">
-				<h3><?php esc_html_e( 'DiluxOne Cloud', 'diluxone-offload' ); ?></h3>
-				<p class="description">
-					<?php
-					echo wp_kses(
-						sprintf(
-							/* translators: 1: opening anchor tag, 2: closing anchor tag */
-							__( 'Enter your API Key from your DiluxOne account. Don\'t have one? %1$sGet started%2$s', 'diluxone-offload' ),
-							'<a href="https://diluxone.com/" target="_blank" rel="noopener noreferrer">',
-							'</a>'
-						),
-						array(
-							'a' => array(
-								'href'   => true,
-								'target' => true,
-								'rel'    => true,
-							),
-						)
-					);
-					?>
-				</p>
-				<table class="form-table">
-					<tr>
-						<th scope="row"><label for="api_key"><?php esc_html_e( 'API Key', 'diluxone-offload' ); ?></label></th>
-						<td>
-							<input type="password" id="api_key" name="api_key"
-									value="<?php echo esc_attr( $config['provider_config']['api_key'] ?? '' ); ?>"
-									class="large-text" required>
-							<p class="description"><?php esc_html_e( 'Your DiluxOne Cloud API Key (starts with dok_).', 'diluxone-offload' ); ?></p>
-						</td>
-					</tr>
-				</table>
-				<div class="test-connection-section">
-					<button type="button" class="button button-secondary test-connection-btn">
-						<span class="dashicons dashicons-admin-links"></span>
-						<?php esc_html_e( 'Test Connection', 'diluxone-offload' ); ?>
-					</button>
-					<div class="connection-result"></div>
-					<p class="test-status-message description" style="margin-top: 8px; color: #d63638; font-weight: 600;">
-						<?php esc_html_e( 'You must test the connection successfully before saving credentials.', 'diluxone-offload' ); ?>
-					</p>
-				</div>
 			</div>
 
 			<!-- Azure Config -->
@@ -210,12 +155,7 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 					<th scope="row"><?php esc_html_e( 'Provider', 'diluxone-offload' ); ?></th>
 					<td><strong><?php echo esc_html( $provider_display_name ); ?></strong></td>
 				</tr>
-				<?php if ( $provider_name === 'diluxone' ) : ?>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'API Key', 'diluxone-offload' ); ?></th>
-					<td><code><?php echo esc_html( $masked_key ); ?></code></td>
-				</tr>
-				<?php elseif ( $provider_name === 'azure' ) : ?>
+				<?php if ( $provider_name === 'azure' ) : ?>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Storage Account', 'diluxone-offload' ); ?></th>
 					<td><code><?php echo esc_html( $account_name ); ?></code></td>
@@ -296,7 +236,7 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 			</div>
 
 			<!-- Azure fields -->
-			<div id="modal-azure-fields" style="<?php echo ( $config['cloud_provider'] ?? '' ) === 'diluxone' ? 'display: none;' : ''; ?>">
+			<div id="modal-azure-fields">
 				<div style="background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin: 15px 0;">
 					<p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">
 						<strong><?php esc_html_e( 'Storage Account:', 'diluxone-offload' ); ?></strong>
@@ -324,32 +264,6 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 									class="large-text"
 									required
 									placeholder="<?php esc_attr_e( 'Enter new access key', 'diluxone-offload' ); ?>">
-						</td>
-					</tr>
-				</table>
-			</div>
-
-			<!-- DiluxOne fields -->
-			<div id="modal-diluxone-fields" style="<?php echo ( $config['cloud_provider'] ?? '' ) === 'diluxone' ? '' : 'display: none;'; ?>">
-				<div style="background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin: 15px 0;">
-					<p style="margin: 0; font-size: 13px; color: #666;">
-						<strong><?php esc_html_e( 'Provider:', 'diluxone-offload' ); ?></strong>
-						<span style="color: #333;">DiluxOne Cloud</span>
-					</p>
-				</div>
-
-				<table class="form-table" style="margin-top: 15px;">
-					<tr>
-						<th scope="row">
-							<label for="modal_api_key"><?php esc_html_e( 'New API Key', 'diluxone-offload' ); ?></label>
-						</th>
-						<td>
-							<input type="password"
-									id="modal_api_key"
-									value=""
-									class="large-text"
-									required
-									placeholder="<?php esc_attr_e( 'Enter new API key (dok_...)', 'diluxone-offload' ); ?>">
 						</td>
 					</tr>
 				</table>
