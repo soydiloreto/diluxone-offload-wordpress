@@ -738,7 +738,7 @@ $pending_count   = $template_data['pending_count'] ?? 0;
 					<?php esc_html_e( 'Downloading Files...', 'diluxone-offload' ); ?>
 				</h3>
 
-				<!-- ⭐ WARNING (coherente con sync modal) -->
+				<!-- Warning (same shape as the sync modal) -->
 				<div style="background: linear-gradient(135deg, #d63638 0%, #c62d30 100%); color: #fff; padding: 20px; border-radius: 6px; margin-bottom: 20px; text-align: center; box-shadow: 0 2px 8px rgba(214, 54, 56, 0.3); border: 2px solid #d63638;">
 					<div style="font-size: 28px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">
 						⚠️ <?php esc_html_e( 'DO NOT CLOSE THIS WINDOW', 'diluxone-offload' ); ?> ⚠️
@@ -751,7 +751,7 @@ $pending_count   = $template_data['pending_count'] ?? 0;
 				<p id="disconnect-progress-label" style="text-align: center; font-weight: 600; margin: 15px 0;"><?php esc_html_e( 'Downloading files from cloud...', 'diluxone-offload' ); ?></p>
 
 				<div id="disconnect-progress-details" style="margin: 20px 0;">
-					<!-- ⭐ Progress bar (coherente con sync modal) -->
+					<!-- Progress bar (same shape as the sync modal) -->
 					<div style="background: #f0f0f1; border-radius: 8px; overflow: hidden; margin: 15px 0;">
 						<div id="disconnect-progress-bar" class="progress-fill" style="height: 30px; background: linear-gradient(90deg, #0073aa 0%, #005177 100%); width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
 							<span id="disconnect-progress-percent">0%</span>
@@ -763,7 +763,7 @@ $pending_count   = $template_data['pending_count'] ?? 0;
 					</div>
 				</div>
 
-				<!-- ⭐ Statistics (coherente con sync modal) -->
+				<!-- Statistics (same shape as the sync modal) -->
 				<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 20px;">
 					<div style="background: #f0f0f1; padding: 12px; border-radius: 4px; text-align: center;">
 						<div style="font-size: 12px; color: #666; margin-bottom: 4px;"><?php esc_html_e( 'Downloaded', 'diluxone-offload' ); ?></div>
@@ -779,7 +779,7 @@ $pending_count   = $template_data['pending_count'] ?? 0;
 					</div>
 				</div>
 
-				<!-- ⭐ Cancel button (coherente con sync modal) -->
+				<!-- Cancel button (same shape as the sync modal) -->
 				<div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #ddd; text-align: right;">
 					<button type="button" id="cancel-disconnect" class="button button-secondary">
 						<span class="dashicons dashicons-no-alt"></span>

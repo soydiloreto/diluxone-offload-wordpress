@@ -115,8 +115,8 @@ class Admin {
 			return $tab;
 		}
 
-		foreach ( $tabs as $slug => $datos ) {
-			if ( in_array( $tab, $datos['aliases'], true ) ) {
+		foreach ( $tabs as $slug => $meta ) {
+			if ( in_array( $tab, $meta['aliases'], true ) ) {
 				return $slug;
 			}
 		}
@@ -205,8 +205,8 @@ class Admin {
 	 */
 	public static function render_admin_page(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter, no state change.
-		$pedida      = isset( $_GET['tab'] ) ? \sanitize_text_field( \wp_unslash( $_GET['tab'] ) ) : 'overview';
-		$current_tab = self::current_tab( $pedida );
+		$requested   = isset( $_GET['tab'] ) ? \sanitize_text_field( \wp_unslash( $_GET['tab'] ) ) : 'overview';
+		$current_tab = self::current_tab( $requested );
 
 		// Check configuration states
 		$is_configured         = ConfigManager::is_configured();
@@ -223,9 +223,9 @@ class Admin {
 
 			<!-- Tabs Navigation -->
 			<nav class="nav-tab-wrapper">
-				<?php foreach ( self::tabs() as $slug => $datos ) : ?>
+				<?php foreach ( self::tabs() as $slug => $meta ) : ?>
 					<?php
-					if ( $datos['hidden'] ) {
+					if ( $meta['hidden'] ) {
 						continue; }
 					?>
 					<a href="
@@ -242,8 +242,8 @@ class Admin {
 					?>
 								"
 						class="nav-tab <?php echo $current_tab === $slug ? 'nav-tab-active' : ''; ?>">
-						<span class="dashicons <?php echo \esc_attr( $datos['icon'] ); ?>"></span>
-						<?php echo \esc_html( $datos['label'] ); ?>
+						<span class="dashicons <?php echo \esc_attr( $meta['icon'] ); ?>"></span>
+						<?php echo \esc_html( $meta['label'] ); ?>
 					</a>
 				<?php endforeach; ?>
 			</nav>
@@ -770,8 +770,8 @@ class Admin {
 	 */
 	private static function enqueue_tab_assets(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter, no state change.
-		$pedida = isset( $_GET['tab'] ) ? \sanitize_text_field( \wp_unslash( $_GET['tab'] ) ) : 'overview';
-		$tab    = self::current_tab( $pedida );
+		$requested = isset( $_GET['tab'] ) ? \sanitize_text_field( \wp_unslash( $_GET['tab'] ) ) : 'overview';
+		$tab       = self::current_tab( $requested );
 
 		$assets = self::tab_assets();
 		if ( ! isset( $assets[ $tab ] ) ) {

@@ -246,7 +246,7 @@ jQuery(document).ready(function($) {
 		// Show loading state with unified look & feel
 		showLoadingState('Validating Action', 'Calculating files to sync...');
 
-		// ⭐ PRIMERA LLAMADA: Pre-check + calculate (confirmed=0)
+		// First call: pre-check + calculate (confirmed=0).
 		$.ajax({
 			url: ajaxurl,
 			type: 'POST',
@@ -254,7 +254,7 @@ jQuery(document).ready(function($) {
 				action: 'diluxone_offload_start_sync',
 				nonce: diluxOneOffloadAdmin.nonce,
 				session_id: tabSessionId,
-				confirmed: 0, // ⭐ Pre-check
+				confirmed: 0, // Pre-check.
 				retry_failed: retryFailed ? 1 : 0
 			},
 			success: function(response) {
@@ -266,23 +266,23 @@ jQuery(document).ready(function($) {
 					return;
 				}
 
-				// ⭐ Check 1: Validación falló?
+				// Check 1: did validation fail?
 				if (response.data.validation_failed) {
 					console.warn('[DiluxOne Offload Sync] Validation FAILED on pre-check:', response.data.reason);
 					handleValidationError(response.data.reason, response.data.details);
 					return;
 				}
 
-				// ⭐ Check 2: Requiere confirmación?
+				// Check 2: does it need confirmation?
 				if (response.data.requires_confirmation) {
 					console.log('[DiluxOne Offload Sync] Pre-check PASSED, showing options modal');
 					console.log('[DiluxOne Offload Sync] Data received:', response.data.data);
-					// Mostrar modal con opciones (Continue/From Scratch)
+					// Show the options modal (Continue / From Scratch).
 					showSyncOptionsModal(response.data.data, fromScratch, retryFailed);
 					return;
 				}
 
-				// No debería llegar aquí
+				// Should never get here.
 				console.error('[DiluxOne Offload Sync] Unexpected response:', response);
 				$('#sync-modal').hide();
 				showNotice('Unexpected response from server', 'error');
@@ -299,12 +299,12 @@ jQuery(document).ready(function($) {
 	function showSyncOptionsModal(data, fromScratch, retryFailed) {
 		console.log('[DiluxOne Offload Sync] showSyncOptionsModal called with data:', data);
 
-		// ⭐ FIX: Si pending=0 y synced>0, skip modal y mostrar directamente pantalla de Enable Offloading
-		// El usuario ya sabe que todo está sincronizado, no tiene sentido mostrar opciones de upload
+		// Nothing pending and something synced: skip the modal and go straight
+		// to the Enable Offloading screen — there is nothing left to upload.
 		if (data.pending_files === 0 && data.synced_files > 0) {
 			console.log('[DiluxOne Offload Sync] All files already synced (pending=0). Skipping to completion screen with Enable Offloading.');
 
-			// Preparar modal para mostrar resultado
+			// Prepare the modal to show the result.
 			$('#sync-modal').show();
 			$('#sync-container').hide();
 			$('#sync-modal-content').show();
@@ -313,7 +313,7 @@ jQuery(document).ready(function($) {
 			$('#sync-modal-progress').hide();
 			$('#sync-modal-start').hide();
 
-			// Llamar directamente a onSyncComplete con datos del pre-check
+			// Hand the pre-check numbers straight to onSyncComplete.
 			onSyncComplete({
 				status: 'completed',
 				total_files: data.synced_files,
@@ -421,7 +421,7 @@ jQuery(document).ready(function($) {
 		});
 	}
 
-	// ⭐ NEW: Execute sync after user confirmation (SEGUNDA LLAMADA)
+	// Execute the sync after the user confirms (second call).
 	function executeSyncConfirmed(fromScratch, retryFailed) {
 		const concurrency = parseInt($('#upload-concurrency-select').val()) || 5;
 
@@ -448,7 +448,7 @@ jQuery(document).ready(function($) {
 		$('#sync-modal-stats-successful').text('0');
 		$('#sync-modal-stats-failed').text('0');
 
-		// ⭐ SEGUNDA LLAMADA: Execution-check + execute (confirmed=1)
+		// Second call: execution-check + execute (confirmed=1).
 		$.ajax({
 			url: ajaxurl,
 			type: 'POST',
@@ -456,7 +456,7 @@ jQuery(document).ready(function($) {
 				action: 'diluxone_offload_start_sync',
 				nonce: diluxOneOffloadAdmin.nonce,
 				session_id: tabSessionId,
-				confirmed: 1, // ⭐ Execution-check
+				confirmed: 1, // Execution-check.
 				concurrency: concurrency,
 				from_scratch: fromScratch ? 1 : 0,
 				retry_failed: retryFailed ? 1 : 0
@@ -468,14 +468,15 @@ jQuery(document).ready(function($) {
 					return;
 				}
 
-				// ⭐ IMPORTANTE: Validar OTRA VEZ (execution-check puede fallar si otro tab inició sync)
+				// Validate again: another tab may have started a sync while the
+				// user was reading the modal.
 				if (response.data.validation_failed) {
 					console.warn('[DiluxOne Offload Sync] Validation FAILED on execution-check:', response.data.reason);
 					handleValidationError(response.data.reason, response.data.details);
 					return;
 				}
 
-				// ⭐ Acción ejecutada exitosamente
+				// The action ran.
 				if (response.data.action_executed) {
 					console.log('[DiluxOne Offload Sync] Sync started successfully, processing batches...');
 					processSyncBatch();
@@ -539,7 +540,7 @@ jQuery(document).ready(function($) {
 		}
 	}
 
-	// ⭐ REFACTORED: Start/Continue Sync button - usa nuevo flujo con validación doble
+	// Start/Continue Sync button: goes through the two-step validation flow.
 	$('#start-sync-btn').on('click', function() {
 		currentSyncMode = 'upload';
 
@@ -2042,7 +2043,7 @@ jQuery(document).ready(function($) {
 					$('#disconnect-progress-percent').text(percent + '%');
 					$('#disconnect-progress-text').text(downloaded + ' / ' + totalFiles + ' files (' + percent + '%)');
 
-					// ⭐ Update statistics (coherente con sync modal)
+					// Update statistics (same shape as the sync modal).
 					$('#disconnect-stats-downloaded').text(downloaded.toLocaleString());
 					$('#disconnect-stats-successful').text(downloaded.toLocaleString());
 					$('#disconnect-stats-remaining').text(remaining.toLocaleString());
@@ -2077,7 +2078,7 @@ jQuery(document).ready(function($) {
 		});
 	}
 
-	// ⭐ Cancel Download button (coherente con sync modal - NO alert)
+	// Cancel Download button (same behaviour as the sync modal: no alert).
 	$('#cancel-disconnect').on('click', function() {
 		console.log('[DiluxOne Offload Download] Cancel button clicked');
 
