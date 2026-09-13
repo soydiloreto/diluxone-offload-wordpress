@@ -10,9 +10,8 @@ use DiluxOneOffload\ConfigManager;
 /**
  * What each provider does when the cloud says no: transport errors, 4xx/5xx
  * answers, quota, expired SAS tokens (retry once after a refresh), and the
- * chunked upload path for large files — run for real against the local
- * stand-in server for the DiluxOne provider, whose endpoint comes from
- * configuration.
+ * chunked upload path for large files, whose block PUTs go through the WP HTTP
+ * API and whose final commit is the one cURL handle SyncManager runs.
  */
 class ProviderErrorPathsTest extends TestCase {
 
@@ -213,14 +212,18 @@ class ProviderErrorPathsTest extends TestCase {
 		$this->assertStringContainsString( 'timeout', $p->get_stats( true )['message'] );
 	}
 
-	// ── DiluxOne: chunked (large file) upload, for real ─────
+	// ── DiluxOne: chunked (large file) upload ───────────────
 
-	public function test_chunked_upload_sends_every_block_and_hands_back_the_commit_handle(): void {
-		$this->script( fn() => self::raw( 200 ) ); // only the SAS call goes through WP HTTP
-		$p    = $this->diluxone( self::$server->base_url . '/c' );
+	public function test_chunked_upload_puts_every_block_and_hands_back_the_commit_handle(): void {
+		$this->script( fn() => self::raw( 201 ) );
+		$p    = $this->diluxone();
 		$file = $this->tmp( 5 * 1024 * 1024 ); // two 4 MB blocks
 		$r    = $p->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin', 'size' => filesize( $file ) ) );
 		$this->assertTrue( $r['success'], $r['error'] ?? '' );
+		$blocks = array_values( array_filter( $this->blobCalls(), fn( $c ) => strpos( $c['url'], 'comp=block&' ) !== false ) );
+		$this->assertCount( 2, $blocks, 'one request per 4 MB block, through the HTTP API' );
+		$this->assertSame( 'PUT', $blocks[0]['method'] );
+		$this->assertSame( 4194304, strlen( $blocks[0]['args']['body'] ) );
 		$this->assertTrue( $r['handle'] instanceof \CurlHandle || is_resource( $r['handle'] ) );
 		$this->assertNull( $r['file_handle'] );
 		$this->assertStringContainsString( 'comp=blocklist', curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
@@ -228,19 +231,20 @@ class ProviderErrorPathsTest extends TestCase {
 	}
 
 	public function test_chunked_upload_stops_at_the_first_rejected_block(): void {
-		$this->script( fn() => self::raw( 200 ), self::sas( 'status=500' ) ); // the SAS query makes the stand-in answer 500
-		$p    = $this->diluxone( self::$server->base_url . '/c' );
+		$this->script( fn() => self::raw( 500 ) );
+		$p    = $this->diluxone();
 		$file = $this->tmp( 10 );
 		$r    = $p->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/small.bin', 'size' => 10 ) );
 		$this->assertFalse( $r['success'] );
 		$this->assertStringContainsString( 'block 0', $r['error'] );
 		$this->assertStringContainsString( 'HTTP 500', $r['error'] );
+		$this->assertCount( 1, $this->blobCalls(), 'it gives up instead of uploading the rest' );
 		unlink( $file );
 	}
 
 	public function test_chunked_upload_of_a_missing_file_fails_cleanly(): void {
 		$this->script( fn() => self::raw( 200 ) );
-		$r = $this->diluxone( self::$server->base_url )->prepare_chunked_upload_handle( array( 'local_path' => '/nope/x', 'remote_path' => 'x', 'size' => 1 ) );
+		$r = $this->diluxone()->prepare_chunked_upload_handle( array( 'local_path' => '/nope/x', 'remote_path' => 'x', 'size' => 1 ) );
 		$this->assertFalse( $r['success'] );
 	}
 
@@ -424,22 +428,26 @@ class ProviderErrorPathsTest extends TestCase {
 	}
 
 	public function test_azure_chunked_upload_puts_every_block_and_hands_back_the_commit(): void {
-		$p    = $this->azureAt( self::$server->base_url );
+		$GLOBALS['_test_wp_http'] = fn() => self::raw( 201 );
 		$file = $this->tmp( 5 * 1024 * 1024 );
-		$r    = $p->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin', 'size' => filesize( $file ) ) );
+		$r    = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin', 'size' => filesize( $file ) ) );
 		$this->assertTrue( $r['success'], $r['error'] ?? '' );
+		$this->assertCount( 2, $GLOBALS['_test_wp_http_log'], 'one HTTP API request per 4 MB block' );
+		$this->assertStringContainsString( 'comp=block&', $GLOBALS['_test_wp_http_log'][0]['url'] );
+		$this->assertArrayHasKey( 'Authorization', $GLOBALS['_test_wp_http_log'][0]['args']['headers'] );
 		$this->assertStringContainsString( 'comp=blocklist', curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
 		$this->assertNull( $r['file_handle'] );
 		unlink( $file );
 	}
 
 	public function test_azure_chunked_upload_stops_at_the_first_rejected_block(): void {
-		$p    = $this->azureAt( self::$server->base_url, 'status-500' );
+		$GLOBALS['_test_wp_http'] = fn() => self::raw( 500, 'nope' );
 		$file = $this->tmp( 10 );
-		$r    = $p->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/small.bin', 'size' => 10 ) );
+		$r    = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/small.bin', 'size' => 10 ) );
 		$this->assertFalse( $r['success'] );
 		$this->assertStringContainsString( 'block 0', $r['error'] );
 		$this->assertStringContainsString( 'HTTP 500', $r['error'] );
+		$this->assertStringContainsString( 'nope', $r['error'], 'the body is quoted back' );
 		unlink( $file );
 	}
 
@@ -502,12 +510,8 @@ class ProviderErrorPathsTest extends TestCase {
 		return array( 'azure' => array( 'azure' ), 'diluxone' => array( 'diluxone' ) );
 	}
 
-	private function chunkedProvider( string $which, string $endpoint ) {
-		if ( $which === 'azure' ) {
-			return $this->azureAt( $endpoint );
-		}
-		$this->script( fn() => self::raw( 200 ) );
-		return $this->diluxone( $endpoint . '/c' );
+	private function chunkedProvider( string $which ) {
+		return $which === 'azure' ? $this->azure() : $this->diluxone();
 	}
 
 	/** @dataProvider providersWithChunkedUpload */
@@ -517,7 +521,8 @@ class ProviderErrorPathsTest extends TestCase {
 		}
 		$file = $this->tmp( 10 );
 		chmod( $file, 0000 );
-		$r = $this->chunkedProvider( $which, self::$server->base_url )->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/x.bin', 'size' => 10 ) );
+		$this->script( fn() => self::raw( 201 ) );
+		$r = $this->chunkedProvider( $which )->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/x.bin', 'size' => 10 ) );
 		chmod( $file, 0600 );
 		unlink( $file );
 		$this->assertFalse( $r['success'] );
@@ -526,16 +531,18 @@ class ProviderErrorPathsTest extends TestCase {
 
 	/** @dataProvider providersWithChunkedUpload */
 	public function test_chunked_upload_of_an_empty_file_commits_an_empty_block_list( string $which ): void {
+		$this->script( fn() => self::raw( 201 ) );
 		$file = $this->tmp( 0 );
-		$r    = $this->chunkedProvider( $which, self::$server->base_url )->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/empty.bin', 'size' => 0 ) );
+		$r    = $this->chunkedProvider( $which )->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/empty.bin', 'size' => 0 ) );
 		unlink( $file );
 		$this->assertTrue( $r['success'], $r['error'] ?? '' );
 	}
 
 	/** @dataProvider providersWithChunkedUpload */
-	public function test_chunked_upload_reports_the_curl_error_when_nothing_listens( string $which ): void {
+	public function test_chunked_upload_reports_a_transport_error( string $which ): void {
+		$this->script( fn() => new \WP_Error( 'http_request_failed', 'Failed to connect' ) );
 		$file = $this->tmp( 10 );
-		$r    = $this->chunkedProvider( $which, 'http://127.0.0.1:1' )->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/x.bin', 'size' => 10 ) );
+		$r    = $this->chunkedProvider( $which )->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/x.bin', 'size' => 10 ) );
 		unlink( $file );
 		$this->assertFalse( $r['success'] );
 		$this->assertStringContainsString( 'Failed to connect', $r['error'] );

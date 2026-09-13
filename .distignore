@@ -47,6 +47,9 @@ psalm.xml.dist
 psalm-baseline.xml
 .psalm
 
+# End-to-end test runner configuration (the specs live in tests/)
+playwright.config.ts
+
 # Tests and test artifacts
 phpunit.xml
 phpunit.xml.dist

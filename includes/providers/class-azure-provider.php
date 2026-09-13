@@ -4,15 +4,15 @@
  *
  * Talks to the Azure Blob REST API with a shared-key signature.
  *
- * cURL is confined to the parallel/streaming transfer path:
- * prepare_batch_upload_handle(), prepare_chunked_upload_handle() and
- * prepare_download_handle() build raw handles that SyncManager drives through
- * curl_multi_*, so many files move at once and multi-GB bodies stream from a
- * file handle instead of being buffered in PHP memory. The WP HTTP API has no
- * equivalent: it offers no streamed request body and no parallel transport.
- * Every other operation in this class — auth, metadata, existence checks,
- * checksums, delete, copy, single-file upload and download — goes through
- * wp_remote_*.
+ * cURL is confined to the parallel/streaming transfer path. No request is
+ * executed here: prepare_batch_upload_handle(), prepare_chunked_upload_handle()
+ * and prepare_download_handle() only build the handles that SyncManager then
+ * runs through curl_multi_*, so many files move at once and multi-GB bodies
+ * stream from a file handle instead of being buffered in PHP memory. The WP
+ * HTTP API has no equivalent: it offers no streamed request body and no
+ * parallel transport. Everything else — auth, metadata, existence checks,
+ * checksums, delete, copy, single-file upload and download, and each block of
+ * a chunked upload — goes through wp_remote_*.
  *
  * The fopen/fread/fclose/file_get_contents calls operate on the local temp
  * files feeding those transfers, not on anything under /wp-content/uploads/,
@@ -22,9 +22,6 @@
  *
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_init
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_setopt_array
- * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_exec
- * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_getinfo
- * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_error
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fopen
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fread
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
@@ -1052,33 +1049,29 @@ class AzureProvider implements CloudStorageClientInterface {
 				$string_to_sign = "PUT\n\n\n{$content_length}\n\n\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$remote_path}\ncomp:block\nblockid:{$block_id}";
 				$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-				$ch = curl_init();
-				curl_setopt_array(
-					$ch,
+				$block_response = wp_remote_request(
+					$url,
 					array(
-						CURLOPT_URL            => $url,
-						CURLOPT_RETURNTRANSFER => true,
-						CURLOPT_CUSTOMREQUEST  => 'PUT',
-						CURLOPT_POSTFIELDS     => $chunk,
-						CURLOPT_HTTPHEADER     => array(
-							'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
-							'Content-Length: ' . $content_length,
-							'x-ms-date: ' . $date,
-							'x-ms-version: 2020-04-08',
+						'method'  => 'PUT',
+						'headers' => array(
+							'Authorization'  => 'SharedKey ' . $this->storage_account . ':' . $signature,
+							'Content-Length' => (string) $content_length,
+							'x-ms-date'      => $date,
+							'x-ms-version'   => '2020-04-08',
 						),
-						CURLOPT_TIMEOUT        => 60,
-						CURLOPT_CONNECTTIMEOUT => 30,
+						'body'    => $chunk,
+						'timeout' => 60,
 					)
 				);
 
-				$response   = curl_exec( $ch );
-				$http_code  = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-				$curl_error = curl_error( $ch );
+				$transport_error = is_wp_error( $block_response ) ? $block_response->get_error_message() : '';
+				$http_code       = is_wp_error( $block_response ) ? 0 : wp_remote_retrieve_response_code( $block_response );
+				$response        = is_wp_error( $block_response ) ? '' : wp_remote_retrieve_body( $block_response );
 				if ( $http_code !== 201 ) {
 					fclose( $fp );
 					$error_msg = "Failed to upload block {$block_index}: HTTP {$http_code}";
-					if ( ! empty( $curl_error ) ) {
-						$error_msg .= " - cURL: {$curl_error}";
+					if ( ! empty( $transport_error ) ) {
+						$error_msg .= " - {$transport_error}";
 					}
 					if ( ! empty( $response ) ) {
 						$error_msg .= ' - Azure Response: ' . substr( (string) $response, 0, 500 );
