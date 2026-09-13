@@ -17,7 +17,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 // All data is prepared by Admin::render_tab_content() — no business logic in templates
 $current_state   = $template_data['current_state'] ?? 'not_configured';
 $is_configured   = $template_data['is_configured'] ?? false;
-$cloud_stats     = $template_data['cloud_stats'] ?? null;
 $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 ?>
 

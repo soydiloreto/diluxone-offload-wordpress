@@ -346,3 +346,99 @@ jQuery(document).ready(function($) {
         initializeDiluxOneOffload();
     }
 });
+/* ---------------------------------------------------------------------------
+ * Loading helper — shared by every tab.
+ *
+ * A panel that needs numbers only the cloud knows renders blurred with a
+ * centred message (see .diluxone-offload-loading), then calls load() to fetch
+ * the real values once the page is already on screen.
+ * ------------------------------------------------------------------------ */
+window.DiluxOneOffloadLoading = ( function ( $ ) {
+	'use strict';
+
+	var PANEL = '.diluxone-offload-loading';
+
+	/**
+	 * Put a value into a field inside a loading panel.
+	 *
+	 * @param {string} selector Element to write into.
+	 * @param {string} value    Text to show.
+	 */
+	function fill( selector, value ) {
+		$( selector ).text( value );
+	}
+
+	/**
+	 * Reveal a panel: drop the blur and hide its overlay.
+	 */
+	function done() {
+		$( PANEL ).removeClass( 'diluxone-offload-loading' ).attr( 'aria-busy', 'false' );
+		$( PANEL ).find( '.diluxone-offload-loading-overlay' ).hide();
+	}
+
+	/**
+	 * Leave the panel readable but show what went wrong.
+	 *
+	 * @param {string} message Short text to show in place of the spinner.
+	 */
+	function fail( message ) {
+		$( PANEL ).find( '.spinner' ).removeClass( 'is-active' );
+		$( PANEL ).find( '.diluxone-offload-loading-overlay p' ).first()
+			.css( 'color', '#d63638' )
+			.text( message );
+		$( PANEL ).find( '.diluxone-offload-loading-hint' ).remove();
+	}
+
+	/**
+	 * Fetch cloud stats and hand them to the caller.
+	 *
+	 * Only runs when a loading panel is actually on the page: if the server
+	 * rendered real numbers from a warm cache there is nothing to fetch, and
+	 * asking again would pay the full container listing for no reason.
+	 *
+	 * @param {Object}   opts           Options.
+	 * @param {Function} opts.onData    Called with the stats payload.
+	 * @param {Function} [opts.onError] Called with a message when it fails.
+	 * @param {boolean}  [opts.force]   Fetch even with no loading panel present.
+	 */
+	function load( opts ) {
+		opts = opts || {};
+
+		if ( ! opts.force && ! $( PANEL ).length ) {
+			return;
+		}
+
+		$.ajax( {
+			url: window.ajaxurl || diluxOneOffloadAdmin.ajaxUrl,
+			type: 'POST',
+			data: {
+				action: 'diluxone_offload_refresh_stats',
+				nonce: diluxOneOffloadAdmin.nonce
+			},
+			timeout: 120000
+		} ).done( function ( response ) {
+			if ( response && response.success ) {
+				if ( typeof opts.onData === 'function' ) {
+					opts.onData( response.data || {} );
+				}
+				done();
+				return;
+			}
+			var msg = ( response && response.data && response.data.message ) || 'Error';
+			if ( typeof opts.onError === 'function' ) {
+				opts.onError( msg );
+			} else {
+				fail( msg );
+			}
+		} ).fail( function ( xhr, status ) {
+			var msg = status === 'timeout' ? 'Timed out' : 'Network error';
+			if ( typeof opts.onError === 'function' ) {
+				opts.onError( msg );
+			} else {
+				fail( msg );
+			}
+		} );
+	}
+
+	return { fill: fill, done: done, fail: fail, load: load };
+}( jQuery ) );

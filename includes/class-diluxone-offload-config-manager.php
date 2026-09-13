@@ -475,6 +475,47 @@ class ConfigManager {
 	}
 
 	/**
+	 * Transient each provider caches its usage stats under.
+	 *
+	 * Kept here, not in the providers, because the admin needs to read the
+	 * cached value without instantiating a client — see get_cached_cloud_stats().
+	 */
+	const STATS_TRANSIENTS = array(
+		'azure'    => 'diluxone_offload_azure_stats',
+		'diluxone' => 'diluxone_offload_stats',
+	);
+
+	/**
+	 * Cloud usage stats, but only if they are already cached.
+	 *
+	 * Fetching them costs a full container listing — 12 seconds against a
+	 * container with ~14k blobs, and it grows with the library. Doing that
+	 * while rendering an admin page means the page does not paint until the
+	 * cloud answers, which is what made Overview and Cloud Provider feel hung.
+	 *
+	 * So page rendering calls this, never the provider: it returns what is in
+	 * the transient or null, and never touches the network. On null the
+	 * template paints a skeleton and the browser asks for the real numbers
+	 * through the refresh_stats AJAX endpoint.
+	 *
+	 * @return array<string, mixed>|null Cached stats payload, or null when nothing is cached.
+	 */
+	public static function get_cached_cloud_stats(): ?array {
+		$provider = self::get_config()['cloud_provider'] ?? '';
+
+		if ( ! isset( self::STATS_TRANSIENTS[ $provider ] ) ) {
+			return null;
+		}
+
+		$cached = get_transient( self::STATS_TRANSIENTS[ $provider ] );
+
+		return $cached === false ? null : array(
+			'success' => true,
+			'data'    => $cached,
+		);
+	}
+
+	/**
 	 * Get cloud storage client instance
 	 *
 	 * @return \DiluxOneOffload\Interfaces\CloudStorageClientInterface|null

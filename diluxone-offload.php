@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: DiluxOne Offload – Multi-Cloud Media Storage (Azure, AWS, GCP)
- * Description: Move your WordPress media to Azure Blob Storage, Amazon S3, Google Cloud Storage or DiluxOne Cloud and serve it from there. Replaces the /uploads/ directory transparently, via PHP stream wrappers.
+ * Plugin Name: DiluxOne Offload – Multi-Cloud Media Storage
+ * Description: Move your WordPress media to cloud object storage and serve it from there. Replaces the /uploads/ directory transparently, via PHP stream wrappers.
  * Version: 1.0.0
  * Author: Pablo Ariel Di Loreto
  * Author URI: https://diluxone.com/
