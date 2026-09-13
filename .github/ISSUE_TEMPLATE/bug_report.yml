@@ -64,8 +64,6 @@ body:
       label: Cloud provider in use
       options:
         - Azure Blob Storage
-        - DiluxOne Cloud
-        - Both / multiple
         - None / not applicable
         - Other
     validations:

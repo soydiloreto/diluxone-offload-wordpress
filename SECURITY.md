@@ -47,7 +47,7 @@ The following are **not** considered security vulnerabilities for the purposes o
 
 - Issues that require physical access to the server.
 - Issues that require an already-compromised WordPress admin account.
-- Vulnerabilities in third-party services (Azure, DiluxOne Cloud, etc.) — please report those to the respective vendor.
+- Vulnerabilities in third-party services (Azure, etc.) — please report those to the respective vendor.
 - Best-practice deviations without a concrete attack path.
 
 Thanks for helping keep DiluxOne Offload and its users safe.

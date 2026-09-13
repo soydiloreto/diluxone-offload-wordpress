@@ -1,6 +1,6 @@
 # DiluxOne Offload
 
-> Offload WordPress media to cloud object storage (Azure Blob, DiluxOne Cloud) with a transparent PHP stream wrapper — no URL rewriting, no database migration.
+> Offload WordPress media to cloud object storage (Azure Blob) with a transparent PHP stream wrapper — no URL rewriting, no database migration.
 
 [![License: GPL v2+](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 
@@ -74,7 +74,7 @@ This plugin is **free and open-source software** under the GPL-2.0-or-later lice
 
 It was created and is currently maintained by **Pablo Diloreto** ([@soydiloreto](https://github.com/soydiloreto)). Contributions, issues, and forks are all welcome.
 
-The plugin ships with two cloud-storage backends: a generic **Azure Blob Storage** integration that you can point at any Azure account you control, and an integration with **DiluxOne Cloud**, a paid managed offering. Both backends use the same plugin code and the same stream wrapper — using the DiluxOne backend is one option among several; the plugin is fully usable end-to-end with Azure (or any future provider) and never disables features behind a paywall. The whole point of writing this open is so that it isn't necessary to use any specific backend.
+The plugin ships with one cloud-storage backend: a generic **Azure Blob Storage** integration that you can point at any Azure account you control. Nothing is held back — there is no paid tier, no feature disabled behind a paywall, and no backend you are steered towards. Any provider added later goes through the same stream wrapper and the same plugin code, so the plugin stays fully usable end-to-end with whichever one you choose. The whole point of writing this open is so that it isn't necessary to use any specific backend.
 
 ## License
 

@@ -43,7 +43,6 @@ How did you verify this works? Be specific.
 - [ ] Manually tested on a local WordPress install
 - [ ] CI checks pass (PHP lint, Plugin Check, readme validation)
 - [ ] Tested with Azure Blob Storage provider
-- [ ] Tested with DiluxOne Cloud provider
 - [ ] Tested on multisite (if relevant)
 
 ## Checklist

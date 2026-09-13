@@ -15,11 +15,9 @@ the project's existing patterns over textbook WordPress patterns.
 ## What this repo is
 
 WordPress plugin that offloads media files to cloud object storage and
-serves them back transparently. Two providers ship today: **Azure Blob
-Storage** (bring your own credentials) and **DiluxOne Cloud** (managed,
-paid). The plugin is GPL-2.0-or-later, free for both providers, and the
-DiluxOne paid tier exists only as a convenience for users who don't want
-to manage their own cloud account.
+serves them back transparently. One provider ships today: **Azure Blob
+Storage** (bring your own credentials). The plugin is GPL-2.0-or-later
+with no paid tier and no feature held back.
 
 **The plugin's distinguishing technical decision** is the use of a PHP
 **stream wrapper** to intercept every read and write to
