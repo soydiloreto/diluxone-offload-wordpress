@@ -155,3 +155,8 @@ First public release.
 * Verbose debug logging toggle in Settings (errors always log; info and debug respect the toggle).
 * Provider credentials encrypted at rest with AES-256-GCM using a key derived from the site's WordPress salts.
 * Translations included for es_AR, es_ES, es_MX, pt_BR, pt_PT, fr_FR, de_DE and it_IT.
+
+== Upgrade Notice ==
+
+= 1.0.0 =
+First public release.
