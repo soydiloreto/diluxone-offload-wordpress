@@ -16,26 +16,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Validation Helper
  *
- * Centraliza TODAS las validaciones para operaciones de sync
- * Se llama 2 veces por operación:
- * 1. Pre-check: Antes de mostrar modal con opciones
- * 2. Execution-check: Antes de ejecutar la acción (después de que usuario confirme)
+ * The single place every sync operation is validated. It runs twice per
+ * operation:
+ * 1. Pre-check: before the modal with the options is shown.
+ * 2. Execution-check: before the action runs, once the user has confirmed.
  *
- * Esto previene race conditions cuando el usuario tarda en confirmar
+ * Running it twice is what keeps a slow confirmation from racing another tab.
  */
 class ValidationHelper {
 
 	/**
-	 * Valida si se puede ejecutar una operación sync
+	 * Decide whether a sync operation may run.
 	 *
-	 * @param string $requesting_session_id ID de sesión del tab que solicita
-	 * @param string $operation_type Tipo de operación: 'start_sync', 'retry_failed', 'clear_and_enable', 'enable_offloading', 'disconnect', 'cancel_sync'
+	 * @param string $requesting_session_id Session id of the tab asking.
+	 * @param string $operation_type One of: 'start_sync', 'retry_failed', 'clear_and_enable', 'enable_offloading', 'disconnect', 'cancel_sync'.
 	 * @return array<string, mixed> ['passed' => bool, 'reason' => string, 'details' => array]
 	 */
 	public static function validate_sync_operation( $requesting_session_id, $operation_type ) {
 		Logger::debug( '[DiluxOne Offload Validation] Validating operation: ' . $operation_type . ' from session: ' . $requesting_session_id );
 
-		// 1. Multi-tab check (aplica a operaciones que modifican sync)
+		// 1. Multi-tab check (only for operations that change the sync).
 		if ( self::requires_multi_tab_check( $operation_type ) ) {
 			$multi_tab_result = self::validate_multi_tab( $requesting_session_id );
 			if ( ! $multi_tab_result['passed'] ) {
@@ -49,13 +49,13 @@ class ValidationHelper {
 			return $state_result;
 		}
 
-		// 3. Files check (específico por operación)
+		// 3. Files check (per operation).
 		$files_result = self::validate_files_state( $operation_type );
 		if ( ! $files_result['passed'] ) {
 			return $files_result;
 		}
 
-		// ✅ Todas las validaciones pasaron
+		// Everything passed.
 		Logger::info( '[DiluxOne Offload Validation] All validations PASSED for operation: ' . $operation_type );
 		return array(
 			'passed'  => true,
@@ -65,7 +65,7 @@ class ValidationHelper {
 	}
 
 	/**
-	 * Determina si la operación requiere validación multi-tab
+	 * Whether the operation needs the multi-tab check.
 	 *
 	 * @param mixed $operation_type
 	 * @return bool
@@ -79,14 +79,14 @@ class ValidationHelper {
 				'clear_and_enable',
 				'disconnect',
 				'prepare_resync',
-				'cancel_sync', // ⭐ Reset Sync también necesita validación multi-tab
+				'cancel_sync', // Reset Sync needs the multi-tab check too.
 			),
 			true
 		);
 	}
 
 	/**
-	 * Valida que no haya otro tab controlando la sync
+	 * Check that no other browser tab is driving the sync.
 	 *
 	 * @param mixed $requesting_session_id
 	 * @return array<string, mixed>
@@ -95,7 +95,7 @@ class ValidationHelper {
 		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
 
 		if ( empty( $sync_meta ) ) {
-			// No hay sync activa → OK
+			// No sync running: nothing to collide with.
 			return array(
 				'passed'  => true,
 				'reason'  => '',
@@ -108,11 +108,10 @@ class ValidationHelper {
 		$last_heartbeat  = $sync_meta['last_heartbeat'] ?? 0;
 		$is_reverse_sync = $sync_meta['is_reverse_sync'] ?? false;
 
-		// Check si sync está terminada (completed, failed, completed_with_errors)
-		// ⭐ FIX: Mover este check ANTES del timeout para evitar limpiar sync completadas
+		// Finished syncs (completed, failed, completed_with_errors) are checked
+		// before the timeout, so a completed sync is never cleaned up as stale.
 		if ( in_array( $status, array( 'completed', 'completed_with_errors', 'failed' ), true ) ) {
-			// Sync terminada → OK
-			// No limpiar aquí, activate_offloading() se encarga de limpiar
+			// Finished: let it through. Clearing it is activate_offloading()'s job.
 			return array(
 				'passed'  => true,
 				'reason'  => '',
@@ -120,13 +119,13 @@ class ValidationHelper {
 			);
 		}
 
-		// ⭐ FIX: Solo verificar heartbeat timeout si hay sync ACTIVA (status='started')
-		// Si status='completed', la sync ya terminó y no debe validarse heartbeat
+		// The heartbeat only matters while a sync is actually running.
 		if ( $status === 'started' ) {
-			// Check timeout (90 segundos sin heartbeat)
+			// 90 seconds without a heartbeat means the tab is gone.
 			$heartbeat_timeout = 90;
 			if ( time() - $last_heartbeat > $heartbeat_timeout ) {
-				// ⭐ FIX: Si es reverse sync, NO cambiar estado (debe permanecer OFFLOADING_ACTIVE)
+				// A reverse sync keeps the plugin in OFFLOADING_ACTIVE: drop the
+				// metadata only.
 				if ( $is_reverse_sync ) {
 					Logger::warning( '[DiluxOne Offload Validation] Reverse sync session expired (no heartbeat for ' . ( time() - $last_heartbeat ) . 's), clearing metadata but preserving OFFLOADING_ACTIVE state' );
 					delete_option( 'diluxone_offload_sync_meta' );
@@ -137,7 +136,7 @@ class ValidationHelper {
 					);
 				}
 
-				// Forward sync expirada → limpiar y resetear a CONFIGURED
+				// A forward sync that died leaves the plugin back at CONFIGURED.
 				Logger::warning( '[DiluxOne Offload Validation] Forward sync session expired (no heartbeat for ' . ( time() - $last_heartbeat ) . 's), cleaning up' );
 				ConfigManager::set_state( PluginState::CONFIGURED );
 				ConfigManager::clear_sync_progress();
@@ -149,9 +148,9 @@ class ValidationHelper {
 			}
 		}
 
-		// Hay sync activa → verificar si este tab es el dueño
+		// A sync is running: only the tab that owns it may act.
 		if ( $active_session !== $requesting_session_id ) {
-			// Otro tab es el dueño → BLOCK
+			// Someone else owns it.
 			Logger::error( '[DiluxOne Offload Validation] FAILED: Another tab is active (active: ' . $active_session . ', requesting: ' . $requesting_session_id . ')' );
 			return array(
 				'passed'  => false,
@@ -160,7 +159,7 @@ class ValidationHelper {
 			);
 		}
 
-		// Este tab es el dueño → OK
+		// This tab owns it.
 		return array(
 			'passed'  => true,
 			'reason'  => '',
@@ -169,7 +168,7 @@ class ValidationHelper {
 	}
 
 	/**
-	 * Valida el estado del plugin según la operación
+	 * Check the plugin state the operation needs.
 	 *
 	 * @param mixed $operation_type
 	 * @return array<string, mixed>
@@ -180,7 +179,7 @@ class ValidationHelper {
 		switch ( $operation_type ) {
 			case 'start_sync':
 			case 'retry_failed':
-				// No se puede iniciar sync si ya está SYNCING
+				// A sync cannot start while one is already running.
 				if ( $current_state === PluginState::SYNCING ) {
 					Logger::error( '[DiluxOne Offload Validation] FAILED: Cannot start sync, state is already SYNCING' );
 					return array(
@@ -192,7 +191,7 @@ class ValidationHelper {
 				break;
 
 			case 'enable_offloading':
-				// Solo se puede activar offloading desde estado SYNCED
+				// Offloading can only be switched on once everything is synced.
 				if ( $current_state !== PluginState::SYNCED ) {
 					Logger::error( '[DiluxOne Offload Validation] FAILED: Cannot enable offloading, state is ' . $current_state . ' (required: SYNCED)' );
 					return array(
@@ -207,7 +206,7 @@ class ValidationHelper {
 				break;
 
 			case 'disconnect':
-				// Solo se puede desconectar desde OFFLOADING_ACTIVE
+				// Disconnecting only makes sense while offloading is active.
 				if ( $current_state !== PluginState::OFFLOADING_ACTIVE ) {
 					Logger::error( '[DiluxOne Offload Validation] FAILED: Cannot disconnect, state is ' . $current_state . ' (required: OFFLOADING_ACTIVE)' );
 					return array(
@@ -230,14 +229,14 @@ class ValidationHelper {
 	}
 
 	/**
-	 * Valida el estado de los archivos según la operación
+	 * Check the tracked files the operation needs.
 	 *
 	 * @param mixed $operation_type
 	 * @return array<string, mixed>
 	 */
 	private static function validate_files_state( $operation_type ): array {
 		if ( $operation_type !== 'enable_offloading' ) {
-			// Otras operaciones no requieren validación de archivos
+			// Every other operation is indifferent to the file table.
 			return array(
 				'passed'  => true,
 				'reason'  => '',
@@ -245,7 +244,7 @@ class ValidationHelper {
 			);
 		}
 
-		// Enable offloading requiere que NO haya archivos failed o pending
+		// Offloading may only start when nothing is pending or failed.
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 		$stats = DiluxOneOffloadDB::get_stats();
 

@@ -685,7 +685,7 @@ class AzureProvider implements CloudStorageClientInterface {
 		$max_retries = 3;
 		$retry_delay = 2; // seconds
 
-		// ⭐ RETRY LOOP: Intenta hasta 3 veces en caso de error
+		// Up to three attempts before giving up.
 		for ( $attempt = 1; $attempt <= $max_retries; $attempt++ ) {
 			try {
 				$files       = array();
@@ -715,7 +715,7 @@ class AzureProvider implements CloudStorageClientInterface {
 						)
 					);
 
-					// ⭐ FIX: Lanzar excepción en vez de break silencioso
+					// Raise instead of breaking out silently with a partial listing.
 					if ( is_wp_error( $response ) ) {
 						$error_msg = $response->get_error_message();
 						Logger::info( '[DiluxOne Offload AzureProvider] list_files error on page ' . $page_number . ', attempt ' . $attempt . ': ' . $error_msg );
@@ -730,7 +730,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 					$body = wp_remote_retrieve_body( $response );
 
-					// ⭐ FIX: Lanzar excepción si respuesta vacía
+					// An empty body is an error, not an empty container.
 					if ( empty( $body ) ) {
 						Logger::info( '[DiluxOne Offload AzureProvider] Empty response body on page ' . $page_number . ', attempt ' . $attempt );
 						throw new \Exception( 'Azure returned empty response on page ' . $page_number );
@@ -739,7 +739,7 @@ class AzureProvider implements CloudStorageClientInterface {
 					// Parse XML response
 					$xml = simplexml_load_string( $body );
 
-					// ⭐ FIX: Lanzar excepción si XML inválido
+					// Unparseable XML is an error too.
 					if ( $xml === false ) {
 						Logger::error( '[DiluxOne Offload AzureProvider] Failed to parse XML on page ' . $page_number . ', attempt ' . $attempt );
 						throw new \Exception( 'Invalid XML response from Azure on page ' . $page_number );
@@ -792,7 +792,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			}
 		}
 
-		// Este código nunca debería ejecutarse, pero por si acaso
+		// Unreachable: the loop above either returns or throws.
 		throw new \Exception( 'Unexpected error in list_files_dto retry loop' );
 	}
 

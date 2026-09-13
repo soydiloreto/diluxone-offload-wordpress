@@ -200,7 +200,7 @@ class SyncManager {
 
 	/**
 	 * Start initial synchronization
-	 * OPTIMIZED: Queue Simple - No guarda files_queue en DB, solo índice
+	 * Only an index is kept in the database; the queue itself is not stored.
 	 *
 	 * @return array ['success' => bool, 'message' => string, 'total_files' => int]
 	 */
@@ -425,8 +425,8 @@ class SyncManager {
 			'last_update'     => time(),
 			'concurrency'     => $this->parallel_uploads, // ⭐ FIXED: Save concurrency level
 			// ⭐ NEW: Session control fields
-			'sync_session_id' => $session_id,  // ID único del tab que controla la sync
-			'last_heartbeat'  => time(),          // Se actualiza cada batch
+			'sync_session_id' => $session_id,  // Id of the tab driving this sync.
+			'last_heartbeat'  => time(),          // Refreshed on every batch.
 		);
 
 		// Save metadata (autoload = false for performance)
@@ -716,7 +716,7 @@ class SyncManager {
 
 	/**
 	 * Retry failed files
-	 * OPTIMIZED: Usa el nuevo formato con transient
+	 * Reads the transient-backed format.
 	 *
 	 * @return array ['success' => bool, 'message' => string]
 	 */
@@ -791,7 +791,7 @@ class SyncManager {
 
 				++$files_passed_filter;
 
-				// Solo loggear cada 1000 archivos procesados para evitar spam
+				// One line every 1000 files: enough to follow, not enough to flood.
 				if ( $files_passed_filter % 1000 === 0 ) {
 					Logger::info( '[DiluxOne Offload SyncManager] Processed ' . $total_files_found . ' files, accepted ' . $files_passed_filter );
 				}
@@ -809,7 +809,7 @@ class SyncManager {
 		Logger::info( '[DiluxOne Offload SyncManager] Total files found by iterator: ' . $total_files_found );
 		Logger::info( '[DiluxOne Offload SyncManager] Files passed filter: ' . $files_passed_filter );
 
-		// Log información sobre archivos filtrados
+		// Report what the filter left out.
 		if ( ! empty( $skip_reasons ) ) {
 			Logger::warning( '[DiluxOne Offload SyncManager] Files skipped by reason:' );
 			foreach ( $skip_reasons as $reason => $count ) {

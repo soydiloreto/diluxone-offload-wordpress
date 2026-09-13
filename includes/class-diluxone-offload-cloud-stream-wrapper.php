@@ -200,9 +200,10 @@ class CloudStreamWrapper {
 		// Update state
 		ConfigManager::set_state( PluginState::OFFLOADING_ACTIVE );
 
-		// ⭐ FIX: Limpiar sync_meta de forward sync completada
-		// No necesitamos metadata de sync forward cuando offloading está activo
-		// Esto previene que validate_multi_tab() vea heartbeat expirado y cambie estado a CONFIGURED
+		// Drop the metadata of a finished forward sync.
+		// It is of no use once offloading is on, and leaving it behind makes
+		// validate_multi_tab() read a dead heartbeat and drop the plugin back
+		// to CONFIGURED.
 		delete_option( 'diluxone_offload_sync_meta' );
 		Logger::debug( '[DiluxOne Offload CloudStreamWrapper] Cleared completed sync metadata' );
 
@@ -537,7 +538,7 @@ class CloudStreamWrapper {
 		} elseif ( strpos( $mode, 'w' ) !== false || strpos( $mode, 'a' ) !== false ) {
 			// Write/Append mode - prepare for writing
 			if ( strpos( $mode, 'a' ) !== false ) {
-				// ⭐ OPTIMIZED: Intenta descargar para append, si falla (404) asume nuevo archivo
+				// Append: try to download first; a 404 simply means a new file.
 				$temp_file = wp_tempnam( $this->path );
 				try {
 					$result = $cloud_client->download_file( $this->path, $temp_file );
@@ -553,7 +554,7 @@ class CloudStreamWrapper {
 					Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_open append exception: ' . $this->path . ' - ' . $e->getMessage() );
 					@unlink( $temp_file );
 				}
-				// Si falla, $this->content queda vacío (nuevo archivo)
+				// On failure $this->content stays empty, i.e. a new file.
 			}
 			return true;
 		}
@@ -1076,15 +1077,14 @@ class CloudStreamWrapper {
 	/**
 	 * Stream wrapper: Check if file exists
 	 *
-	 * ⭐ OPTIMIZED: Asume que existe (confía en la arquitectura)
-	 * No hace HEAD request para verificar.
+	 * Assumes the file is there instead of paying for a HEAD request: the
+	 * caller only asks about paths the plugin itself wrote.
 	 *
 	 * @param string $path
 	 * @return bool
 	 */
 	public function stream_exists( $path ) {
-		// ⭐ OPTIMIZED: Siempre retorna true
-		// Si el archivo fue solicitado, asume que existe
+		// Always true: if something asked for this path, treat it as present.
 		// Evita HEAD request innecesario
 		return true;
 	}

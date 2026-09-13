@@ -93,7 +93,7 @@ class Plugin {
 	 * Initialize new architecture
 	 */
 	private function init_new_architecture(): void {
-		// Comentado para reducir logs
+		// Left out on purpose: it made the log unreadable.
 		// Logger::log('[DiluxOne Offload Plugin] Initializing NEW architecture', 'info');
 
 		// ⭐ Check and update database table if needed
@@ -228,7 +228,7 @@ class Plugin {
 
 		Logger::info( '[DiluxOne Offload AJAX] start_sync - session: ' . $session_id . ', confirmed: ' . $confirmed . ', retry_failed: ' . $retry_failed );
 
-		// ⭐ VALIDACIÓN SIEMPRE (pre-check o execution-check)
+		// Always validate, whether this is the pre-check or the execution-check.
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-validation-helper.php';
 		$validation = ValidationHelper::validate_sync_operation(
 			$session_id,
@@ -236,7 +236,7 @@ class Plugin {
 		);
 
 		if ( ! $validation['passed'] ) {
-			// Validación falló → responder con error específico
+			// Validation failed: say exactly why.
 			Logger::error( '[DiluxOne Offload AJAX] Validation FAILED: ' . $validation['reason'] );
 			wp_send_json_success(
 				array(
@@ -247,10 +247,11 @@ class Plugin {
 			);
 		}
 
-		// ⭐ Validación OK
+		// Validation passed.
 
 		if ( ! $confirmed ) {
-			// PRIMERA VEZ: Pre-check pasó → calcular archivos y pedir confirmación
+			// First call: the pre-check passed, so count the files and ask for
+			// confirmation.
 			Logger::info( '[DiluxOne Offload AJAX] Pre-check PASSED, calculating files...' );
 
 			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
@@ -318,8 +319,8 @@ class Plugin {
 			);
 		}
 
-		// ⭐ SEGUNDA VEZ: Usuario confirmó → ejecutar acción
-		// La validación ya pasó arriba (execution-check)
+		// Second call: the user confirmed and the execution-check above passed,
+		// so run it.
 		Logger::info( '[DiluxOne Offload AJAX] Execution-check PASSED, starting sync...' );
 
 		$concurrency  = isset( $_POST['concurrency'] ) ? intval( wp_unslash( $_POST['concurrency'] ?? '' ) ) : 5;
