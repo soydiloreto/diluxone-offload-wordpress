@@ -1,4 +1,4 @@
-=== DiluxOne Offload – Multi-Cloud Media Storage ===
+=== DiluxOne Offload – Media Storage ===
 Contributors: pablodiloreto
 Tags: media, offload, azure, cloud storage, uploads
 Requires at least: 5.0

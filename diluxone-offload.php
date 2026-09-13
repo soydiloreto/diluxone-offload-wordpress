@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: DiluxOne Offload – Multi-Cloud Media Storage
+ * Plugin Name: DiluxOne Offload – Media Storage
  * Plugin URI: https://github.com/soydiloreto/diluxone-offload-wordpress
  * Description: Move your WordPress media to cloud object storage and serve it from there. Replaces the /uploads/ directory transparently, via PHP stream wrappers.
  * Version: 1.0.0
