@@ -19,8 +19,8 @@ msgstr ""
 
 #. Plugin Name of the plugin
 #: diluxone-offload.php
-msgid "DiluxOne Offload – Multi-Cloud Media Storage"
-msgstr "DiluxOne Offload – Multi-Cloud Media Storage"
+msgid "DiluxOne Offload – Media Storage"
+msgstr "DiluxOne Offload – Media Storage"
 
 #. Plugin URI of the plugin
 #: diluxone-offload.php
