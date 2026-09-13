@@ -128,7 +128,19 @@ class AdminRenderTest extends IntegrationTestCase {
 
     public function test_plugin_name_and_version(): void {
         $this->assertSame('DiluxOne Offload', Admin::plugin_name());
-        $this->assertSame('1.0.0', Admin::get_plugin_version());
+        // Not the literal number: that would have to be edited on every
+        // release, and a test that breaks on a version bump teaches people to
+        // edit it without reading it. The number is already pinned to the
+        // plugin header and readme.txt by the version-alignment check in CI.
+        // What is worth pinning here is the wiring — the admin reports the
+        // plugin's own version rather than a copy that can drift — and that
+        // what it reports is a version at all.
+        $this->assertSame(DILUXONE_OFFLOAD_VERSION, Admin::get_plugin_version());
+        $this->assertMatchesRegularExpression(
+            '/^\d+\.\d+\.\d+(-(dev|alpha|beta|rc)[.0-9]*)?$/',
+            Admin::get_plugin_version(),
+            'the admin reports something that is not a version'
+        );
     }
 
     public function test_init_registers_the_menu_and_the_post_handlers(): void {
