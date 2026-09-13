@@ -195,7 +195,9 @@ class ForwardSyncTest extends IntegrationTestCase {
     public function test_batches_are_capped_by_the_batch_size(): void {
         $this->configure(['allowed_file_types' => 'cap']);
         $sm  = new SyncManager();
-        $cap = (new \ReflectionProperty($sm, 'batch_size'))->getValue($sm);
+        $capProp = new \ReflectionProperty($sm, 'batch_size');
+        $capProp->setAccessible(true);
+        $cap = $capProp->getValue($sm);
         for ($i = 0; $i <= $cap; $i++) {
             $this->fixture("cap/f{$i}.cap", 'c');
         }
@@ -224,7 +226,9 @@ class ForwardSyncTest extends IntegrationTestCase {
     public function test_files_over_the_chunk_threshold_take_the_chunked_upload_path(): void {
         $this->configure(['allowed_file_types' => 'big']);
         $sm        = new SyncManager();
-        $threshold = (new \ReflectionProperty($sm, 'chunked_threshold'))->getValue($sm);
+        $thresholdProp = new \ReflectionProperty($sm, 'chunked_threshold');
+        $thresholdProp->setAccessible(true);
+        $threshold = $thresholdProp->getValue($sm);
         $path      = $this->fixture('big/huge.big', '');
         $fh        = fopen($path, 'w');
         ftruncate($fh, $threshold + 1);
@@ -339,7 +343,9 @@ class ForwardSyncTest extends IntegrationTestCase {
     public function test_a_reverse_round_is_capped_by_the_batch_size(): void {
         ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
         $sm  = new SyncManager();
-        $cap = (new \ReflectionProperty($sm, 'batch_size'))->getValue($sm);
+        $capProp = new \ReflectionProperty($sm, 'batch_size');
+        $capProp->setAccessible(true);
+        $cap = $capProp->getValue($sm);
         for ($i = 0; $i <= $cap; $i++) {
             $this->client->blobs["uploads/cap/f{$i}.bin"] = 'x';
             $this->fixtures[] = $this->base . "/cap/f{$i}.bin";

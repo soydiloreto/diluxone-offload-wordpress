@@ -55,6 +55,7 @@ class StreamWrapperExtrasTest extends TestCase {
 	/** get_cloud_host() memoises per request; tests need a clean slate. */
 	private function resetHostCache(): void {
 		$p = new \ReflectionProperty( CloudStreamWrapper::class, 'cloud_host_cache' );
+		$p->setAccessible( true );
 		$p->setValue( null, null );
 	}
 

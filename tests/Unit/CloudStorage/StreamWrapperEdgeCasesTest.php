@@ -58,6 +58,7 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 	/** The wrapper memoises its client; each test wants a fresh one. */
 	private function resetClient(): void {
 		$p = new \ReflectionProperty( CloudStreamWrapper::class, 'cloud_client' );
+		$p->setAccessible( true );
 		$p->setValue( null, null );
 	}
 

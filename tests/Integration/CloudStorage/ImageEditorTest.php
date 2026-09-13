@@ -107,7 +107,9 @@ class ImageEditorTest extends IntegrationTestCase {
         }
         $editor = new DiluxOneOffload_Image_Editor_Imagick($this->cloudPath());
         $loaded = $editor->load();
-        $temps  = (new \ReflectionProperty($editor, 'temp_files_to_cleanup'))->getValue($editor);
+        $tempsProp = new \ReflectionProperty($editor, 'temp_files_to_cleanup');
+        $tempsProp->setAccessible(true);
+        $temps  = $tempsProp->getValue($editor);
         $this->assertCount(1, $temps, 'one temp copy was made');
         $this->assertSame($this->client->blobs['uploads/2026/09/photo.png'], file_get_contents($temps[0]), 'temp copy holds the blob');
         if (!\Imagick::queryFormats('PNG')) {
