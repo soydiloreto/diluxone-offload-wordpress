@@ -27,7 +27,12 @@ The PHP `Version:` header in `diluxone-offload.php` and the `DILUXONE_OFFLOAD_VE
 
 Why: a developer who clones `main` between releases sees `1.2.0-dev` and immediately knows they're not looking at the published version. Without the suffix, the same clone would show `1.2.0` indistinguishable from the actual published release.
 
-The CI version-alignment rule strips the suffix from the PHP `Version:` header before comparing it to `Stable tag:` so this asymmetry is allowed mid-development. At tag time the suffix is gone and the two values must match exactly — `make release` runs the same check locally.
+The CI version-alignment rule reads the suffix as a statement of intent rather than comparing the two values blindly:
+
+- **With** a pre-release suffix, this is work in progress, so the base version only has to be **at or ahead of** `Stable tag:`. `1.1.0-dev` alongside a published `1.0.0` is the normal state of `main`. Falling *behind* fails — it would mean the plugin claims to be building something wp.org already serves.
+- **Without** a suffix, a release is being prepared and all three markers must agree exactly. `deploy.yml` re-checks the same thing against the git tag.
+
+`make release` runs the strict half locally.
 
 Accepted pre-release suffixes are `-dev`, `-alpha`, `-beta`, `-rc` (optionally followed by `.N`).
 
