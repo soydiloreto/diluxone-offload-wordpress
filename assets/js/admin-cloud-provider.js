@@ -123,7 +123,7 @@ jQuery(document).ready(function($) {
 				}
 			},
 			error: function(xhr, status, error) {
-				alert('Error deleting configuration: ' + error);
+				alert(DiluxOneOffloadProvider.i18n.error_deleting_configuration + ' ' + error);
 				$button.prop('disabled', false).css('opacity', '1');
 				$buttonText.text(DiluxOneOffloadProvider.i18n.yes_delete_configuration);
 				$spinner.hide();
@@ -252,7 +252,7 @@ jQuery(document).ready(function($) {
 				}
 			},
 			error: function(xhr, status, error) {
-				alert('Error saving credentials: ' + error);
+				alert(DiluxOneOffloadProvider.i18n.error_saving_credentials + ' ' + error);
 				$button.prop('disabled', false);
 				$button.html(DiluxOneOffloadProvider.i18n.save);
 			}
