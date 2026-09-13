@@ -71,6 +71,10 @@ class StreamWrapperProviderFailuresTest extends TestCase {
 		$this->assertFalse( @fopen( self::P . '://uploads/x.txt', 'r' ) );
 	}
 
+	public function test_read_write_whose_download_throws_fails_to_open(): void {
+		$this->assertFalse( @fopen( self::P . '://uploads/x.txt', 'r+' ) );
+	}
+
 	public function test_append_whose_download_throws_starts_from_empty(): void {
 		$fh = fopen( self::P . '://uploads/x.txt', 'a' );
 		$this->assertNotFalse( $fh );

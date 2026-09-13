@@ -233,6 +233,35 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 		$this->assertSame( 'from-cloud', file_get_contents( self::P . '://uploads/big.bin' ), 'a second read goes to the cloud' );
 	}
 
+	public function test_read_write_mode_uploads_the_edited_blob_on_close(): void {
+		$GLOBALS['_test_wp_http'] = fn( $m ) => $m === 'GET' ? self::reply( 200, 'hello world' ) : self::reply( 201 );
+		$fh = fopen( self::P . '://uploads/rw.txt', 'r+' );
+		$this->assertSame( 'hello', fread( $fh, 5 ) );
+		fseek( $fh, 6 );
+		fwrite( $fh, 'there' );
+		$this->assertTrue( fflush( $fh ) );
+		fclose( $fh );
+		$puts = array_values( array_filter( $GLOBALS['_test_wp_http_log'], fn( $r ) => $r['method'] === 'PUT' ) );
+		$this->assertCount( 1, $puts, 'flush uploads, close sees the cache and does not repeat it' );
+		$this->assertSame( 'hello there', $puts[0]['args']['body'] );
+	}
+
+	public function test_read_write_mode_on_a_missing_blob_fails_to_open(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 404 );
+		$this->assertFalse( @fopen( self::P . '://uploads/missing.txt', 'r+' ) );
+	}
+
+	public function test_read_write_mode_serves_a_cached_blob_without_a_download(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+		$fh = fopen( self::P . '://uploads/c.txt', 'w' );
+		fwrite( $fh, 'cached' );
+		fclose( $fh );
+		$fh = fopen( self::P . '://uploads/c.txt', 'r+' );
+		$this->assertSame( 'cached', fread( $fh, 10 ) );
+		fclose( $fh );
+		$this->assertCount( 0, array_filter( $GLOBALS['_test_wp_http_log'], fn( $r ) => $r['method'] === 'GET' ) );
+	}
+
 	// ── buffer-backed handles ───────────────────────────────
 
 	public function test_append_plus_reads_back_from_the_write_buffer(): void {

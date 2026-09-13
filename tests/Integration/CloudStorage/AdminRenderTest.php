@@ -7,6 +7,7 @@ use Tests\Integration\LocalBlobServer;
 use DiluxOneOffload\Admin;
 use DiluxOneOffload\ConfigManager;
 use DiluxOneOffload\Enums\PluginState;
+use DiluxOneOffload\DiluxOneOffloadDB as DB;
 use WPAjaxDieContinueException;
 
 /**
@@ -331,7 +332,144 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertNotSame('', Admin::pause_reason_short('something-new'));
     }
 
-    // ── Assets ──────────────────────────────────────────────
+    // ── Template branches ───────────────────────────────────
+
+    public function test_settings_and_provider_tabs_show_the_redirected_notice(): void {
+        foreach (['settings', 'cloud-provider'] as $tab) {
+            $_GET['success'] = 'Saved fine';
+            $html = $this->render($tab);
+            $this->assertStringContainsString('notice-success', $html, $tab);
+            $this->assertStringContainsString('Saved fine', $html, $tab);
+            unset($_GET['success']);
+            $_GET['error'] = 'Went wrong';
+            $html = $this->render($tab);
+            $this->assertStringContainsString('notice-error', $html, $tab);
+            $this->assertStringContainsString('Went wrong', $html, $tab);
+            unset($_GET['error']);
+        }
+    }
+
+    public function test_overview_names_the_azure_account(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->useFakeClient();
+        $html = $this->render('overview');
+        $this->assertStringContainsString('renderacct', $html);
+    }
+
+    private function configureDiluxOne(): void {
+        ConfigManager::save_config(['cloud_provider' => 'diluxone', 'provider_config' => ['api_key' => 'dlx_live_0123456789abcdef', 'cdn_base_url' => 'https://cdn.example.net/c']]);
+        ConfigManager::set_state(PluginState::SYNCED);
+    }
+
+    public function test_provider_tab_masks_the_diluxone_api_key(): void {
+        $this->configureDiluxOne();
+        $this->useFakeClient();
+        $html = $this->render('cloud-provider');
+        $this->assertStringContainsString('dlx_live...cdef', $html);
+        $this->assertStringNotContainsString('dlx_live_0123456789abcdef', $html, 'the key itself is never printed');
+    }
+
+    /** @dataProvider checkedAtAges */
+    public function test_overview_renders_the_diluxone_plan_quota_and_bandwidth(int $age, string $expect): void {
+        $this->configureDiluxOne();
+        $this->useFakeClient();
+        set_transient('diluxone_offload_stats', [
+            'fileCount' => 5, 'storageUsedBytes' => 900, 'storageLimitBytes' => 1000, 'plan' => 'Pro',
+            'bandwidthUsedBytes' => 50, 'bandwidthLimitBytes' => 100, 'quotaExceeded' => true,
+            'storageCheckedAt' => gmdate('c', time() - $age), 'filesByType' => ['images' => 5, 'videos' => 0, 'audio' => 0, 'other' => 0],
+        ], 300);
+        try {
+            $html = $this->render('overview');
+        } finally {
+            delete_transient('diluxone_offload_stats');
+        }
+        $this->assertStringContainsString('Current Plan', $html);
+        $this->assertStringContainsString('Pro', $html);
+        $this->assertStringContainsString('quota-exceeded-warning', $html);
+        $this->assertStringContainsString('stat-bandwidth-section', $html);
+        $this->assertStringContainsString('90%', $html, 'storage percentage');
+        $this->assertStringContainsString($expect, $html);
+    }
+
+    /** @return array<string, array{int,string}> */
+    public function checkedAtAges(): array {
+        return [
+            'just now' => [10, 'just now'],
+            'minutes'  => [600, '10 minutes ago'],
+            'hours'    => [7200, '2 hours ago'],
+            'days'     => [3 * 86400, gmdate('Y', time() - 3 * 86400)],
+        ];
+    }
+
+    public function test_overview_without_limits_shows_plain_usage(): void {
+        $this->configureDiluxOne();
+        $this->useFakeClient();
+        set_transient('diluxone_offload_stats', ['fileCount' => 1, 'storageUsedBytes' => 2048, 'storageLimitBytes' => null, 'plan' => null, 'bandwidthUsedBytes' => 0, 'bandwidthLimitBytes' => null, 'quotaExceeded' => false, 'storageCheckedAt' => null, 'filesByType' => null], 300);
+        try {
+            $html = $this->render('overview');
+        } finally {
+            delete_transient('diluxone_offload_stats');
+        }
+        $this->assertStringContainsString('2 KB', $html);
+        $this->assertStringContainsString('Not available', $html, 'bandwidth without data');
+        $this->assertStringNotContainsString('Current Plan', $html);
+    }
+
+    /** @dataProvider pausedStates */
+    public function test_status_tab_explains_a_paused_plugin(string $state, string $expect): void {
+        $this->configure($state);
+        $this->useFakeClient();
+        update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => '403', 'error_message' => 'x', 'consecutive_failures' => 3, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'azure']);
+        $html = $this->render('status');
+        $this->assertStringContainsString('Paused (', $html);
+        $this->assertStringContainsString($expect, $html);
+    }
+
+    /** @return array<string, array{string,string}> */
+    public function pausedStates(): array {
+        return [
+            'synced'     => [PluginState::SYNCED, 'is-paused'],
+            'offloading' => [PluginState::OFFLOADING_ACTIVE, 'Falling back to local storage'],
+        ];
+    }
+
+    public function test_status_tab_flags_unreadable_credentials(): void {
+        $this->configure(PluginState::SYNCED);
+        update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => 'decrypt_failed', 'error_message' => 'x', 'consecutive_failures' => 1, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'crypto']);
+        $html = $this->render('status');
+        $this->assertStringContainsString('Awaiting Re-entry', $html);
+        $this->assertStringContainsString('Re-enter Credentials', $html);
+    }
+
+    public function test_status_tab_lists_a_custom_domain(): void {
+        ConfigManager::save_config(['cloud_provider' => 'azure', 'provider_config' => ['storage_account' => 'cdnacct', 'container_name' => 'media', 'access_key' => base64_encode(random_bytes(32)), 'custom_domain' => 'https://cdn.example.net']]);
+        ConfigManager::set_state(PluginState::SYNCED);
+        $this->useFakeClient();
+        $html = $this->render('status');
+        $this->assertStringContainsString('Custom Domain', $html);
+        $this->assertStringContainsString('https://cdn.example.net', $html);
+    }
+
+    public function test_sync_tab_offers_to_continue_an_interrupted_sync(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->useFakeClient();
+        DB::add_file('/2026/09/pending.jpg', 10);
+        DB::add_file('/2026/09/done.jpg', 10);
+        DB::mark_synced('/2026/09/done.jpg');
+        $html = $this->render('sync-offloading');
+        $this->assertStringContainsString('Sync Not Completed', $html);
+        $this->assertStringContainsString('start-sync-btn', $html);
+    }
+
+    public function test_sync_tab_with_everything_synced_but_not_finished(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->useFakeClient();
+        DB::add_file('/2026/09/done.jpg', 10);
+        DB::mark_synced('/2026/09/done.jpg');
+        $html = $this->render('sync-offloading');
+        $this->assertStringContainsString('Sync Not Completed', $html);
+    }
+
 
     public function test_assets_are_enqueued_only_on_our_page(): void {
         $GLOBALS['wp_scripts'] = null;

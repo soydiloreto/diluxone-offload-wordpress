@@ -175,4 +175,37 @@ class DbLifecycleTest extends IntegrationTestCase {
         $this->assertSame(1, DB::get_total_count());
         $this->assertNotEmpty($this->row('/2026/01/pending.jpg'));
     }
+    // ── The table is missing ────────────────────────────────
+
+    public function test_every_writer_fails_cleanly_and_every_reader_is_empty_when_the_table_is_gone(): void {
+        global $wpdb;
+        $wpdb->query('DROP TABLE IF EXISTS `' . self::$table_name . '`');
+        $suppressed = $wpdb->suppress_errors(true);
+        try {
+            $this->assertFalse(DB::table_exists());
+            $this->assertFalse(DB::add_file('/x.jpg', 1));
+            $this->assertFalse(DB::add_files_batch([['path' => '/x.jpg', 'size' => 1]]));
+            $this->assertFalse(DB::add_cloud_only_file('/x.jpg', 1));
+            $this->assertFalse(DB::add_cloud_only_files_batch([['path' => '/x.jpg', 'size' => 1]]));
+            $this->assertFalse(DB::mark_synced('/x.jpg'));
+            $this->assertFalse(DB::mark_downloaded('/x.jpg'));
+            $this->assertFalse(DB::update_progress('/x.jpg', 10));
+            $this->assertFalse(DB::increment_error('/x.jpg', 'boom'));
+            $this->assertFalse(DB::set_upload_id('/x.jpg', 'u'));
+            $this->assertSame([], DB::get_pending_files());
+            $this->assertSame([], DB::get_failed_files());
+            $this->assertSame([], DB::get_synced_files());
+            $this->assertSame([], DB::get_deleted_files());
+            $this->assertSame(0, DB::get_total_count());
+            $this->assertSame(0, DB::count_deleted_files());
+            $this->assertFalse(DB::has_pending_files());
+            $this->assertFalse(DB::has_deleted_files());
+            $this->assertTrue(DB::add_files_batch([]), 'an empty batch is a no-op');
+            $this->assertTrue(DB::add_cloud_only_files_batch([]), 'an empty batch is a no-op');
+        } finally {
+            $wpdb->suppress_errors($suppressed);
+            DB::create_files_table();
+        }
+        $this->assertTrue(DB::table_exists(), 'recreated for the tests that follow');
+    }
 }
