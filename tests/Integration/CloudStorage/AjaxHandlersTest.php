@@ -2,8 +2,8 @@
 namespace Tests\Integration\CloudStorage;
 
 use Tests\Integration\IntegrationTestCase;
-use OffloadDlxPlus\ConfigManager;
-use OffloadDlxPlus\Enums\PluginState;
+use DiluxOneOffload\ConfigManager;
+use DiluxOneOffload\Enums\PluginState;
 use WPAjaxDieContinueException;
 
 /**
@@ -61,7 +61,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
         $_POST = [];
 
         $this->expectException(WPAjaxDieContinueException::class);
-        do_action('wp_ajax_offload_dlx_plus_get_sync_state');
+        do_action('wp_ajax_diluxone_offload_get_sync_state');
     }
 
     public function test_ajax_handler_rejects_without_capability(): void {
@@ -78,14 +78,14 @@ class AjaxHandlersTest extends IntegrationTestCase {
 
         // Subscriber CAN create the same nonce — capabilities are
         // verified separately, after the nonce check passes.
-        $nonce = wp_create_nonce('offload_dlx_plus_admin');
+        $nonce = wp_create_nonce('diluxone_offload_admin');
         $_POST['nonce'] = $nonce;
         $_REQUEST['nonce'] = $nonce;
 
         $this->expectException(WPAjaxDieContinueException::class);
 
         try {
-            do_action('wp_ajax_offload_dlx_plus_get_sync_state');
+            do_action('wp_ajax_diluxone_offload_get_sync_state');
         } finally {
             wp_delete_user($subscriber_id);
         }
@@ -95,7 +95,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
         wp_set_current_user($this->admin_user_id);
         ConfigManager::set_state(PluginState::CONFIGURED);
 
-        $nonce = wp_create_nonce('offload_dlx_plus_admin');
+        $nonce = wp_create_nonce('diluxone_offload_admin');
         $_POST['nonce'] = $nonce;
         $_REQUEST['nonce'] = $nonce;
         $_POST['session_id'] = 'test-session-123';
@@ -103,7 +103,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
         ob_start();
         $exception_message = '';
         try {
-            do_action('wp_ajax_offload_dlx_plus_get_sync_state');
+            do_action('wp_ajax_diluxone_offload_get_sync_state');
         } catch (WPAjaxDieContinueException $e) {
             $exception_message = $e->getMessage();
         }
@@ -120,13 +120,13 @@ class AjaxHandlersTest extends IntegrationTestCase {
         // credentials unless the matching connection-test transient
         // is present (proves the user just clicked Test Connection
         // with these credentials and they validated).
-        set_transient('offload_dlx_plus_connection_test_passed_' . $this->admin_user_id, [
+        set_transient('diluxone_offload_connection_test_passed_' . $this->admin_user_id, [
             'account_name'   => 'teststorage',
             'container_name' => 'testcontainer',
             'provider'       => 'azure',
         ], 300);
 
-        $nonce = wp_create_nonce('offload_dlx_plus_admin');
+        $nonce = wp_create_nonce('diluxone_offload_admin');
         $_POST['nonce'] = $nonce;
         $_REQUEST['nonce'] = $nonce;
         $_POST['provider'] = 'azure';
@@ -136,7 +136,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
 
         ob_start();
         try {
-            do_action('wp_ajax_offload_dlx_plus_save_updated_credentials');
+            do_action('wp_ajax_diluxone_offload_save_updated_credentials');
         } catch (WPAjaxDieContinueException $e) {
             // Expected — wp_send_json calls wp_die.
         }
@@ -154,7 +154,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
 
         ConfigManager::set_state(PluginState::CONFIGURED);
 
-        $nonce = wp_create_nonce('offload_dlx_plus_admin');
+        $nonce = wp_create_nonce('diluxone_offload_admin');
         $_POST['nonce'] = $nonce;
         $_REQUEST['nonce'] = $nonce;
         $_POST['session_id'] = 'test-session-456';
@@ -162,7 +162,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
         ob_start();
         $exception_message = '';
         try {
-            do_action('wp_ajax_offload_dlx_plus_start_sync');
+            do_action('wp_ajax_diluxone_offload_start_sync');
         } catch (WPAjaxDieContinueException $e) {
             $exception_message = $e->getMessage();
         }
@@ -172,7 +172,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
         $this->assertNotEmpty($output, 'Handler should produce output');
     }
 
-    public function test_nonce_verification_uses_offload_dlx_plus_admin(): void {
+    public function test_nonce_verification_uses_diluxone_offload_admin(): void {
         wp_set_current_user($this->admin_user_id);
 
         $wrong_nonce = wp_create_nonce('wrong_action');
@@ -180,6 +180,6 @@ class AjaxHandlersTest extends IntegrationTestCase {
         $_REQUEST['nonce'] = $wrong_nonce;
 
         $this->expectException(WPAjaxDieContinueException::class);
-        do_action('wp_ajax_offload_dlx_plus_get_sync_state');
+        do_action('wp_ajax_diluxone_offload_get_sync_state');
     }
 }

@@ -72,7 +72,7 @@ make stan
 
 We run **level 8 (max strictness) with no baseline.** Every type error must be fixed in code, not suppressed. The `szepeviktor/phpstan-wordpress` extension teaches PHPStan about the WordPress API surface so e.g. `wp_remote_get()` returns `array|WP_Error` and `$wpdb->update()` returns `int|false`.
 
-A few constants are declared `dynamicConstantNames` (`OFFLOAD_DLX_PLUS_DEV_MODE`, `OFFLOAD_DLX_PLUS_VERBOSE_LOGGING`, `DILUX_API_URL`, `WP_DEBUG`) so PHPStan does not collapse `if ( OFFLOAD_DLX_PLUS_DEV_MODE )` into "always false" on the bootstrap stub default. Their runtime values are user-controlled (typically from `wp-config.php`).
+A few constants are declared `dynamicConstantNames` (`DILUXONE_OFFLOAD_DEV_MODE`, `DILUXONE_OFFLOAD_VERBOSE_LOGGING`, `DILUX_API_URL`, `WP_DEBUG`) so PHPStan does not collapse `if ( DILUXONE_OFFLOAD_DEV_MODE )` into "always false" on the bootstrap stub default. Their runtime values are user-controlled (typically from `wp-config.php`).
 
 If you find a real type error PHPStan can't see (e.g. PHP extension stubs are missing in CI), use `// @phpstan-ignore-next-line <identifier>` with a comment explaining why. Don't add to a baseline — the project deliberately doesn't have one.
 
@@ -98,7 +98,7 @@ Configuration: [`.github/workflows/i18n-validate.yml`](../.github/workflows/i18n
 make i18n
 ```
 
-The Makefile target runs `wp i18n make-pot` and writes the result to `build/offload-dlx-plus.pot`. The CI workflow does the same and additionally fails the build if any `Warning:` / `Error:` line appears in the output (WP-CLI prints them to stderr but exits 0 even when present, so we capture the output and grep ourselves).
+The Makefile target runs `wp i18n make-pot` and writes the result to `build/diluxone-offload.pot`. The CI workflow does the same and additionally fails the build if any `Warning:` / `Error:` line appears in the output (WP-CLI prints them to stderr but exits 0 even when present, so we capture the output and grep ourselves).
 
 The workflow catches three real classes of bug:
 

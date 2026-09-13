@@ -2,50 +2,58 @@
 /**
  * DiluxOne Cloud Provider
  *
- * Uses SAS tokens for direct Azure Blob Storage access. File transfers can be
- * multi-GB binary blobs and use Azure's Block Blob protocol with streamed bodies
- * (CURLOPT_READFUNCTION / CURLOPT_INFILE). The WP HTTP API does not support
- * streamed request bodies, so cURL is required for the actual file transfer.
- * WP HTTP API IS used for everything else (auth, SAS token, list, delete).
- * Filesystem ops touch local temporary files outside /wp-content/uploads/, so
- * \WP_Filesystem does not apply. These rules are intentionally suppressed
- * file-wide:
+ * Uses SAS tokens for direct Azure Blob Storage access.
+ *
+ * cURL is confined to the parallel/streaming transfer path:
+ * prepare_batch_upload_handle(), prepare_chunked_upload_handle() and
+ * prepare_download_handle() build raw handles that SyncManager drives through
+ * curl_multi_*, so many files move at once and multi-GB bodies stream from a
+ * file handle instead of being buffered in PHP memory. The WP HTTP API has no
+ * equivalent: it offers no streamed request body and no parallel transport.
+ * Every other operation in this class — auth, metadata, existence checks,
+ * checksums, delete, copy, single-file upload and download — goes through
+ * wp_remote_*.
+ *
+ * The fopen/fread/fclose/file_get_contents calls operate on the local temp
+ * files feeding those transfers, not on anything under /wp-content/uploads/,
+ * so \WP_Filesystem does not apply.
+ *
+ * Only the rules below are suppressed, and only because of the above:
  *
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_init
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_setopt_array
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_exec
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_getinfo
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_error
- * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_close
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fopen
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fread
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
- * phpcs:disable WordPress.WP.AlternativeFunctions.unlink_unlink
- * phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged
+ * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+ * phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
  *
  * Architecture:
  *   WordPress Plugin --SAS token--> Azure Blob Storage (direct, no proxy)
  *          |
  *          +-- DiluxOne API (verify + sas-token only, ~1 call/hour)
  *
- * @package OffloadDlxPlus\Providers
+ * @package DiluxOneOffload\Providers
  * @since 1.0.0
  */
 
-namespace OffloadDlxPlus\Providers;
+namespace DiluxOneOffload\Providers;
 
-use OffloadDlxPlus\Interfaces\CloudStorageClientInterface;
-use OffloadDlxPlus\ConfigManager;
-use OffloadDlxPlus\Logger;
-use OffloadDlxPlus\MimeHelper;
-use OffloadDlxPlus\DTOs\FileInfo;
+use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
+use DiluxOneOffload\ConfigManager;
+use DiluxOneOffload\Logger;
+use DiluxOneOffload\MimeHelper;
+use DiluxOneOffload\DTOs\FileInfo;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Dilux One Cloud provider — managed cloud storage backed by the Offload+
+ * DiluxOne Cloud provider — managed cloud storage backed by the DiluxOne Offload
  * One Cloud REST API.
  *
  * All file operations route through https://api.diluxone.com/cloud-storage-wp/v1
@@ -94,7 +102,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 	 * @throws \Exception If token cannot be obtained
 	 */
 	private function get_or_refresh_sas_token(): string {
-		$cached = get_transient( 'offload_dlx_plus_sas_token' );
+		$cached = get_transient( 'diluxone_offload_sas_token' );
 		if ( $cached !== false ) {
 			return $cached;
 		}
@@ -133,7 +141,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 		$expires_in = $body['data']['expiresIn'] ?? 3600;
 
 		// Cache at 83% of expiry (~50 min for 60 min token)
-		set_transient( 'offload_dlx_plus_sas_token', $sas_token, (int) ( $expires_in * 0.83 ) );
+		set_transient( 'diluxone_offload_sas_token', $sas_token, (int) ( $expires_in * 0.83 ) );
 
 		// Update cdn_base_url if provided
 		if ( ! empty( $body['data']['containerUrl'] ) ) {
@@ -150,7 +158,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 	 * @return void
 	 */
 	private function invalidate_sas_token(): void {
-		delete_transient( 'offload_dlx_plus_sas_token' );
+		delete_transient( 'diluxone_offload_sas_token' );
 	}
 
 	/**
@@ -297,7 +305,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 	 */
 	public function get_stats( bool $force_refresh = false ): array {
 		if ( ! $force_refresh ) {
-			$cached = get_transient( 'offload_dlx_plus_stats' );
+			$cached = get_transient( 'diluxone_offload_stats' );
 			if ( $cached !== false ) {
 				return array(
 					'success' => true,
@@ -330,9 +338,9 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 
 			if ( $code !== 200 || ! isset( $body['data'] ) ) {
 				$error = $body['error']['message'] ?? "HTTP $code";
-				delete_transient( 'offload_dlx_plus_stats' );
+				delete_transient( 'diluxone_offload_stats' );
 				$error_code = (string) $code;
-				\OffloadDlxPlus\ConfigManager::record_connection_failure( $error_code, $error, 'stats_refresh' );
+				\DiluxOneOffload\ConfigManager::record_connection_failure( $error_code, $error, 'stats_refresh' );
 				return array(
 					'success' => false,
 					'message' => $error,
@@ -340,7 +348,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 			}
 
 			$data = $body['data'];
-			set_transient( 'offload_dlx_plus_stats', $data, 300 );
+			set_transient( 'diluxone_offload_stats', $data, 300 );
 
 			return array(
 				'success' => true,
@@ -348,8 +356,8 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 			);
 
 		} catch ( \Exception $e ) {
-			delete_transient( 'offload_dlx_plus_stats' );
-			\OffloadDlxPlus\ConfigManager::record_connection_failure( 'exception', $e->getMessage(), 'stats_refresh' );
+			delete_transient( 'diluxone_offload_stats' );
+			\DiluxOneOffload\ConfigManager::record_connection_failure( 'exception', $e->getMessage(), 'stats_refresh' );
 			return array(
 				'success' => false,
 				'message' => $e->getMessage(),
@@ -383,9 +391,8 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 					$path_for_mime = $options['mime_type_from_path'] ?? $local_path;
 					$content_type  = MimeHelper::get_mime_type( $path_for_mime );
 
-					$file_size = filesize( $local_path );
-					$fh        = fopen( $local_path, 'rb' );
-					if ( ! $fh ) {
+					$file_content = file_get_contents( $local_path );
+					if ( $file_content === false ) {
 						return array(
 							'success' => false,
 							'url'     => '',
@@ -393,30 +400,22 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 						);
 					}
 
-					$ch = curl_init();
-					curl_setopt_array(
-						$ch,
+					$response = wp_remote_request(
+						$url,
 						array(
-							CURLOPT_URL            => $url,
-							CURLOPT_RETURNTRANSFER => true,
-							CURLOPT_CUSTOMREQUEST  => 'PUT',
-							CURLOPT_UPLOAD         => true,
-							CURLOPT_INFILE         => $fh,
-							CURLOPT_INFILESIZE     => $file_size,
-							CURLOPT_HTTPHEADER     => array(
-								'Content-Type: ' . $content_type,
-								'x-ms-blob-type: BlockBlob',
-								'x-ms-version: 2020-04-08',
+							'method'  => 'PUT',
+							'headers' => array(
+								'Content-Type'   => $content_type,
+								'x-ms-blob-type' => 'BlockBlob',
+								'x-ms-version'   => '2020-04-08',
 							),
-							CURLOPT_TIMEOUT        => 300,
-							CURLOPT_CONNECTTIMEOUT => 30,
+							'body'    => $file_content,
+							'timeout' => 300,
 						)
 					);
 
-					$response   = curl_exec( $ch );
-					$http_code  = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-					$curl_error = curl_error( $ch );
-					fclose( $fh );
+					$http_code  = is_wp_error( $response ) ? 0 : wp_remote_retrieve_response_code( $response );
+					$curl_error = is_wp_error( $response ) ? $response->get_error_message() : '';
 
 					if ( $http_code === 201 ) {
 						$public_url = $this->get_file_url( $remote_path );
@@ -468,33 +467,20 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 						wp_mkdir_p( $dir );
 					}
 
-					$fh = fopen( $local_path, 'wb' );
-					if ( ! $fh ) {
-						return array(
-							'success' => false,
-							'error'   => 'Failed to open local file for writing',
-						);
-					}
-
-					$ch = curl_init();
-					curl_setopt_array(
-						$ch,
+					// 'stream' writes the body straight to disk, so a large blob
+					// never has to sit in PHP's memory.
+					$response = wp_remote_get(
+						$url,
 						array(
-							CURLOPT_URL            => $url,
-							CURLOPT_RETURNTRANSFER => false,
-							CURLOPT_FILE           => $fh,
-							CURLOPT_HTTPHEADER     => array(
-								'x-ms-version: 2020-04-08',
-							),
-							CURLOPT_TIMEOUT        => 300,
-							CURLOPT_CONNECTTIMEOUT => 30,
+							'headers'  => array( 'x-ms-version' => '2020-04-08' ),
+							'timeout'  => 300,
+							'stream'   => true,
+							'filename' => $local_path,
 						)
 					);
 
-					curl_exec( $ch );
-					$http_code  = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-					$curl_error = curl_error( $ch );
-					fclose( $fh );
+					$http_code  = is_wp_error( $response ) ? 0 : wp_remote_retrieve_response_code( $response );
+					$curl_error = is_wp_error( $response ) ? $response->get_error_message() : '';
 
 					if ( $http_code === 200 ) {
 						return array(
@@ -505,7 +491,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 
 					// Clean up failed download
 					if ( file_exists( $local_path ) ) {
-						@unlink( $local_path );
+						wp_delete_file( $local_path );
 					}
 
 					$error_msg = "Download failed: HTTP $http_code";
@@ -541,23 +527,19 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 					$remote_path = ltrim( $remote_path, '/' );
 					$url         = $this->build_azure_url( $remote_path );
 
-					$ch = curl_init();
-					curl_setopt_array(
-						$ch,
+					$response = wp_remote_head(
+						$url,
 						array(
-							CURLOPT_URL            => $url,
-							CURLOPT_NOBODY         => true,
-							CURLOPT_RETURNTRANSFER => true,
-							CURLOPT_HTTPHEADER     => array(
-								'x-ms-version: 2020-04-08',
-							),
-							CURLOPT_TIMEOUT        => 30,
-							CURLOPT_CONNECTTIMEOUT => 15,
+							'headers' => array( 'x-ms-version' => '2020-04-08' ),
+							'timeout' => 30,
 						)
 					);
 
-					curl_exec( $ch );
-					$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+					if ( is_wp_error( $response ) ) {
+						throw new \Exception( esc_html( $response->get_error_message() ) );
+					}
+
+					$http_code = wp_remote_retrieve_response_code( $response );
 					if ( $http_code === 403 ) {
 						throw new \Exception( 'HTTP 403' );
 					}
@@ -583,31 +565,27 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 					$remote_path = ltrim( $remote_path, '/' );
 					$url         = $this->build_azure_url( $remote_path );
 
-					$ch = curl_init();
-					curl_setopt_array(
-						$ch,
+					$response = wp_remote_head(
+						$url,
 						array(
-							CURLOPT_URL            => $url,
-							CURLOPT_NOBODY         => true,
-							CURLOPT_RETURNTRANSFER => true,
-							CURLOPT_HEADER         => true,
-							CURLOPT_HTTPHEADER     => array(
-								'x-ms-version: 2020-04-08',
-							),
-							CURLOPT_TIMEOUT        => 30,
-							CURLOPT_CONNECTTIMEOUT => 15,
+							'headers' => array( 'x-ms-version' => '2020-04-08' ),
+							'timeout' => 30,
 						)
 					);
 
-					$response  = curl_exec( $ch );
-					$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+					if ( is_wp_error( $response ) ) {
+						throw new \Exception( esc_html( $response->get_error_message() ) );
+					}
+
+					$http_code = wp_remote_retrieve_response_code( $response );
 					if ( $http_code === 403 ) {
 						throw new \Exception( 'HTTP 403' );
 					}
 
-					if ( $http_code === 200 && $response ) {
-						if ( preg_match( '/Content-MD5:\s*(.+)/i', (string) $response, $matches ) ) {
-							return trim( $matches[1] );
+					if ( $http_code === 200 ) {
+						$md5 = self::header_value( $response, 'content-md5' );
+						if ( $md5 !== null ) {
+							return $md5;
 						}
 					}
 
@@ -632,48 +610,35 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 					$remote_path = ltrim( $remote_path, '/' );
 					$url         = $this->build_azure_url( $remote_path );
 
-					$ch = curl_init();
-					curl_setopt_array(
-						$ch,
+					$response = wp_remote_head(
+						$url,
 						array(
-							CURLOPT_URL            => $url,
-							CURLOPT_NOBODY         => true,
-							CURLOPT_RETURNTRANSFER => true,
-							CURLOPT_HEADER         => true,
-							CURLOPT_HTTPHEADER     => array(
-								'x-ms-version: 2020-04-08',
-							),
-							CURLOPT_TIMEOUT        => 30,
-							CURLOPT_CONNECTTIMEOUT => 15,
+							'headers' => array( 'x-ms-version' => '2020-04-08' ),
+							'timeout' => 30,
 						)
 					);
 
-					$response  = curl_exec( $ch );
-					$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+					if ( is_wp_error( $response ) ) {
+						throw new \Exception( esc_html( $response->get_error_message() ) );
+					}
+
+					$http_code = wp_remote_retrieve_response_code( $response );
 					if ( $http_code === 403 ) {
 						throw new \Exception( 'HTTP 403' );
 					}
 
-					if ( $http_code !== 200 || ! $response ) {
+					if ( $http_code !== 200 ) {
 						return false;
 					}
 
-					$size          = 0;
-					$md5           = null;
-					$last_modified = null;
+					$size = (int) ( self::header_value( $response, 'content-length' ) ?? '0' );
 
-					$body_str = (string) $response;
-					if ( preg_match( '/Content-Length:\s*(\d+)/i', $body_str, $m ) ) {
-						$size = (int) $m[1];
-					}
-					if ( preg_match( '/Content-MD5:\s*(.+)/i', $body_str, $m ) ) {
-						$md5 = trim( $m[1] );
-					}
-					if ( preg_match( '/Last-Modified:\s*(.+)/i', $body_str, $m ) ) {
-						$last_modified = trim( $m[1] );
-					}
-
-					$file_info = new FileInfo( $remote_path, $size, $md5, $last_modified );
+					$file_info = new FileInfo(
+						$remote_path,
+						$size,
+						self::header_value( $response, 'content-md5' ),
+						self::header_value( $response, 'last-modified' )
+					);
 					return $file_info->toArray();
 				}
 			);
@@ -695,24 +660,18 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 					$remote_path = ltrim( $remote_path, '/' );
 					$url         = $this->build_azure_url( $remote_path );
 
-					$ch = curl_init();
-					curl_setopt_array(
-						$ch,
+					$response = wp_remote_request(
+						$url,
 						array(
-							CURLOPT_URL            => $url,
-							CURLOPT_RETURNTRANSFER => true,
-							CURLOPT_CUSTOMREQUEST  => 'DELETE',
-							CURLOPT_HTTPHEADER     => array(
-								'x-ms-version: 2020-04-08',
-							),
-							CURLOPT_TIMEOUT        => 30,
-							CURLOPT_CONNECTTIMEOUT => 15,
+							'method'  => 'DELETE',
+							'headers' => array( 'x-ms-version' => '2020-04-08' ),
+							'timeout' => 30,
 						)
 					);
 
-					curl_exec( $ch );
-					$http_code  = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-					$curl_error = curl_error( $ch );
+					$http_code  = is_wp_error( $response ) ? 0 : wp_remote_retrieve_response_code( $response );
+					$curl_error = is_wp_error( $response ) ? $response->get_error_message() : '';
+
 					if ( $http_code === 202 ) {
 						return array(
 							'success' => true,
@@ -757,26 +716,22 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 					$source_url = $this->build_azure_url( $source_path );
 					$dest_url   = $this->build_azure_url( $dest_path );
 
-					$ch = curl_init();
-					curl_setopt_array(
-						$ch,
+					$response = wp_remote_request(
+						$dest_url,
 						array(
-							CURLOPT_URL            => $dest_url,
-							CURLOPT_RETURNTRANSFER => true,
-							CURLOPT_CUSTOMREQUEST  => 'PUT',
-							CURLOPT_HTTPHEADER     => array(
-								'x-ms-copy-source: ' . $source_url,
-								'x-ms-version: 2020-04-08',
-								'Content-Length: 0',
+							'method'  => 'PUT',
+							'headers' => array(
+								'x-ms-copy-source' => $source_url,
+								'x-ms-version'     => '2020-04-08',
+								'Content-Length'   => '0',
 							),
-							CURLOPT_TIMEOUT        => 30,
-							CURLOPT_CONNECTTIMEOUT => 15,
+							'timeout' => 30,
 						)
 					);
 
-					curl_exec( $ch );
-					$http_code  = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-					$curl_error = curl_error( $ch );
+					$http_code  = is_wp_error( $response ) ? 0 : wp_remote_retrieve_response_code( $response );
+					$curl_error = is_wp_error( $response ) ? $response->get_error_message() : '';
+
 					if ( $http_code === 202 ) {
 						return array(
 							'success' => true,
@@ -810,7 +765,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 	 * @param string $remote_path Prefix filter (default: 'uploads/')
 	 * @return array<string, mixed> Array of file info arrays
 	 *
-	 * @throws \Exception When the Dilux One / Azure REST call fails after all retries.
+	 * @throws \Exception When the DiluxOne / Azure REST call fails after all retries.
 	 */
 	public function list_files( string $remote_path = 'uploads/' ): array {
 		$max_retries = 3;
@@ -851,8 +806,8 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 								throw new \Exception( 'Empty response from Azure' );
 							}
 
-							$xml = @simplexml_load_string( $body );
-							if ( $xml === false ) {
+							$xml = self::parse_xml( $body );
+							if ( $xml === null ) {
 								throw new \Exception( 'Invalid XML response from Azure' );
 							}
 
@@ -885,8 +840,8 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 
 				// Do NOT retry client errors (4xx)
 				if ( $this->is_non_retryable_error( $error_code ) ) {
-					Logger::info( '[Offload+ DiluxOneProvider] Non-retryable error (' . $error_code . '): ' . $e->getMessage() );
-					\OffloadDlxPlus\ConfigManager::record_connection_failure(
+					Logger::info( '[DiluxOne Offload DiluxOneProvider] Non-retryable error (' . $error_code . '): ' . $e->getMessage() );
+					\DiluxOneOffload\ConfigManager::record_connection_failure(
 						$error_code,
 						$e->getMessage(),
 						'list_files'
@@ -895,7 +850,7 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 				}
 
 				if ( $attempt < $max_retries ) {
-					Logger::info( '[Offload+ DiluxOneProvider] list_files attempt ' . $attempt . ' failed, retrying: ' . $e->getMessage() );
+					Logger::info( '[DiluxOne Offload DiluxOneProvider] list_files attempt ' . $attempt . ' failed, retrying: ' . $e->getMessage() );
 					sleep( $retry_delay );
 					continue;
 				}
@@ -1210,5 +1165,56 @@ class DiluxOneCloudProvider implements CloudStorageClientInterface {
 	 */
 	private function is_non_retryable_error( string $error_code ): bool {
 		return in_array( $error_code, array( '400', '401', '403', '404', '409' ), true );
+	}
+
+	/**
+	 * Parse an Azure REST error body without emitting PHP warnings.
+	 *
+	 * Azure returns its error detail as XML, but an error body is not
+	 * guaranteed to be well-formed (proxies and gateways sometimes return
+	 * HTML). libxml's internal error buffer is the supported way to parse
+	 * untrusted XML quietly; the `@` operator would hide real problems too.
+	 *
+	 * @param string $body Raw response body.
+	 * @return \SimpleXMLElement|null Parsed XML, or null when it is not valid XML.
+	 */
+	private static function parse_xml( string $body ): ?\SimpleXMLElement {
+		if ( trim( $body ) === '' ) {
+			return null;
+		}
+
+		$previous = libxml_use_internal_errors( true );
+		$xml      = simplexml_load_string( $body );
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous );
+
+		return $xml === false ? null : $xml;
+	}
+
+	/**
+	 * Read a single response header as a trimmed string.
+	 *
+	 * WordPress returns an array from wp_remote_retrieve_header() when a header
+	 * appears more than once in the response; take the first value in that case
+	 * so callers always get a scalar.
+	 *
+	 * @param array<string, mixed>|\WP_Error $response Response from wp_remote_*.
+	 * @param string                         $header   Header name, lowercase.
+	 * @return string|null Trimmed value, or null when absent or empty.
+	 */
+	private static function header_value( $response, string $header ): ?string {
+		$value = wp_remote_retrieve_header( $response, $header );
+
+		if ( is_array( $value ) ) {
+			$value = reset( $value );
+		}
+
+		if ( ! is_scalar( $value ) ) {
+			return null;
+		}
+
+		$value = trim( (string) $value );
+
+		return $value === '' ? null : $value;
 	}
 }

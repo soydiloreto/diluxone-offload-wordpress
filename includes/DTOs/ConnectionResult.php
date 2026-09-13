@@ -2,10 +2,10 @@
 /**
  * Result envelope for provider connection tests.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus\DTOs;
+namespace DiluxOneOffload\DTOs;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Immutable value object for connection test results
  *
- * @package OffloadDlxPlus\DTOs
+ * @package DiluxOneOffload\DTOs
  * @since 1.0.0
  */
 class ConnectionResult {

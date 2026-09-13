@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-  Psalm configuration for offload-dlx-plus.
+  Psalm configuration for diluxone-offload.
 
   Psalm is used here EXCLUSIVELY for taint analysis: tracking user
   controlled values ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES,
@@ -31,7 +31,7 @@
     <projectFiles>
         <directory name="includes" />
         <directory name="templates" />
-        <file name="offload-dlx-plus.php" />
+        <file name="diluxone-offload.php" />
         <ignoreFiles>
             <directory name="vendor" />
             <directory name="tests" />

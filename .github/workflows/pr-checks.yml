@@ -119,8 +119,8 @@ jobs:
         run: |
           set -e
           stable_tag=$(grep -oP '^Stable tag:\s*\K\S+' readme.txt)
-          php_version=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' offload-dlx-plus.php)
-          define_version=$(grep -oP "OFFLOAD_DLX_PLUS_VERSION',\s*'\K[^']+" offload-dlx-plus.php)
+          php_version=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' diluxone-offload.php)
+          define_version=$(grep -oP "DILUXONE_OFFLOAD_VERSION',\s*'\K[^']+" diluxone-offload.php)
 
           # The PHP `Version:` header may carry a pre-release suffix on `main`
           # while we work toward the next release (e.g. `1.1.0-dev`). Strip the
@@ -131,7 +131,7 @@ jobs:
 
           echo "readme.txt Stable tag:       ${stable_tag}"
           echo "PHP file Version header:     ${php_version}  (base: ${php_base})"
-          echo "PHP file OFFLOAD_DLX_PLUS_VERSION:   ${define_version}"
+          echo "PHP file DILUXONE_OFFLOAD_VERSION:   ${define_version}"
 
           if [ "${stable_tag}" != "${php_base}" ]; then
             echo "::error::Version mismatch — readme.txt Stable tag (${stable_tag}) does not match the base version of the PHP Version header (${php_version}, base ${php_base}). Either update Stable tag, or drop the -dev/-alpha/-rc suffix from Version when preparing a release."
@@ -141,7 +141,7 @@ jobs:
           # The constant must match the PHP header EXACTLY (including any
           # pre-release suffix); they are two views of the same thing.
           if [ "${php_version}" != "${define_version}" ]; then
-            echo "::error file=offload-dlx-plus.php::Version mismatch — PHP Version header (${php_version}) does not match OFFLOAD_DLX_PLUS_VERSION constant (${define_version})."
+            echo "::error file=diluxone-offload.php::Version mismatch — PHP Version header (${php_version}) does not match DILUXONE_OFFLOAD_VERSION constant (${define_version})."
             exit 1
           fi
 

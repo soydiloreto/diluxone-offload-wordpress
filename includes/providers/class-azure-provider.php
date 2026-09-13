@@ -2,41 +2,49 @@
 /**
  * Azure Blob Storage Provider
  *
- * Uploads can be multi-GB binary blobs and use Azure's Block Blob protocol with
- * streamed bodies via CURLOPT_READFUNCTION / CURLOPT_INFILE. The WP HTTP API
- * (wp_remote_*) does not support streamed request bodies, so cURL is required
- * for the actual file transfer here. WP HTTP API IS used for everything else
- * (auth probes, metadata, list, delete). Filesystem operations operate on local
- * temporary files outside /wp-content/uploads/, so \WP_Filesystem does not apply.
- * These rules are intentionally suppressed file-wide:
+ * Talks to the Azure Blob REST API with a shared-key signature.
+ *
+ * cURL is confined to the parallel/streaming transfer path:
+ * prepare_batch_upload_handle(), prepare_chunked_upload_handle() and
+ * prepare_download_handle() build raw handles that SyncManager drives through
+ * curl_multi_*, so many files move at once and multi-GB bodies stream from a
+ * file handle instead of being buffered in PHP memory. The WP HTTP API has no
+ * equivalent: it offers no streamed request body and no parallel transport.
+ * Every other operation in this class — auth, metadata, existence checks,
+ * checksums, delete, copy, single-file upload and download — goes through
+ * wp_remote_*.
+ *
+ * The fopen/fread/fclose/file_get_contents calls operate on the local temp
+ * files feeding those transfers, not on anything under /wp-content/uploads/,
+ * so \WP_Filesystem does not apply.
+ *
+ * Only the rules below are suppressed, and only because of the above:
  *
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_init
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_setopt_array
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_exec
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_getinfo
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_error
- * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_close
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fopen
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fread
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
- * phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged
  *
- * @package OffloadDlxPlus\Providers
+ * @package DiluxOneOffload\Providers
  * @since 1.0.0
  */
 
-namespace OffloadDlxPlus\Providers;
+namespace DiluxOneOffload\Providers;
 
-use OffloadDlxPlus\Interfaces\CloudStorageClientInterface;
-use OffloadDlxPlus\Logger;
-use OffloadDlxPlus\MimeHelper;
-use OffloadDlxPlus\DTOs\AzureConfig;
-use OffloadDlxPlus\DTOs\ConnectionResult;
-use OffloadDlxPlus\DTOs\UploadResult;
-use OffloadDlxPlus\DTOs\OperationResult;
-use OffloadDlxPlus\DTOs\FileInfo;
+use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
+use DiluxOneOffload\Logger;
+use DiluxOneOffload\MimeHelper;
+use DiluxOneOffload\DTOs\AzureConfig;
+use DiluxOneOffload\DTOs\ConnectionResult;
+use DiluxOneOffload\DTOs\UploadResult;
+use DiluxOneOffload\DTOs\OperationResult;
+use DiluxOneOffload\DTOs\FileInfo;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -82,9 +90,9 @@ class AzureProvider implements CloudStorageClientInterface {
 		if ( ! empty( $this->storage_account ) && ! empty( $this->container_name ) && ! empty( $this->access_key ) ) {
 			try {
 				AzureConfig::fromArray( $config );
-				Logger::log( '[Offload+ AzureProvider] Initialized with account: ' . $this->storage_account, 'info' );
+				Logger::log( '[DiluxOne Offload AzureProvider] Initialized with account: ' . $this->storage_account, 'info' );
 			} catch ( \InvalidArgumentException $e ) {
-				Logger::log( '[Offload+ AzureProvider] Invalid config: ' . $e->getMessage(), 'error' );
+				Logger::log( '[DiluxOne Offload AzureProvider] Invalid config: ' . $e->getMessage(), 'error' );
 			}
 		}
 	}
@@ -131,7 +139,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			// Try to extract error message from XML response
 			$error_message = 'Connection failed with status: ' . $response_code;
 			if ( ! empty( $response_body ) ) {
-				$xml = @simplexml_load_string( $response_body );
+				$xml = self::parse_xml( $response_body );
 				if ( $xml && isset( $xml->Message ) ) {
 					$error_message .= ' - ' . (string) $xml->Message;
 				}
@@ -307,7 +315,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			return wp_remote_retrieve_response_code( $response ) === 200;
 
 		} catch ( \Exception $e ) {
-			Logger::info( '[Offload+ AzureProvider] file_exists error: ' . $e->getMessage() );
+			Logger::info( '[DiluxOne Offload AzureProvider] file_exists error: ' . $e->getMessage() );
 			return false;
 		}
 	}
@@ -345,7 +353,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			return false;
 
 		} catch ( \Exception $e ) {
-			Logger::info( '[Offload+ AzureProvider] get_file_checksum error: ' . $e->getMessage() );
+			Logger::info( '[DiluxOne Offload AzureProvider] get_file_checksum error: ' . $e->getMessage() );
 			return false;
 		}
 	}
@@ -400,7 +408,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			return null;
 
 		} catch ( \Exception $e ) {
-			Logger::info( '[Offload+ AzureProvider] get_file_info error: ' . $e->getMessage() );
+			Logger::info( '[DiluxOne Offload AzureProvider] get_file_info error: ' . $e->getMessage() );
 			return null;
 		}
 	}
@@ -554,7 +562,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			// Azure returns 202 (Accepted) for successful copy
 			if ( $response_code === 202 ) {
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-					Logger::info( '[Offload+ AzureProvider] Copy successful: ' . $source_path . ' -> ' . $dest_path );
+					Logger::info( '[DiluxOne Offload AzureProvider] Copy successful: ' . $source_path . ' -> ' . $dest_path );
 				}
 				return OperationResult::success( 'Blob copied successfully' );
 			}
@@ -597,7 +605,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 */
 	public function get_container_stats( bool $force_refresh = false ): array {
 		if ( ! $force_refresh ) {
-			$cached = get_transient( 'offload_dlx_plus_azure_stats' );
+			$cached = get_transient( 'diluxone_offload_azure_stats' );
 			if ( $cached !== false ) {
 				return array(
 					'success' => true,
@@ -645,15 +653,15 @@ class AzureProvider implements CloudStorageClientInterface {
 				'filesByType'        => $files_by_type,
 			);
 
-			set_transient( 'offload_dlx_plus_azure_stats', $data, 300 );
+			set_transient( 'diluxone_offload_azure_stats', $data, 300 );
 			return array(
 				'success' => true,
 				'data'    => $data,
 			);
 
 		} catch ( \Exception $e ) {
-			delete_transient( 'offload_dlx_plus_azure_stats' );
-			\OffloadDlxPlus\ConfigManager::record_connection_failure(
+			delete_transient( 'diluxone_offload_azure_stats' );
+			\DiluxOneOffload\ConfigManager::record_connection_failure(
 				$this->extract_error_code( $e->getMessage() ),
 				$e->getMessage(),
 				'stats_refresh'
@@ -710,7 +718,7 @@ class AzureProvider implements CloudStorageClientInterface {
 					// ⭐ FIX: Lanzar excepción en vez de break silencioso
 					if ( is_wp_error( $response ) ) {
 						$error_msg = $response->get_error_message();
-						Logger::info( '[Offload+ AzureProvider] list_files error on page ' . $page_number . ', attempt ' . $attempt . ': ' . $error_msg );
+						Logger::info( '[DiluxOne Offload AzureProvider] list_files error on page ' . $page_number . ', attempt ' . $attempt . ': ' . $error_msg );
 						throw new \Exception( 'Azure API error on page ' . $page_number . ': ' . $error_msg );
 					}
 
@@ -724,7 +732,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 					// ⭐ FIX: Lanzar excepción si respuesta vacía
 					if ( empty( $body ) ) {
-						Logger::info( '[Offload+ AzureProvider] Empty response body on page ' . $page_number . ', attempt ' . $attempt );
+						Logger::info( '[DiluxOne Offload AzureProvider] Empty response body on page ' . $page_number . ', attempt ' . $attempt );
 						throw new \Exception( 'Azure returned empty response on page ' . $page_number );
 					}
 
@@ -733,7 +741,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 					// ⭐ FIX: Lanzar excepción si XML inválido
 					if ( $xml === false ) {
-						Logger::error( '[Offload+ AzureProvider] Failed to parse XML on page ' . $page_number . ', attempt ' . $attempt );
+						Logger::error( '[DiluxOne Offload AzureProvider] Failed to parse XML on page ' . $page_number . ', attempt ' . $attempt );
 						throw new \Exception( 'Invalid XML response from Azure on page ' . $page_number );
 					}
 
@@ -755,7 +763,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				} while ( $marker !== null );
 
 				// ✅ SUCCESS: Listado completo exitoso
-				Logger::info( '[Offload+ AzureProvider] ✅ Successfully listed ' . count( $files ) . ' files from Azure in ' . $page_number . ' pages (attempt ' . $attempt . ')' );
+				Logger::info( '[DiluxOne Offload AzureProvider] ✅ Successfully listed ' . count( $files ) . ' files from Azure in ' . $page_number . ' pages (attempt ' . $attempt . ')' );
 				return $files;
 
 			} catch ( \Exception $e ) {
@@ -763,8 +771,8 @@ class AzureProvider implements CloudStorageClientInterface {
 
 				// Do NOT retry client errors (4xx) — they won't resolve on retry
 				if ( $this->is_non_retryable_error( $error_code ) ) {
-					Logger::info( '[Offload+ AzureProvider] Non-retryable error (' . $error_code . '): ' . $e->getMessage() );
-					\OffloadDlxPlus\ConfigManager::record_connection_failure(
+					Logger::info( '[DiluxOne Offload AzureProvider] Non-retryable error (' . $error_code . '): ' . $e->getMessage() );
+					\DiluxOneOffload\ConfigManager::record_connection_failure(
 						$error_code,
 						$e->getMessage(),
 						'list_files'
@@ -774,11 +782,11 @@ class AzureProvider implements CloudStorageClientInterface {
 
 				// Only retry server errors (5xx) and network errors
 				if ( $attempt < $max_retries ) {
-					Logger::error( '[Offload+ AzureProvider] Attempt ' . $attempt . ' failed (retryable), retrying in ' . $retry_delay . 's... Error: ' . $e->getMessage() );
+					Logger::error( '[DiluxOne Offload AzureProvider] Attempt ' . $attempt . ' failed (retryable), retrying in ' . $retry_delay . 's... Error: ' . $e->getMessage() );
 					sleep( $retry_delay );
 					continue;
 				} else {
-					Logger::info( '[Offload+ AzureProvider] All ' . $max_retries . ' attempts failed. Last error: ' . $e->getMessage() );
+					Logger::info( '[DiluxOne Offload AzureProvider] All ' . $max_retries . ' attempts failed. Last error: ' . $e->getMessage() );
 					throw new \Exception( 'Failed to list Azure files after ' . esc_html( (string) $max_retries ) . ' attempts: ' . esc_html( $e->getMessage() ) );
 				}
 			}
@@ -1075,7 +1083,7 @@ class AzureProvider implements CloudStorageClientInterface {
 					if ( ! empty( $response ) ) {
 						$error_msg .= ' - Azure Response: ' . substr( (string) $response, 0, 500 );
 					}
-					Logger::info( '[Offload+ AzureProvider] Chunked upload error: ' . $error_msg );
+					Logger::info( '[DiluxOne Offload AzureProvider] Chunked upload error: ' . $error_msg );
 					return array(
 						'success'     => false,
 						'error'       => $error_msg,
@@ -1254,5 +1262,29 @@ class AzureProvider implements CloudStorageClientInterface {
 	 */
 	private function is_non_retryable_error( string $error_code ): bool {
 		return in_array( $error_code, array( '400', '401', '403', '404', '409' ), true );
+	}
+
+	/**
+	 * Parse an Azure REST error body without emitting PHP warnings.
+	 *
+	 * Azure returns its error detail as XML, but an error body is not
+	 * guaranteed to be well-formed (proxies and gateways sometimes return
+	 * HTML). libxml's internal error buffer is the supported way to parse
+	 * untrusted XML quietly; the `@` operator would hide real problems too.
+	 *
+	 * @param string $body Raw response body.
+	 * @return \SimpleXMLElement|null Parsed XML, or null when it is not valid XML.
+	 */
+	private static function parse_xml( string $body ): ?\SimpleXMLElement {
+		if ( trim( $body ) === '' ) {
+			return null;
+		}
+
+		$previous = libxml_use_internal_errors( true );
+		$xml      = simplexml_load_string( $body );
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous );
+
+		return $xml === false ? null : $xml;
 	}
 }

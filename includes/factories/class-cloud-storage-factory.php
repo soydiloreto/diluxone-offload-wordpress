@@ -2,14 +2,14 @@
 /**
  * Factory that instantiates a cloud-storage provider by name.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus\Factories;
+namespace DiluxOneOffload\Factories;
 
-use OffloadDlxPlus\Interfaces\CloudStorageClientInterface;
-use OffloadDlxPlus\Providers\AzureProvider;
-use OffloadDlxPlus\Providers\DiluxOneCloudProvider;
+use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
+use DiluxOneOffload\Providers\AzureProvider;
+use DiluxOneOffload\Providers\DiluxOneCloudProvider;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -59,7 +59,7 @@ class CloudStorageFactory {
 	public static function get_supported_providers() {
 		return array(
 			'diluxone' => array(
-				'name'          => 'Dilux One Cloud (Managed)',
+				'name'          => 'DiluxOne Cloud (Managed)',
 				'implemented'   => true,
 				'config_fields' => array(
 					'api_key' => 'API Key',

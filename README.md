@@ -1,12 +1,12 @@
-# Offload+
+# DiluxOne Offload
 
-> Offload WordPress media to cloud object storage (Azure Blob, Dilux One Cloud) with a transparent PHP stream wrapper — no URL rewriting, no database migration.
+> Offload WordPress media to cloud object storage (Azure Blob, DiluxOne Cloud) with a transparent PHP stream wrapper — no URL rewriting, no database migration.
 
 [![License: GPL v2+](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 
 ## What is this?
 
-Offload+ is a WordPress plugin that moves your media library to cloud object storage and serves files directly from the cloud — without breaking the Media Library UI, third-party plugins, or existing post content.
+DiluxOne Offload is a WordPress plugin that moves your media library to cloud object storage and serves files directly from the cloud — without breaking the Media Library UI, third-party plugins, or existing post content.
 
 It uses a **PHP stream wrapper** to intercept every read and write to `/wp-content/uploads/`, so WordPress, WooCommerce, page builders, image editors, and any plugin that calls standard filesystem functions (`fopen`, `file_get_contents`, `unlink`, etc.) keep working unchanged.
 
@@ -14,7 +14,7 @@ It uses a **PHP stream wrapper** to intercept every read and write to `/wp-conte
 
 If you just want to **install and use** the plugin on your WordPress site, get it from the official directory:
 
-🔗 **[wordpress.org/plugins/offload-dlx-plus](https://wordpress.org/plugins/offload-dlx-plus/)** *(coming soon — pending wp.org review)*
+🔗 **[wordpress.org/plugins/diluxone-offload](https://wordpress.org/plugins/diluxone-offload/)** *(coming soon — pending wp.org review)*
 
 User-facing documentation (features, installation, configuration, FAQ) lives in [`readme.txt`](readme.txt) — that's the version rendered on the wp.org plugin page.
 
@@ -25,13 +25,13 @@ This README and the rest of this repository are aimed at developers who want to 
 ## Quick start (developers)
 
 ```bash
-git clone https://github.com/soydiloreto/offload-dlx-plus.git
-cd offload-dlx-plus
+git clone https://github.com/soydiloreto/diluxone-offload-wordpress.git
+cd diluxone-offload
 make install     # composer install — populate vendor/
 make env         # boots wp-env at http://localhost:8888
 ```
 
-When it finishes, open <http://localhost:8888>. Log in with `admin` / `password`. The plugin is already mounted at `wp-content/plugins/offload-dlx-plus/` — activate it from the **Plugins** screen.
+When it finishes, open <http://localhost:8888>. Log in with `admin` / `password`. The plugin is already mounted at `wp-content/plugins/diluxone-offload/` — activate it from the **Plugins** screen.
 
 `make help` lists every available target. For the full setup walkthrough, the day-to-day commands, the Docker plumbing, and the `wp-env` configuration, see [`docs/development.md`](docs/development.md).
 
@@ -39,7 +39,7 @@ When it finishes, open <http://localhost:8888>. Log in with `admin` / `password`
 
 | Path | What it contains |
 |------|------------------|
-| `offload-dlx-plus.php` | Main plugin file — bootstraps everything and loads `includes/`. |
+| `diluxone-offload.php` | Main plugin file — bootstraps everything and loads `includes/`. |
 | `includes/` | Core PHP classes: config manager, stream wrapper, sync engine, admin pages, REST handlers. |
 | `templates/` | Admin page views (rendered by the admin classes). |
 | `assets/` | Plugin runtime assets — JS, CSS, images bundled with the plugin. |
@@ -74,7 +74,7 @@ This plugin is **free and open-source software** under the GPL-2.0-or-later lice
 
 It was created and is currently maintained by **Pablo Diloreto** ([@soydiloreto](https://github.com/soydiloreto)). Contributions, issues, and forks are all welcome.
 
-The plugin ships with two cloud-storage backends: a generic **Azure Blob Storage** integration that you can point at any Azure account you control, and an integration with **Dilux One Cloud**, a paid managed offering. Both backends use the same plugin code and the same stream wrapper — using the Dilux One backend is one option among several; the plugin is fully usable end-to-end with Azure (or any future provider) and never disables features behind a paywall. The whole point of writing this open is so that it isn't necessary to use any specific backend.
+The plugin ships with two cloud-storage backends: a generic **Azure Blob Storage** integration that you can point at any Azure account you control, and an integration with **DiluxOne Cloud**, a paid managed offering. Both backends use the same plugin code and the same stream wrapper — using the DiluxOne backend is one option among several; the plugin is fully usable end-to-end with Azure (or any future provider) and never disables features behind a paywall. The whole point of writing this open is so that it isn't necessary to use any specific backend.
 
 ## License
 

@@ -2,7 +2,7 @@
 namespace Tests\Integration\CloudStorage;
 
 use Tests\Integration\IntegrationTestCase;
-use OffloadDlxPlus\ConfigManager;
+use DiluxOneOffload\ConfigManager;
 
 /**
  * Integration tests for the connection-health subsystem.
@@ -40,11 +40,11 @@ class ConnectionHealthTest extends IntegrationTestCase {
         // but is not actually decryptable. This bypasses save_config()
         // (which would encrypt for real) and simulates the post-salt-
         // rotation scenario that triggered this idempotency rule.
-        update_option('offload_dlx_plus_config', [
+        update_option('diluxone_offload_config', [
             'cloud_provider' => 'azure',
             'provider_config' => [
                 'storage_account' => 'someacc',
-                'access_key'      => 'OFFLOADDLXPLUSENC1:bm90X2Ffdmxhaml',
+                'access_key'      => 'DILUXONEOFFLOADENC1:bm90X2Ffdmxhaml',
                 'container_name'  => 'somecont',
             ],
         ]);
@@ -85,7 +85,7 @@ class ConnectionHealthTest extends IntegrationTestCase {
 
     public function test_clear_connection_health_removes_the_option_entirely(): void {
         ConfigManager::record_connection_failure('401', 'Unauthorized', 'diluxone');
-        $this->assertNotFalse(get_option('offload_dlx_plus_connection_health', false));
+        $this->assertNotFalse(get_option('diluxone_offload_connection_health', false));
 
         ConfigManager::clear_connection_health();
 
@@ -95,7 +95,7 @@ class ConnectionHealthTest extends IntegrationTestCase {
         // is actually gone (a regression that changed clear() to
         // update_option(defaults) would fail this).
         $this->assertFalse(
-            get_option('offload_dlx_plus_connection_health', false),
+            get_option('diluxone_offload_connection_health', false),
             'clear_connection_health() must delete the wp_options row, not just reset its values.'
         );
 

@@ -1,5 +1,5 @@
 /**
- * Dilux One Cloud Storage Admin JavaScript
+ * DiluxOne Cloud Storage Admin JavaScript
  */
 jQuery(document).ready(function($) {
 
@@ -29,8 +29,8 @@ jQuery(document).ready(function($) {
         
         // Get form data
         var formData = {
-            action: 'offload_dlx_plus_test_connection',
-            nonce: offloadDlxPlusAdmin.nonce,
+            action: 'diluxone_offload_test_connection',
+            nonce: diluxOneOffloadAdmin.nonce,
             account_name: $('#account_name').val(),
             account_key: $('#account_key').val(),
             container_name: $('#container_name').val(),
@@ -53,7 +53,7 @@ jQuery(document).ready(function($) {
         
         // Make AJAX request
         $.ajax({
-            url: offloadDlxPlusAdmin.ajaxUrl,
+            url: diluxOneOffloadAdmin.ajaxUrl,
             type: 'POST',
             data: formData,
             timeout: 30000, // 30 seconds timeout
@@ -170,8 +170,8 @@ jQuery(document).ready(function($) {
             url: ajaxurl,
             type: 'POST',
             data: {
-                action: 'offload_dlx_plus_migration_action',
-                nonce: offloadDlxPlusAdmin.nonce,
+                action: 'diluxone_offload_migration_action',
+                nonce: diluxOneOffloadAdmin.nonce,
                 migration_action: action
             },
             success: function(response) {
@@ -255,8 +255,8 @@ jQuery(document).ready(function($) {
             url: ajaxurl,
             type: 'POST',
             data: {
-                action: 'offload_dlx_plus_test_check',
-                nonce: offloadDlxPlusAdmin.nonce,
+                action: 'diluxone_offload_test_check',
+                nonce: diluxOneOffloadAdmin.nonce,
                 check_type: checkType
             },
             success: function(response) {
@@ -283,7 +283,7 @@ jQuery(document).ready(function($) {
     });
     
     // Auto-refresh status checks every 5 minutes
-    if ($('.offload-dlx-plus-status').length && offloadDlxPlusAdmin.autoRefresh) {
+    if ($('.diluxone-offload-status').length && diluxOneOffloadAdmin.autoRefresh) {
         setInterval(function() {
             location.reload();
         }, 300000); // 5 minutes
@@ -342,7 +342,7 @@ jQuery(document).ready(function($) {
     }
     
     // Initialize any existing functionality
-    if (typeof initializeOffloadDlxPlus === 'function') {
-        initializeOffloadDlxPlus();
+    if (typeof initializeDiluxOneOffload === 'function') {
+        initializeDiluxOneOffload();
     }
 });

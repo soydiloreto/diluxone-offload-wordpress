@@ -8,9 +8,9 @@ body:
       value: |
         Thanks for taking the time to report a bug. Before submitting, please confirm:
 
-        - This is a **defect in the plugin code**, not a usage question (those go to the [wp.org support forum](https://wordpress.org/support/plugin/offload-dlx-plus/)).
-        - This is **not a security vulnerability** (those go to [GitHub Security Advisories](https://github.com/soydiloreto/offload-dlx-plus/security/advisories/new)).
-        - You have searched [existing issues](https://github.com/soydiloreto/offload-dlx-plus/issues?q=is%3Aissue) and this is not a duplicate.
+        - This is a **defect in the plugin code**, not a usage question (those go to the [wp.org support forum](https://wordpress.org/support/plugin/diluxone-offload/)).
+        - This is **not a security vulnerability** (those go to [GitHub Security Advisories](https://github.com/soydiloreto/diluxone-offload-wordpress/security/advisories/new)).
+        - You have searched [existing issues](https://github.com/soydiloreto/diluxone-offload-wordpress/issues?q=is%3Aissue) and this is not a duplicate.
 
   - type: textarea
     id: what-happened
@@ -64,7 +64,7 @@ body:
       label: Cloud provider in use
       options:
         - Azure Blob Storage
-        - Dilux One Cloud
+        - DiluxOne Cloud
         - Both / multiple
         - None / not applicable
         - Other

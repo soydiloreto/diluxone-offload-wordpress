@@ -1,4 +1,4 @@
-# offload-dlx-plus — developer task runner.
+# diluxone-offload — developer task runner.
 #
 # All PHP-based commands run inside the official `composer:2` Docker
 # image by default. That keeps the host clean of plugin-specific PHP
@@ -95,11 +95,11 @@ psalm: ## Psalm taint analysis (XSS / SQLi / RCE).
 	$(PSALM_CMD) --taint-analysis --no-cache --no-progress
 
 .PHONY: i18n
-i18n: ## Generate offload-dlx-plus.pot via WP-CLI.
+i18n: ## Generate diluxone-offload.pot via WP-CLI.
 	mkdir -p build
-	$(WP_CLI) i18n make-pot . build/offload-dlx-plus.pot \
-	    --slug=offload-dlx-plus \
-	    --domain=offload-dlx-plus \
+	$(WP_CLI) i18n make-pot . build/diluxone-offload.pot \
+	    --slug=diluxone-offload \
+	    --domain=diluxone-offload \
 	    --exclude=tests,vendor,node_modules,.wordpress-org,assets,docs,build
 
 # -- Tests -------------------------------------------------------------
@@ -114,6 +114,45 @@ test-unit: ## Run only the unit-test suite (no WordPress runtime).
 test-integration: ## Run integration tests against the wp-env stack (must be `make env` first).
 	$(INTEG) ./vendor/bin/phpunit --testsuite integration
 
+# -- Distribution build ------------------------------------------------
+# The repo directory is diluxone-offload-wordpress (GitHub), but the plugin
+# folder wordpress.org receives must be named after the slug, diluxone-offload:
+# WordPress derives the text domain check from the folder name. `make dist`
+# materialises exactly what ships, under the right name, applying .distignore
+# so the tree has no tests, tooling or repo metadata in it.
+# wp-env mounts ONLY this built copy (see .wp-env.json), never the repo root:
+# mounting both would load the plugin twice and fatal on redeclaration. So
+# after editing source, re-run `make dist` to see it in the local site.
+DIST_DIR := build/diluxone-offload
+
+.PHONY: dist
+dist: ## Build build/diluxone-offload/ — exactly what gets published.
+	@mkdir -p "$(DIST_DIR)"
+	@# --delete, never `rm -rf` the directory itself: wp-env bind-mounts it, and
+	@# replacing the inode leaves the container looking at a mount that is gone.
+	@rsync -a --delete --exclude-from=.distignore --exclude='build' ./ "$(DIST_DIR)/"
+	@echo "✔ Built $(DIST_DIR) ($$(find "$(DIST_DIR)" -type f | wc -l) files)"
+
+# -- Plugin Check (wordpress.org review gate) --------------------------
+# This is the tool the plugin review team runs. PHPCS/WPCS overlaps with it
+# but does not replace it: Plugin Check also enforces readme.txt structure,
+# plugin headers, i18n and directory rules that WPCS knows nothing about.
+#
+# It runs against the built dist, not the working tree. That is the artefact
+# the reviewer actually receives, so there is no exclusion list to drift out
+# of sync with .distignore, and the folder name matches the slug.
+.PHONY: plugin-check
+plugin-check: dist ## Run wordpress.org's Plugin Check on the built dist (needs `make env` first).
+	@npx @wordpress/env run cli wp plugin is-installed plugin-check >/dev/null 2>&1 \
+	  || npx @wordpress/env run cli wp plugin install plugin-check --activate
+	@npx @wordpress/env run cli wp plugin is-active plugin-check >/dev/null 2>&1 \
+	  || npx @wordpress/env run cli wp plugin activate plugin-check
+	npx @wordpress/env run cli wp plugin check diluxone-offload --format=table --severity=5
+
+.PHONY: plugin-check-all
+plugin-check-all: dist ## Plugin Check on the built dist, including warnings and notices.
+	npx @wordpress/env run cli wp plugin check diluxone-offload --format=table
+
 # -- Aggregate ---------------------------------------------------------
 .PHONY: check
 check: lint stan psalm test ## Run every quality gate CI runs (lint, stan, psalm, unit tests).
@@ -122,16 +161,16 @@ check: lint stan psalm test ## Run every quality gate CI runs (lint, stan, psalm
 # -- Local dev environment (wp-env) ------------------------------------
 .PHONY: env env-up
 env: env-up ## Alias of env-up.
-env-up: ## Start the local wp-env Docker stack.
-	npx wp-env start
+env-up: dist ## Start the local wp-env Docker stack.
+	npx @wordpress/env start
 
 .PHONY: env-down
 env-down: ## Stop the local wp-env Docker stack.
-	npx wp-env stop
+	npx @wordpress/env stop
 
 .PHONY: env-clean
 env-clean: ## Destroy the local wp-env Docker stack and its volumes.
-	npx wp-env destroy
+	npx @wordpress/env destroy
 
 # -- Deploy / release --------------------------------------------------
 # The plugin is developed here and tried on a real site. `make deploy-test`
@@ -139,7 +178,7 @@ env-clean: ## Destroy the local wp-env Docker stack and its volumes.
 # ships, so no vendor/, no tests, no tooling — and leaves the site's own
 # files alone. Override SITE= to try it somewhere else.
 SITE ?= $(HOME)/repos/cst-website
-SITE_PLUGIN := $(SITE)/wp-content/plugins/offload-dlx-plus
+SITE_PLUGIN := $(SITE)/wp-content/plugins/diluxone-offload
 
 .PHONY: deploy-test
 deploy-test: ## Copy the working tree into a real site for manual smoke-testing.
@@ -157,7 +196,7 @@ deploy-test: ## Copy the working tree into a real site for manual smoke-testing.
 .PHONY: release
 release: check ## Pre-release validation: full quality gate + version-alignment dry-run.
 	@echo "── version alignment check ─────────────────────────────"
-	@PHP_VERSION=$$(grep -E '^[[:space:]]*\*[[:space:]]*Version:' offload-dlx-plus.php | head -1 | sed -E 's/.*Version:[[:space:]]*//'); \
+	@PHP_VERSION=$$(grep -E '^[[:space:]]*\*[[:space:]]*Version:' diluxone-offload.php | head -1 | sed -E 's/.*Version:[[:space:]]*//'); \
 	 STABLE_TAG=$$(grep -E '^Stable tag:' readme.txt | sed -E 's/Stable tag:[[:space:]]*//'); \
 	 PHP_BASE=$$(echo $$PHP_VERSION | sed -E 's/-(dev|alpha|beta|rc).*$$//'); \
 	 echo "  PHP header Version : $$PHP_VERSION"; \

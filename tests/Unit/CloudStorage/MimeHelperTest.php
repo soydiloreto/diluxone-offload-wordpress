@@ -2,7 +2,7 @@
 namespace Tests\Unit\CloudStorage;
 
 use PHPUnit\Framework\TestCase;
-use OffloadDlxPlus\MimeHelper;
+use DiluxOneOffload\MimeHelper;
 
 /**
  * Unit tests for MimeHelper — extension → MIME type mapping plus the

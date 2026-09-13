@@ -23,18 +23,18 @@ class IntegrationTestCase extends TestCase {
      * @var array<int, string>
      */
     protected static array $plugin_options = [
-        'offload_dlx_plus_config',
-        'offload_dlx_plus_plugin_state',
-        'offload_dlx_plus_sync_meta',
-        'offload_dlx_plus_failed_files',
-        'offload_dlx_plus_connection_health',
+        'diluxone_offload_config',
+        'diluxone_offload_plugin_state',
+        'diluxone_offload_sync_meta',
+        'diluxone_offload_failed_files',
+        'diluxone_offload_connection_health',
     ];
 
     /**
      * @beforeClass
      */
     public static function setUpTableName(): void {
-        self::$table_name = \OffloadDlxPlus\OffloadDlxPlusDB::get_table_name();
+        self::$table_name = \DiluxOneOffload\DiluxOneOffloadDB::get_table_name();
     }
 
     protected function setUp(): void {
@@ -76,7 +76,7 @@ class IntegrationTestCase extends TestCase {
      * @param int    $size File size in bytes.
      */
     protected function addTestFile(string $path, int $size = 1024): bool {
-        return \OffloadDlxPlus\OffloadDlxPlusDB::add_file($path, $size);
+        return \DiluxOneOffload\DiluxOneOffloadDB::add_file($path, $size);
     }
 
     /**

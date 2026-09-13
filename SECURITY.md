@@ -6,7 +6,7 @@
 
 Instead, report the issue privately using **GitHub Security Advisories**:
 
-🔗 **[Open a private security advisory](https://github.com/soydiloreto/offload-dlx-plus/security/advisories/new)**
+🔗 **[Open a private security advisory](https://github.com/soydiloreto/diluxone-offload-wordpress/security/advisories/new)**
 
 This creates a confidential workspace inside the repository where the maintainers and you can discuss the issue, coordinate a fix, and agree on a disclosure timeline. Nothing is public until we both decide it's ready.
 
@@ -47,7 +47,7 @@ The following are **not** considered security vulnerabilities for the purposes o
 
 - Issues that require physical access to the server.
 - Issues that require an already-compromised WordPress admin account.
-- Vulnerabilities in third-party services (Azure, Dilux One Cloud, etc.) — please report those to the respective vendor.
+- Vulnerabilities in third-party services (Azure, DiluxOne Cloud, etc.) — please report those to the respective vendor.
 - Best-practice deviations without a concrete attack path.
 
-Thanks for helping keep Offload+ and its users safe.
+Thanks for helping keep DiluxOne Offload and its users safe.

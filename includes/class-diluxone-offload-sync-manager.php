@@ -31,16 +31,16 @@
  * phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
  * phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_print_r
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus;
+namespace DiluxOneOffload;
 
-use OffloadDlxPlus\Enums\PluginState;
-use OffloadDlxPlus\Enums\SyncStatus;
-use OffloadDlxPlus\DTOs\SyncProgress;
-use OffloadDlxPlus\DTOs\SyncFilter;
-use OffloadDlxPlus\DTOs\SyncResult;
+use DiluxOneOffload\Enums\PluginState;
+use DiluxOneOffload\Enums\SyncStatus;
+use DiluxOneOffload\DTOs\SyncProgress;
+use DiluxOneOffload\DTOs\SyncFilter;
+use DiluxOneOffload\DTOs\SyncResult;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -90,22 +90,22 @@ if ( ! defined( 'ABSPATH' ) ) {
  *    - 100ms delay between batches to let MySQL breathe
  *
  * 8. PERSISTENT FAILED FILES
- *    - Failed uploads stored in DB (offload_dlx_plus_failed_files)
+ *    - Failed uploads stored in DB (diluxone_offload_failed_files)
  *    - Manual retry available via UI
  *    - No data loss on sync interruption
  *
  * DATA STORAGE COMPARISON:
  * ------------------------
  * BEFORE v2.2:
- *   wp_options.offload_dlx_plus_sync_progress = [
+ *   wp_options.diluxone_offload_sync_progress = [
  *     'files_queue' => [5910 files...], // 2-5 MB serialized
  *     'processed_files' => 90
  *   ]
  *   Every batch: 2-5 MB write to MySQL
  *
  * AFTER v2.2:
- *   wp_options._transient_offload_dlx_plus_full_file_list = [6000 files] // Written ONCE
- *   wp_options.offload_dlx_plus_sync_progress = [
+ *   wp_options._transient_diluxone_offload_full_file_list = [6000 files] // Written ONCE
+ *   wp_options.diluxone_offload_sync_progress = [
  *     'last_processed_index' => 90, // Just a number
  *     'processed_files' => 90
  *   ]
@@ -146,7 +146,7 @@ class SyncManager {
 			// Reduced from *10 to *5 for more frequent progress updates
 			$this->batch_size = max( 25, min( 200, $level * 5 ) );
 
-			Logger::info( '[Offload+ Sync] Concurrency set to: ' . $level . ', batch_size: ' . $this->batch_size );
+			Logger::info( '[DiluxOne Offload Sync] Concurrency set to: ' . $level . ', batch_size: ' . $this->batch_size );
 		}
 	}
 
@@ -194,7 +194,7 @@ class SyncManager {
 	 */
 	private function debug_log( $message ): void {
 		if ( $this->is_debug_enabled() ) {
-			Logger::info( '[Offload+ Debug] ' . $message );
+			Logger::info( '[DiluxOne Offload Debug] ' . $message );
 		}
 	}
 
@@ -230,10 +230,10 @@ class SyncManager {
 		}
 
 		// Populate custom DB table
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		// Clear previous scan data
-		OffloadDlxPlusDB::clear_table();
+		DiluxOneOffloadDB::clear_table();
 
 		// Add files to tracking table in batches
 		$batch_files = array();
@@ -246,16 +246,16 @@ class SyncManager {
 			);
 
 			if ( count( $batch_files ) >= 500 ) {
-				OffloadDlxPlusDB::add_files_batch( $batch_files );
+				DiluxOneOffloadDB::add_files_batch( $batch_files );
 				$batch_files = array();
 			}
 		}
 
 		if ( ! empty( $batch_files ) ) {
-			OffloadDlxPlusDB::add_files_batch( $batch_files );
+			DiluxOneOffloadDB::add_files_batch( $batch_files );
 		}
 
-		Logger::info( '[Offload+ SyncManager] Scanned ' . count( $files_to_sync ) . ' files (stored in DB, ready for sync)' );
+		Logger::info( '[DiluxOne Offload SyncManager] Scanned ' . count( $files_to_sync ) . ' files (stored in DB, ready for sync)' );
 
 		return array(
 			'success'     => true,
@@ -273,15 +273,15 @@ class SyncManager {
 	 * the AJAX progress endpoint.
 	 *
 	 * @param bool $retry_failed When true, only re-uploads files marked
-	 *                           failed in OffloadDlxPlusDB; the regular sync queue
+	 *                           failed in DiluxOneOffloadDB; the regular sync queue
 	 *                           is skipped.
 	 * @return array{success:bool,message:string,total_files?:int} Status envelope.
 	 */
 	public function start_sync( $retry_failed = false ) {
-		Logger::info( '[Offload+ SyncManager] start_sync() called with retry_failed=' . ( $retry_failed ? 'true' : 'false' ) );
+		Logger::info( '[DiluxOne Offload SyncManager] start_sync() called with retry_failed=' . ( $retry_failed ? 'true' : 'false' ) );
 
 		$current_state = ConfigManager::get_state();
-		Logger::info( '[Offload+ SyncManager] Current state: ' . $current_state );
+		Logger::info( '[DiluxOne Offload SyncManager] Current state: ' . $current_state );
 
 		// ⭐ SPECIAL: Allow retry from 'synced' state
 		$can_start = $retry_failed
@@ -289,27 +289,27 @@ class SyncManager {
 			: PluginState::can_start_sync( $current_state );
 
 		if ( ! $can_start ) {
-			Logger::error( '[Offload+ SyncManager] Cannot start from state: ' . $current_state );
+			Logger::error( '[DiluxOne Offload SyncManager] Cannot start from state: ' . $current_state );
 			return array(
 				'success' => false,
 				'message' => 'Cannot start sync in current state: ' . $current_state,
 			);
 		}
 
-		Logger::info( '[Offload+ SyncManager] State check passed!' );
+		Logger::info( '[DiluxOne Offload SyncManager] State check passed!' );
 
 		if ( ! $this->cloud_client ) {
-			Logger::info( '[Offload+ SyncManager] Cloud client not configured' );
+			Logger::info( '[DiluxOne Offload SyncManager] Cloud client not configured' );
 			return array(
 				'success' => false,
 				'message' => 'Cloud client not configured',
 			);
 		}
 
-		Logger::info( '[Offload+ SyncManager] Checks passed, loading OffloadDlxPlusDB...' );
+		Logger::info( '[DiluxOne Offload SyncManager] Checks passed, loading DiluxOneOffloadDB...' );
 
 		// ⭐ NEW: Populate custom DB table instead of wp_options
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		$total_files = 0;
 
@@ -318,7 +318,7 @@ class SyncManager {
 		// We need to count them directly instead of using get_stats()
 		if ( $retry_failed ) {
 			global $wpdb;
-			$table_name = OffloadDlxPlusDB::get_table_name();
+			$table_name = DiluxOneOffloadDB::get_table_name();
 
 			// Count ALL failed files (synced=0, regardless of error count after reset)
 			$retry_count = (int) $wpdb->get_var(
@@ -328,7 +328,7 @@ class SyncManager {
             "
 			);
 
-			Logger::info( '[Offload+ SyncManager] RETRY mode: Found ' . $retry_count . ' files to retry (synced=0)' );
+			Logger::info( '[DiluxOne Offload SyncManager] RETRY mode: Found ' . $retry_count . ' files to retry (synced=0)' );
 
 			if ( $retry_count === 0 ) {
 				ConfigManager::set_state( PluginState::SYNCED );
@@ -342,7 +342,7 @@ class SyncManager {
 			$total_files = $retry_count;
 		} else {
 			// NORMAL MODE: Check if DB already has files (for "continue upload" scenario)
-			$db_stats     = OffloadDlxPlusDB::get_stats();
+			$db_stats     = DiluxOneOffloadDB::get_stats();
 			$db_has_files = ( $db_stats['total_files'] ?? 0 ) > 0;
 
 			if ( $db_has_files ) {
@@ -351,13 +351,13 @@ class SyncManager {
 				$pending_files = (int) ( $db_stats['pending_files'] ?? 0 );
 				$total_files   = $pending_files; // Only pending files for this sync session
 
-				Logger::info( '[Offload+ SyncManager] DB stats: ' . print_r( $db_stats, true ) );
-				Logger::info( '[Offload+ SyncManager] Pending files count: ' . $pending_files );
+				Logger::info( '[DiluxOne Offload SyncManager] DB stats: ' . print_r( $db_stats, true ) );
+				Logger::info( '[DiluxOne Offload SyncManager] Pending files count: ' . $pending_files );
 
 				if ( $pending_files === 0 ) {
 					// All files already synced
 					ConfigManager::set_state( PluginState::SYNCED );
-					Logger::info( '[Offload+ SyncManager] No pending files found, marking as SYNCED' );
+					Logger::info( '[DiluxOne Offload SyncManager] No pending files found, marking as SYNCED' );
 					return array(
 						'success'     => true,
 						'message'     => 'All files already synced',
@@ -365,7 +365,7 @@ class SyncManager {
 					);
 				}
 
-				Logger::info( '[Offload+ SyncManager] Continue upload: ' . $pending_files . ' pending files from existing DB' );
+				Logger::info( '[DiluxOne Offload SyncManager] Continue upload: ' . $pending_files . ' pending files from existing DB' );
 			} else {
 				// DB is empty - this is a fresh sync, need to scan files
 				$files_to_sync = $this->scan_files_to_sync( true );
@@ -381,7 +381,7 @@ class SyncManager {
 				}
 
 				// Clear previous sync data
-				OffloadDlxPlusDB::clear_table();
+				DiluxOneOffloadDB::clear_table();
 
 				// Add files to tracking table in batches for better performance
 				$batch_files = array();
@@ -396,18 +396,18 @@ class SyncManager {
 
 					// Insert in batches of 500
 					if ( count( $batch_files ) >= 500 ) {
-						OffloadDlxPlusDB::add_files_batch( $batch_files );
+						DiluxOneOffloadDB::add_files_batch( $batch_files );
 						$batch_files = array();
 					}
 				}
 
 				// Insert remaining files
 				if ( ! empty( $batch_files ) ) {
-					OffloadDlxPlusDB::add_files_batch( $batch_files );
+					DiluxOneOffloadDB::add_files_batch( $batch_files );
 				}
 
 				$total_files = count( $files_to_sync );
-				Logger::info( '[Offload+ SyncManager] Fresh sync: scanned and stored ' . $total_files . ' files in DB' );
+				Logger::info( '[DiluxOne Offload SyncManager] Fresh sync: scanned and stored ' . $total_files . ' files in DB' );
 			}
 		}
 
@@ -430,10 +430,10 @@ class SyncManager {
 		);
 
 		// Save metadata (autoload = false for performance)
-		update_option( 'offload_dlx_plus_sync_meta', $sync_meta, false );
+		update_option( 'diluxone_offload_sync_meta', $sync_meta, false );
 		ConfigManager::set_state( PluginState::SYNCING );
 
-		Logger::info( '[Offload+ SyncManager] Sync started with ' . $total_files . ' files' );
+		Logger::info( '[DiluxOne Offload SyncManager] Sync started with ' . $total_files . ' files' );
 
 		return array(
 			'success'     => true,
@@ -450,17 +450,17 @@ class SyncManager {
 	 * @return array<string, mixed> Progress information
 	 */
 	public function process_batch( $time_limit = 8.0 ) {
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		$start_time          = microtime( true );
 		$uploaded_this_batch = 0;
 		$max_batch_size      = 12 * 1024 * 1024; // 12 MB (Infinite Uploads strategy)
 
 		// Check if sync is active
-		$sync_meta = get_option( 'offload_dlx_plus_sync_meta', array() );
+		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
 
 		if ( empty( $sync_meta ) || $sync_meta['status'] !== 'started' ) {
-			Logger::info( '[Offload+ SyncManager] process_batch() called but no active sync found' );
+			Logger::info( '[DiluxOne Offload SyncManager] process_batch() called but no active sync found' );
 			return array(
 				'status'  => 'error',
 				'message' => 'No active sync found',
@@ -475,7 +475,7 @@ class SyncManager {
 
 		if ( ! empty( $requesting_session_id ) && $requesting_session_id !== $current_session_id ) {
 			// This tab has lost control of the sync
-			Logger::info( '[Offload+ Multi-Tab] Session mismatch: requesting=' . $requesting_session_id . ', current=' . $current_session_id );
+			Logger::info( '[DiluxOne Offload Multi-Tab] Session mismatch: requesting=' . $requesting_session_id . ', current=' . $current_session_id );
 			return array(
 				'status'            => 'session_lost',
 				'message'           => 'Another tab has taken control of the sync',
@@ -485,17 +485,17 @@ class SyncManager {
 
 		// ⭐ NEW: Update heartbeat at the beginning of batch
 		$sync_meta['last_heartbeat'] = time();
-		update_option( 'offload_dlx_plus_sync_meta', $sync_meta, false );
+		update_option( 'diluxone_offload_sync_meta', $sync_meta, false );
 
 		// Process files until time limit or no more files
 		while ( true ) {
 			// Get pending files from DB (up to 1000 files or 12MB)
-			$files = OffloadDlxPlusDB::get_pending_files( 1000, $max_batch_size );
+			$files = DiluxOneOffloadDB::get_pending_files( 1000, $max_batch_size );
 
 			if ( empty( $files ) ) {
 				// ⭐ FIX: Don't auto-complete here, let JavaScript handle it
 				// This prevents race condition when cancelling
-				$stats = OffloadDlxPlusDB::get_stats();
+				$stats = DiluxOneOffloadDB::get_stats();
 				return array(
 					'status'             => 'completed',
 					'total_files'        => $stats['total_files'],
@@ -531,7 +531,7 @@ class SyncManager {
 
 			// ⭐ Increment error count BEFORE upload (in case of timeout)
 			foreach ( $batch_to_upload as $file_info ) {
-				OffloadDlxPlusDB::increment_error( $file_info['path'] );
+				DiluxOneOffloadDB::increment_error( $file_info['path'] );
 			}
 
 			// ⭐ DEBUG: Log batch start
@@ -551,31 +551,31 @@ class SyncManager {
 				$file_info = $batch_to_upload[ $i ];
 
 				if ( $result['success'] ) {
-					$mark_result = OffloadDlxPlusDB::mark_synced( $file_info['path'] );
+					$mark_result = DiluxOneOffloadDB::mark_synced( $file_info['path'] );
 					if ( $mark_result === false || $mark_result === 0 ) {
-						Logger::info( '[Offload+ SyncManager] ⚠️ Upload succeeded but DB update failed for: ' . $file_info['path'] );
+						Logger::info( '[DiluxOne Offload SyncManager] ⚠️ Upload succeeded but DB update failed for: ' . $file_info['path'] );
 					}
 					++$uploaded_this_batch;
 				} else {
 					// Store error message in DB
 					$error_msg = $result['error'] ?? 'Unknown error';
-					OffloadDlxPlusDB::increment_error( $file_info['path'], $error_msg );
-					Logger::error( '[Offload+ SyncManager] Failed: ' . $file_info['path'] . ' - ' . $error_msg );
+					DiluxOneOffloadDB::increment_error( $file_info['path'], $error_msg );
+					Logger::error( '[DiluxOne Offload SyncManager] Failed: ' . $file_info['path'] . ' - ' . $error_msg );
 				}
 			}
 
 			// Check time limit
 			$elapsed = microtime( true ) - $start_time;
 			if ( $elapsed >= $time_limit ) {
-				Logger::info( '[Offload+ SyncManager] Time limit reached (' . round( $elapsed, 2 ) . 's), ending batch' );
+				Logger::info( '[DiluxOne Offload SyncManager] Time limit reached (' . round( $elapsed, 2 ) . 's), ending batch' );
 				break;
 			}
 		}
 
 		// Get updated stats from DB
-		$stats = OffloadDlxPlusDB::get_stats();
+		$stats = DiluxOneOffloadDB::get_stats();
 
-		Logger::info( '[Offload+ SyncManager] Batch completed: ' . $uploaded_this_batch . ' uploaded this round. Total: ' . $stats['synced_files'] . '/' . $stats['total_files'] );
+		Logger::info( '[DiluxOne Offload SyncManager] Batch completed: ' . $uploaded_this_batch . ' uploaded this round. Total: ' . $stats['synced_files'] . '/' . $stats['total_files'] );
 
 		return array(
 			'status'              => 'processing',
@@ -596,16 +596,16 @@ class SyncManager {
 	 * @return array<string, mixed>|null
 	 */
 	public function get_progress() {
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
-		$sync_meta = get_option( 'offload_dlx_plus_sync_meta', array() );
+		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
 
 		if ( empty( $sync_meta ) ) {
 			return null;
 		}
 
 		// Get real-time stats from custom table
-		$stats = OffloadDlxPlusDB::get_stats();
+		$stats = DiluxOneOffloadDB::get_stats();
 
 		$elapsed_time = time() - ( $sync_meta['start_time'] ?? time() );
 
@@ -635,7 +635,7 @@ class SyncManager {
 			$progress['last_update'] = time();
 
 			ConfigManager::save_sync_progress( $progress );
-			Logger::log( '[Offload+ SyncManager] Sync paused', 'info', true );
+			Logger::log( '[DiluxOne Offload SyncManager] Sync paused', 'info', true );
 
 			return true;
 		}
@@ -658,7 +658,7 @@ class SyncManager {
 			ConfigManager::save_sync_progress( $progress );
 			ConfigManager::set_state( PluginState::SYNCING );
 
-			Logger::log( '[Offload+ SyncManager] Sync resumed', 'info', true );
+			Logger::log( '[DiluxOne Offload SyncManager] Sync resumed', 'info', true );
 
 			return true;
 		}
@@ -679,21 +679,21 @@ class SyncManager {
 	 */
 	public function cancel_sync() {
 		// Check if sync is active using new metadata structure
-		$sync_meta = get_option( 'offload_dlx_plus_sync_meta', array() );
+		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
 
 		if ( ! empty( $sync_meta ) && $sync_meta['status'] === 'started' ) {
-			require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 			// 1. Clear DB table
-			OffloadDlxPlusDB::clear_table();
+			DiluxOneOffloadDB::clear_table();
 
 			// 2. Clear sync metadata
-			delete_option( 'offload_dlx_plus_sync_meta' );
+			delete_option( 'diluxone_offload_sync_meta' );
 
 			// 3. Reset state to CONFIGURED
 			ConfigManager::set_state( PluginState::CONFIGURED );
 
-			Logger::info( '[Offload+ SyncManager] Sync cancelled - DB cleared and state reset to CONFIGURED' );
+			Logger::info( '[DiluxOne Offload SyncManager] Sync cancelled - DB cleared and state reset to CONFIGURED' );
 
 			return true;
 		}
@@ -702,9 +702,9 @@ class SyncManager {
 		$progress = ConfigManager::get_sync_progress();
 		if ( $progress && in_array( $progress['status'], array( 'started', 'paused' ), true ) ) {
 			ConfigManager::clear_sync_progress();
-			delete_transient( 'offload_dlx_plus_full_file_list' );
+			delete_transient( 'diluxone_offload_full_file_list' );
 			ConfigManager::set_state( PluginState::CONFIGURED );
-			Logger::info( '[Offload+ SyncManager] Sync cancelled (legacy architecture)' );
+			Logger::info( '[DiluxOne Offload SyncManager] Sync cancelled (legacy architecture)' );
 			return true;
 		}
 
@@ -730,11 +730,11 @@ class SyncManager {
 		$files          = array();
 		$upload_basedir = $this->upload_dir['basedir'];
 
-		Logger::debug( '[Offload+ SyncManager] Scanning directory: ' . $upload_basedir );
-		Logger::info( '[Offload+ SyncManager] Directory exists: ' . ( is_dir( $upload_basedir ) ? 'YES' : 'NO' ) );
+		Logger::debug( '[DiluxOne Offload SyncManager] Scanning directory: ' . $upload_basedir );
+		Logger::info( '[DiluxOne Offload SyncManager] Directory exists: ' . ( is_dir( $upload_basedir ) ? 'YES' : 'NO' ) );
 
 		if ( ! is_dir( $upload_basedir ) ) {
-			Logger::error( '[Offload+ SyncManager] Directory does not exist, returning empty array' );
+			Logger::error( '[DiluxOne Offload SyncManager] Directory does not exist, returning empty array' );
 			return $files;
 		}
 
@@ -759,7 +759,7 @@ class SyncManager {
 
 				// Debug: Log first few files to verify correct path structure
 				if ( $files_passed_filter < 3 ) {
-					Logger::info( '[Offload+ SyncManager] Path mapping: ' . $local_path . ' → ' . $remote_path );
+					Logger::info( '[DiluxOne Offload SyncManager] Path mapping: ' . $local_path . ' → ' . $remote_path );
 				}
 
 				// Get file size first
@@ -790,7 +790,7 @@ class SyncManager {
 
 				// Solo loggear cada 1000 archivos procesados para evitar spam
 				if ( $files_passed_filter % 1000 === 0 ) {
-					Logger::info( '[Offload+ SyncManager] Processed ' . $total_files_found . ' files, accepted ' . $files_passed_filter );
+					Logger::info( '[DiluxOne Offload SyncManager] Processed ' . $total_files_found . ' files, accepted ' . $files_passed_filter );
 				}
 
 				$files[] = array(
@@ -803,18 +803,18 @@ class SyncManager {
 			}
 		}
 
-		Logger::info( '[Offload+ SyncManager] Total files found by iterator: ' . $total_files_found );
-		Logger::info( '[Offload+ SyncManager] Files passed filter: ' . $files_passed_filter );
+		Logger::info( '[DiluxOne Offload SyncManager] Total files found by iterator: ' . $total_files_found );
+		Logger::info( '[DiluxOne Offload SyncManager] Files passed filter: ' . $files_passed_filter );
 
 		// Log información sobre archivos filtrados
 		if ( ! empty( $skip_reasons ) ) {
-			Logger::warning( '[Offload+ SyncManager] Files skipped by reason:' );
+			Logger::warning( '[DiluxOne Offload SyncManager] Files skipped by reason:' );
 			foreach ( $skip_reasons as $reason => $count ) {
-				Logger::info( '[Offload+ SyncManager]   ' . $reason . ': ' . $count . ' files' );
+				Logger::info( '[DiluxOne Offload SyncManager]   ' . $reason . ': ' . $count . ' files' );
 			}
 		}
 
-		Logger::info( '[Offload+ SyncManager] Found ' . count( $files ) . ' files to sync' );
+		Logger::info( '[DiluxOne Offload SyncManager] Found ' . count( $files ) . ' files to sync' );
 
 		return $files;
 	}
@@ -934,7 +934,7 @@ class SyncManager {
 				$error_details = $error ? $error : 'HTTP ' . $response_code;
 				if ( ! empty( $response_body ) && $response_code >= 400 ) {
 					// Log Azure error response for debugging
-					Logger::info( '[Offload+ SyncManager] Azure Response Body for ' . $file_info['path'] . ': ' . substr( $response_body, 0, 500 ) );
+					Logger::info( '[DiluxOne Offload SyncManager] Azure Response Body for ' . $file_info['path'] . ': ' . substr( $response_body, 0, 500 ) );
 				}
 
 				$results[ $i ] = array(
@@ -1037,7 +1037,7 @@ class SyncManager {
 	 * @return array<int, array<string, mixed>> Array of results
 	 */
 	private function download_chunk_parallel( $files ) {
-		Logger::info( '[Offload+ SyncManager] 🚀 Downloading chunk of ' . count( $files ) . ' files in parallel (concurrency=' . $this->parallel_uploads . ')' );
+		Logger::info( '[DiluxOne Offload SyncManager] 🚀 Downloading chunk of ' . count( $files ) . ' files in parallel (concurrency=' . $this->parallel_uploads . ')' );
 
 		$mh           = curl_multi_init();
 		$handles      = array();
@@ -1146,7 +1146,7 @@ class SyncManager {
 			);
 		}
 
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		// List ALL files from cloud storage (no pagination)
 		$cloud_files = $this->cloud_client->list_files( 'uploads/' );
@@ -1168,7 +1168,7 @@ class SyncManager {
 			global $wpdb;
 			$local_file = $wpdb->get_row(
 				$wpdb->prepare(
-					'SELECT * FROM ' . OffloadDlxPlusDB::get_table_name() . ' WHERE file = %s',
+					'SELECT * FROM ' . DiluxOneOffloadDB::get_table_name() . ' WHERE file = %s',
 					$relative_path
 				)
 			);
@@ -1181,16 +1181,16 @@ class SyncManager {
 				);
 			} elseif ( (int) $local_file->synced === 0 && (int) $local_file->size === (int) $cloud_file['size'] ) {
 				// File already synced (same size), mark as synced
-				OffloadDlxPlusDB::mark_synced( $relative_path );
+				DiluxOneOffloadDB::mark_synced( $relative_path );
 			}
 		}
 
 		// Add cloud-only files as deleted
 		if ( ! empty( $cloud_only_files ) ) {
-			OffloadDlxPlusDB::add_cloud_only_files_batch( $cloud_only_files );
+			DiluxOneOffloadDB::add_cloud_only_files_batch( $cloud_only_files );
 		}
 
-		Logger::info( '[Offload+ SyncManager] Cloud comparison: found ' . count( $cloud_files ) . ' cloud files, ' . count( $cloud_only_files ) . ' deleted locally' );
+		Logger::info( '[DiluxOne Offload SyncManager] Cloud comparison: found ' . count( $cloud_files ) . ' cloud files, ' . count( $cloud_only_files ) . ' deleted locally' );
 
 		return array(
 			'success'           => true,
@@ -1225,25 +1225,25 @@ class SyncManager {
 		}
 
 		// Test connection before listing files
-		Logger::info( '[Offload+ SyncManager] Testing connection before reverse sync (mode: ' . $mode . ')' );
+		Logger::info( '[DiluxOne Offload SyncManager] Testing connection before reverse sync (mode: ' . $mode . ')' );
 		$connection_test = $this->cloud_client->test_connection();
 
 		if ( ! $connection_test['success'] ) {
-			Logger::info( '[Offload+ SyncManager] Connection test failed: ' . $connection_test['message'] );
+			Logger::info( '[DiluxOne Offload SyncManager] Connection test failed: ' . $connection_test['message'] );
 			return array(
 				'success' => false,
 				'message' => 'Connection to cloud storage failed: ' . $connection_test['message'],
 			);
 		}
 
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		// ⭐ NEW MODE LOGIC
 		if ( $mode === 'scratch' ) {
 			// SCRATCH MODE: Clear table and re-download EVERYTHING
-			Logger::info( '[Offload+ SyncManager] SCRATCH mode: Clearing table and cataloging all cloud files...' );
+			Logger::info( '[DiluxOne Offload SyncManager] SCRATCH mode: Clearing table and cataloging all cloud files...' );
 
-			OffloadDlxPlusDB::clear_table();
+			DiluxOneOffloadDB::clear_table();
 
 			// List all files in cloud storage
 			$cloud_files = $this->cloud_client->list_files( 'uploads/' );
@@ -1265,34 +1265,34 @@ class SyncManager {
 				);
 
 				if ( count( $batch_files ) >= 500 ) {
-					OffloadDlxPlusDB::add_cloud_only_files_batch( $batch_files );
+					DiluxOneOffloadDB::add_cloud_only_files_batch( $batch_files );
 					$batch_files = array();
 				}
 			}
 
 			if ( ! empty( $batch_files ) ) {
-				OffloadDlxPlusDB::add_cloud_only_files_batch( $batch_files );
+				DiluxOneOffloadDB::add_cloud_only_files_batch( $batch_files );
 			}
 
-			$deleted_stats = OffloadDlxPlusDB::get_deleted_stats();
-			Logger::info( '[Offload+ SyncManager] SCRATCH mode: ' . count( $cloud_files ) . ' files marked for download' );
+			$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
+			Logger::info( '[DiluxOne Offload SyncManager] SCRATCH mode: ' . count( $cloud_files ) . ' files marked for download' );
 
 		} else {
 			// CONTINUE MODE (default): Resume existing download
-			Logger::info( '[Offload+ SyncManager] CONTINUE mode: Resuming existing download from DB...' );
+			Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: Resuming existing download from DB...' );
 
 			// Check if there are already deleted files in DB
-			$deleted_stats = OffloadDlxPlusDB::get_deleted_stats();
+			$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
 
 			if ( ! empty( $deleted_stats ) && $deleted_stats['files'] > 0 ) {
 				// Already have files marked for download, just resume
-				Logger::info( '[Offload+ SyncManager] CONTINUE mode: Found ' . $deleted_stats['files'] . ' files already marked for download, resuming...' );
+				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: Found ' . $deleted_stats['files'] . ' files already marked for download, resuming...' );
 			} else {
 				// No files marked yet, need to catalog from cloud storage (smart mode)
-				Logger::info( '[Offload+ SyncManager] CONTINUE mode: No files marked yet, cataloging missing files from cloud storage...' );
+				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: No files marked yet, cataloging missing files from cloud storage...' );
 
 				global $wpdb;
-				$table_name = $wpdb->prefix . 'offload_dlx_plus_files';
+				$table_name = $wpdb->prefix . 'diluxone_offload_files';
 
 				// List all files in cloud storage
 				$cloud_files = $this->cloud_client->list_files( 'uploads/' );
@@ -1336,7 +1336,7 @@ class SyncManager {
 
 						// Batch insert every 500 files
 						if ( count( $batch_files ) >= 500 ) {
-							OffloadDlxPlusDB::add_cloud_only_files_batch( $batch_files );
+							DiluxOneOffloadDB::add_cloud_only_files_batch( $batch_files );
 							$batch_files = array();
 						}
 					}
@@ -1344,16 +1344,16 @@ class SyncManager {
 
 				// Insert remaining files
 				if ( ! empty( $batch_files ) ) {
-					OffloadDlxPlusDB::add_cloud_only_files_batch( $batch_files );
+					DiluxOneOffloadDB::add_cloud_only_files_batch( $batch_files );
 				}
 
-				$deleted_stats = OffloadDlxPlusDB::get_deleted_stats();
-				Logger::info( '[Offload+ SyncManager] CONTINUE mode: ' . $missing_count . ' missing files marked for download' );
+				$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
+				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: ' . $missing_count . ' missing files marked for download' );
 			}
 		}
 
 		// ⭐ Get TOTAL files in cloud (synced=1), not just pending
-		$all_stats          = OffloadDlxPlusDB::get_stats();
+		$all_stats          = DiluxOneOffloadDB::get_stats();
 		$total_in_cloud     = $all_stats['synced_files']; // All files with synced=1
 		$already_downloaded = $total_in_cloud - $deleted_stats['files'];
 
@@ -1369,10 +1369,10 @@ class SyncManager {
 			'concurrency'        => $this->parallel_uploads, // ⭐ Save concurrency for reverse sync
 		);
 
-		update_option( 'offload_dlx_plus_sync_meta', $sync_meta, false );
+		update_option( 'diluxone_offload_sync_meta', $sync_meta, false );
 
 		Logger::info(
-			'[Offload+ SyncManager] Reverse sync started: ' . $total_in_cloud . ' total in cloud, ' .
+			'[DiluxOne Offload SyncManager] Reverse sync started: ' . $total_in_cloud . ' total in cloud, ' .
 				$already_downloaded . ' already downloaded, ' .
 				$deleted_stats['files'] . ' pending (' . size_format( $deleted_stats['size'] ) . ')'
 		);
@@ -1393,13 +1393,13 @@ class SyncManager {
 	 * @return array<string, mixed> Progress information
 	 */
 	public function process_reverse_batch( $time_limit = 8.0 ) {
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		$start_time            = microtime( true );
 		$downloaded_this_batch = 0;
 		$max_batch_size        = 12 * 1024 * 1024; // 12 MB (same as normal sync)
 
-		$sync_meta = get_option( 'offload_dlx_plus_sync_meta', array() );
+		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
 
 		if ( empty( $sync_meta ) || $sync_meta['status'] !== 'started' || ! ( $sync_meta['is_reverse_sync'] ?? false ) ) {
 			return array(
@@ -1411,11 +1411,11 @@ class SyncManager {
 		// Process files until time limit
 		while ( true ) {
 			// ⭐ NEW: Get deleted files only (synced=1, deleted=1)
-			$files = OffloadDlxPlusDB::get_deleted_files( $this->batch_size * 2 );
+			$files = DiluxOneOffloadDB::get_deleted_files( $this->batch_size * 2 );
 
 			if ( empty( $files ) ) {
 				// ⭐ FIX: Don't auto-complete here, let JavaScript handle it
-				$stats = OffloadDlxPlusDB::get_stats();
+				$stats = DiluxOneOffloadDB::get_stats();
 				return array(
 					'status'               => 'completed',
 					'total_files'          => $stats['total_files'],
@@ -1443,7 +1443,7 @@ class SyncManager {
 				if ( $reverse_mode === 'continue' ) {
 					// CONTINUE mode: Skip if file exists locally with same size
 					if ( file_exists( $local_path ) && filesize( $local_path ) === $size ) {
-						OffloadDlxPlusDB::mark_downloaded( $relative_path );
+						DiluxOneOffloadDB::mark_downloaded( $relative_path );
 						continue;
 					}
 				}
@@ -1465,7 +1465,7 @@ class SyncManager {
 
 			// ⭐ Pre-increment error count BEFORE download (in case of timeout)
 			foreach ( $batch_to_download as $file_info ) {
-				OffloadDlxPlusDB::increment_error( $file_info['path'] );
+				DiluxOneOffloadDB::increment_error( $file_info['path'] );
 			}
 
 			// ⭐ Download batch in PARALLEL (same as upload)
@@ -1476,21 +1476,21 @@ class SyncManager {
 				$file_info = $batch_to_download[ $i ];
 
 				if ( $result['success'] ) {
-					$mark_result = OffloadDlxPlusDB::mark_downloaded( $file_info['path'] ); // ⭐ Use mark_downloaded() not mark_synced()
-					Logger::info( '[Offload+ SyncManager] ✅ Downloaded and marked: ' . $file_info['path'] . ' (mark_result=' . ( $mark_result ? 'true' : 'false' ) . ')' );
+					$mark_result = DiluxOneOffloadDB::mark_downloaded( $file_info['path'] ); // ⭐ Use mark_downloaded() not mark_synced()
+					Logger::info( '[DiluxOne Offload SyncManager] ✅ Downloaded and marked: ' . $file_info['path'] . ' (mark_result=' . ( $mark_result ? 'true' : 'false' ) . ')' );
 					++$downloaded_this_batch;
 				} else {
 					// Store error message in DB
 					$error_msg = $result['error'] ?? 'Unknown error';
-					OffloadDlxPlusDB::increment_error( $file_info['path'], $error_msg );
-					Logger::info( '[Offload+ SyncManager] Download failed: ' . $file_info['path'] . ' - ' . $error_msg );
+					DiluxOneOffloadDB::increment_error( $file_info['path'], $error_msg );
+					Logger::info( '[DiluxOne Offload SyncManager] Download failed: ' . $file_info['path'] . ' - ' . $error_msg );
 				}
 			}
 
 			// Check time limit
 			$elapsed = microtime( true ) - $start_time;
 			if ( $elapsed >= $time_limit ) {
-				Logger::info( '[Offload+ SyncManager] Time limit reached (' . round( $elapsed, 2 ) . 's), ending batch' );
+				Logger::info( '[DiluxOne Offload SyncManager] Time limit reached (' . round( $elapsed, 2 ) . 's), ending batch' );
 				break;
 			}
 		}
@@ -1498,13 +1498,13 @@ class SyncManager {
 		// ⭐ Calculate progress including already downloaded files
 		$total_in_cloud        = $sync_meta['total_files']; // Total files in cloud (synced=1)
 		$already_downloaded    = $sync_meta['already_downloaded'] ?? 0; // Files already local when started
-		$remaining_deleted     = OffloadDlxPlusDB::count_deleted_files(); // Files still pending
+		$remaining_deleted     = DiluxOneOffloadDB::count_deleted_files(); // Files still pending
 		$downloaded_in_session = ( $total_in_cloud - $already_downloaded ) - $remaining_deleted; // Downloaded in THIS session
 		$total_downloaded      = $already_downloaded + $downloaded_in_session; // Total including previous
 		$percentage            = $total_in_cloud > 0 ? round( ( $total_downloaded / $total_in_cloud ) * 100, 1 ) : 100;
 
 		Logger::debug(
-			'[Offload+ SyncManager] 🔍 Progress: total=' . $total_in_cloud .
+			'[DiluxOne Offload SyncManager] 🔍 Progress: total=' . $total_in_cloud .
 				', already=' . $already_downloaded .
 				', session=' . $downloaded_in_session .
 				', total_downloaded=' . $total_downloaded .

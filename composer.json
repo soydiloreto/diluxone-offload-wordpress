@@ -1,12 +1,12 @@
 {
-    "name": "soydiloreto/offload-dlx-plus",
-    "description": "Offload+ WordPress plugin — Composer manifest for development tooling. Not used at runtime.",
+    "name": "soydiloreto/diluxone-offload-wordpress",
+    "description": "DiluxOne Offload WordPress plugin — Composer manifest for development tooling. Not used at runtime.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
-    "homepage": "https://github.com/soydiloreto/offload-dlx-plus",
+    "homepage": "https://github.com/soydiloreto/diluxone-offload-wordpress",
     "support": {
-        "issues": "https://github.com/soydiloreto/offload-dlx-plus/issues",
-        "source": "https://github.com/soydiloreto/offload-dlx-plus"
+        "issues": "https://github.com/soydiloreto/diluxone-offload-wordpress/issues",
+        "source": "https://github.com/soydiloreto/diluxone-offload-wordpress"
     },
     "require": {
         "php": ">=7.4"

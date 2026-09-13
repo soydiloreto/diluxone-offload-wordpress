@@ -15,7 +15,7 @@
 // 1. Composer autoload (PHPUnit, Brain Monkey, Mockery, Tests\ namespace).
 require_once __DIR__ . '/../vendor/autoload.php';
 
-// 2. WordPress constants the plugin expects at the top of offload-dlx-plus.php.
+// 2. WordPress constants the plugin expects at the top of diluxone-offload.php.
 //    ABSPATH is normally defined by WordPress core; in unit tests we just need
 //    `defined('ABSPATH')` to be true so the `if (!defined('ABSPATH')) { exit; }`
 //    guards in plugin files don't terminate the test process.
@@ -23,20 +23,20 @@ if (!defined('ABSPATH')) {
     define('ABSPATH', dirname(__DIR__) . '/');
 }
 
-if (!defined('OFFLOAD_DLX_PLUS_DIR')) {
-    define('OFFLOAD_DLX_PLUS_DIR', dirname(__DIR__) . '/');
+if (!defined('DILUXONE_OFFLOAD_DIR')) {
+    define('DILUXONE_OFFLOAD_DIR', dirname(__DIR__) . '/');
 }
 
-if (!defined('OFFLOAD_DLX_PLUS_VERSION')) {
-    define('OFFLOAD_DLX_PLUS_VERSION', '1.0.0-test');
+if (!defined('DILUXONE_OFFLOAD_VERSION')) {
+    define('DILUXONE_OFFLOAD_VERSION', '1.0.0-test');
 }
 
-if (!defined('OFFLOAD_DLX_PLUS_FILE')) {
-    define('OFFLOAD_DLX_PLUS_FILE', dirname(__DIR__) . '/offload-dlx-plus.php');
+if (!defined('DILUXONE_OFFLOAD_FILE')) {
+    define('DILUXONE_OFFLOAD_FILE', dirname(__DIR__) . '/diluxone-offload.php');
 }
 
-if (!defined('OFFLOAD_DLX_PLUS_URL')) {
-    define('OFFLOAD_DLX_PLUS_URL', 'http://localhost/wp-content/plugins/offload-dlx-plus/');
+if (!defined('DILUXONE_OFFLOAD_URL')) {
+    define('DILUXONE_OFFLOAD_URL', 'http://localhost/wp-content/plugins/diluxone-offload/');
 }
 
 // 3. WordPress function stubs (sanitize_text_field, get_option, esc_html, etc.).
@@ -44,5 +44,5 @@ if (!defined('OFFLOAD_DLX_PLUS_URL')) {
 //    For hook functions (add_action, add_filter), use Brain Monkey in the test itself.
 require_once __DIR__ . '/stubs/wordpress-stubs.php';
 
-// 4. Plugin's class autoloader. Maps OffloadDlxPlus\* to includes/.
-require_once OFFLOAD_DLX_PLUS_DIR . 'includes/enhanced-autoloader.php';
+// 4. Plugin's class autoloader. Maps DiluxOneOffload\* to includes/.
+require_once DILUXONE_OFFLOAD_DIR . 'includes/enhanced-autoloader.php';

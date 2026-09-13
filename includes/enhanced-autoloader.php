@@ -1,13 +1,13 @@
 <?php
 /**
- * Autoloader for Offload+.
+ * Autoloader for DiluxOne Offload.
  *
  * Loads plugin classes from includes/ via a custom mapping that supports
- * both legacy WP-style filenames (`class-offload-dlx-plus-foo.php`) and modern
+ * both legacy WP-style filenames (`class-diluxone-offload-foo.php`) and modern
  * PSR-12 PascalCase filenames (`Foo.php`). Both styles coexist in the
  * codebase by design.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -19,31 +19,31 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @param string $class_name
  */
-function offload_dlx_plus_autoloader( string $class_name ): void {
+function diluxone_offload_autoloader( string $class_name ): void {
 	// Only autoload our classes
-	if ( strpos( $class_name, 'OffloadDlxPlus\\' ) !== 0 ) {
+	if ( strpos( $class_name, 'DiluxOneOffload\\' ) !== 0 ) {
 		return;
 	}
 
 	// Remove namespace prefix
-	$class_name = str_replace( 'OffloadDlxPlus\\', '', $class_name );
+	$class_name = str_replace( 'DiluxOneOffload\\', '', $class_name );
 
 	// Class to file mappings
 	$class_mappings = array(
 		// Core classes
-		'ConfigManager'                           => 'includes/class-offload-dlx-plus-config-manager.php',
-		'SyncManager'                             => 'includes/class-offload-dlx-plus-sync-manager.php',
-		'CloudStreamWrapper'                      => 'includes/class-offload-dlx-plus-cloud-stream-wrapper.php',
-		'Logger'                                  => 'includes/class-offload-dlx-plus-logger.php',
-		'Crypto'                                  => 'includes/class-offload-dlx-plus-crypto.php',
-		'Admin'                                   => 'includes/class-offload-dlx-plus-admin.php',
-		'Plugin'                                  => 'includes/class-offload-dlx-plus-plugin-enhanced.php',
-		'ValidationHelper'                        => 'includes/class-offload-dlx-plus-validation-helper.php',
-		'MimeHelper'                              => 'includes/class-offload-dlx-plus-mime-helper.php',
+		'ConfigManager'                           => 'includes/class-diluxone-offload-config-manager.php',
+		'SyncManager'                             => 'includes/class-diluxone-offload-sync-manager.php',
+		'CloudStreamWrapper'                      => 'includes/class-diluxone-offload-cloud-stream-wrapper.php',
+		'Logger'                                  => 'includes/class-diluxone-offload-logger.php',
+		'Crypto'                                  => 'includes/class-diluxone-offload-crypto.php',
+		'Admin'                                   => 'includes/class-diluxone-offload-admin.php',
+		'Plugin'                                  => 'includes/class-diluxone-offload-plugin-enhanced.php',
+		'ValidationHelper'                        => 'includes/class-diluxone-offload-validation-helper.php',
+		'MimeHelper'                              => 'includes/class-diluxone-offload-mime-helper.php',
 
 		// Image Editors
-		'OffloadDlxPlus_Image_Editor_Imagick'     => 'includes/class-offload-dlx-plus-image-editor-imagick.php',
-		'OffloadDlxPlus_Image_Editor_GD'          => 'includes/class-offload-dlx-plus-image-editor-gd.php',
+		'DiluxOneOffload_Image_Editor_Imagick'    => 'includes/class-diluxone-offload-image-editor-imagick.php',
+		'DiluxOneOffload_Image_Editor_GD'         => 'includes/class-diluxone-offload-image-editor-gd.php',
 
 		// Enums
 		'Enums\\PluginState'                      => 'includes/Enums/class-plugin-state.php',
@@ -77,7 +77,7 @@ function offload_dlx_plus_autoloader( string $class_name ): void {
 
 	// Check if we have a mapping for this class
 	if ( isset( $class_mappings[ $class_name ] ) ) {
-		$file_path = OFFLOAD_DLX_PLUS_DIR . $class_mappings[ $class_name ];
+		$file_path = DILUXONE_OFFLOAD_DIR . $class_mappings[ $class_name ];
 
 		if ( file_exists( $file_path ) ) {
 			require_once $file_path;
@@ -89,12 +89,12 @@ function offload_dlx_plus_autoloader( string $class_name ): void {
 
 	// Fallback: try to auto-generate file path
 	$potential_paths = array(
-		'includes/class-offload-dlx-plus-' . strtolower( str_replace( '\\', '-', $class_name ) ) . '.php',
-		'includes/class-offload-dlx-plus-' . strtolower( str_replace( '_', '-', $class_name ) ) . '.php',
+		'includes/class-diluxone-offload-' . strtolower( str_replace( '\\', '-', $class_name ) ) . '.php',
+		'includes/class-diluxone-offload-' . strtolower( str_replace( '_', '-', $class_name ) ) . '.php',
 	);
 
 	foreach ( $potential_paths as $path ) {
-		$full_path = OFFLOAD_DLX_PLUS_DIR . $path;
+		$full_path = DILUXONE_OFFLOAD_DIR . $path;
 		if ( file_exists( $full_path ) ) {
 			require_once $full_path;
 			return;
@@ -103,4 +103,4 @@ function offload_dlx_plus_autoloader( string $class_name ): void {
 }
 
 // Register the autoloader
-spl_autoload_register( 'offload_dlx_plus_autoloader' );
+spl_autoload_register( 'diluxone_offload_autoloader' );

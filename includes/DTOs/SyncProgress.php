@@ -2,12 +2,12 @@
 /**
  * Sync progress snapshot value object.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus\DTOs;
+namespace DiluxOneOffload\DTOs;
 
-use OffloadDlxPlus\Enums\SyncStatus;
+use DiluxOneOffload\Enums\SyncStatus;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Immutable value object for synchronization progress tracking
  *
- * @package OffloadDlxPlus\DTOs
+ * @package DiluxOneOffload\DTOs
  * @since 1.0.0
  */
 class SyncProgress {

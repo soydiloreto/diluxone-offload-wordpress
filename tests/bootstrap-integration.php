@@ -7,7 +7,7 @@
  * Docker container, where:
  *
  * - WordPress core lives at  /var/www/html/
- * - This plugin is mounted at /var/www/html/wp-content/plugins/offload-dlx-plus/
+ * - This plugin is mounted at /var/www/html/wp-content/plugins/diluxone-offload/
  * - Composer vendor/ ships from the host repo via the same mount.
  * - The MySQL database for tests is named `tests-wordpress` (wp-env default).
  *
@@ -80,25 +80,25 @@ if (!file_exists($composer_autoload)) {
 require_once $composer_autoload;
 
 // 7. Verify the plugin loaded.
-if (!defined('OFFLOAD_DLX_PLUS_DIR')) {
-    fwrite(STDERR, "ERROR: offload-dlx-plus plugin is not activated in the tests environment.\n");
-    fwrite(STDERR, "Run: npx wp-env run tests-cli wp plugin activate offload-dlx-plus\n");
+if (!defined('DILUXONE_OFFLOAD_DIR')) {
+    fwrite(STDERR, "ERROR: diluxone-offload plugin is not activated in the tests environment.\n");
+    fwrite(STDERR, "Run: npx wp-env run tests-cli wp plugin activate diluxone-offload\n");
     exit(1);
 }
 
-// 8. Force-load OffloadDlxPlusDB (the plugin's normal flow loads it via require_once
+// 8. Force-load DiluxOneOffloadDB (the plugin's normal flow loads it via require_once
 //    inside its bootstrap; making it explicit here ensures it's present
 //    before any test method runs, regardless of plugin load order).
-require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
+require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 // 9. Ensure the plugin's custom table exists in the tests database.
-\OffloadDlxPlus\OffloadDlxPlusDB::create_files_table();
+\DiluxOneOffload\DiluxOneOffloadDB::create_files_table();
 
 // 10. Mark integration test context — useful inside plugin code that wants
 //     to bypass certain side effects (sending real HTTP, registering cron,
-//     etc.) when OFFLOAD_DLX_PLUS_INTEGRATION_TESTS is defined.
-if (!defined('OFFLOAD_DLX_PLUS_INTEGRATION_TESTS')) {
-    define('OFFLOAD_DLX_PLUS_INTEGRATION_TESTS', true);
+//     etc.) when DILUXONE_OFFLOAD_INTEGRATION_TESTS is defined.
+if (!defined('DILUXONE_OFFLOAD_INTEGRATION_TESTS')) {
+    define('DILUXONE_OFFLOAD_INTEGRATION_TESTS', true);
 }
 
 // 11. Override wp_die handlers globally so AJAX handlers throw an
@@ -106,25 +106,25 @@ if (!defined('OFFLOAD_DLX_PLUS_INTEGRATION_TESTS')) {
 //     expect wp_die catch WPAjaxDieContinueException.
 class WPAjaxDieContinueException extends \Exception {}
 
-$_offload_dlx_plus_wp_die_test_handler = function ($message, $title = '', $args = []) {
+$_diluxone_offload_wp_die_test_handler = function ($message, $title = '', $args = []) {
     if (function_exists('is_wp_error') && is_wp_error($message)) {
         $message = $message->get_error_message();
     }
     throw new WPAjaxDieContinueException((string) $message);
 };
 
-add_filter('wp_die_ajax_handler', function () use ($_offload_dlx_plus_wp_die_test_handler) {
-    return $_offload_dlx_plus_wp_die_test_handler;
+add_filter('wp_die_ajax_handler', function () use ($_diluxone_offload_wp_die_test_handler) {
+    return $_diluxone_offload_wp_die_test_handler;
 }, 999);
 
-add_filter('wp_die_handler', function () use ($_offload_dlx_plus_wp_die_test_handler) {
-    return $_offload_dlx_plus_wp_die_test_handler;
+add_filter('wp_die_handler', function () use ($_diluxone_offload_wp_die_test_handler) {
+    return $_diluxone_offload_wp_die_test_handler;
 }, 999);
 
 // 12. Confirmation banner (shows in CI logs).
 echo "Integration test bootstrap loaded.\n";
 echo "  Database:    {$db_name}\n";
 echo "  Prefix:      {$wpdb->prefix}\n";
-echo "  Plugin DB:   " . \OffloadDlxPlus\OffloadDlxPlusDB::get_table_name() . "\n";
+echo "  Plugin DB:   " . \DiluxOneOffload\DiluxOneOffloadDB::get_table_name() . "\n";
 echo "  WP version:  " . get_bloginfo('version') . "\n";
-echo "  Plugin ver:  " . OFFLOAD_DLX_PLUS_VERSION . "\n";
+echo "  Plugin ver:  " . DILUXONE_OFFLOAD_VERSION . "\n";
