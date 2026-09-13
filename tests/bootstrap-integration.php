@@ -29,6 +29,13 @@ if (!defined('DOING_AJAX')) {
 }
 $_SERVER['PHP_SELF'] = '/wp-admin/admin-ajax.php';
 
+// 1b. The two DEV MODE AJAX endpoints (enable/disconnect offloading without a
+//     sync) are only registered behind this constant. Production never
+//     defines it; the suite does, so those handlers get exercised too.
+if (!defined('DILUXONE_OFFLOAD_DEV_MODE')) {
+    define('DILUXONE_OFFLOAD_DEV_MODE', true);
+}
+
 // 2. Set HTTP_HOST etc. to prevent "Undefined array key" warnings under CLI.
 //
 //    On a multisite network the host MUST be one WordPress knows: for an

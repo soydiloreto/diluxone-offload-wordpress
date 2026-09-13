@@ -188,6 +188,41 @@ test-e2e: ## Run the Playwright end-to-end suite against the wp-env dev site (ne
 test-all: test-unit test-integration test-e2e ## Unit + integration + end-to-end.
 	@echo "✔ All three test levels passed."
 
+# -- Coverage ----------------------------------------------------------
+# Line coverage needs pcov, which neither composer:2 nor the wp-env image
+# ships; `cov-image` builds a small php:8.3-cli with pcov, mysqli, gd and
+# imagick. The integration run borrows the wp-env tests container's volumes
+# and network so it sees the same WordPress, database and plugin checkout.
+COV_IMAGE ?= dlx-cov
+TESTS_CLI  = $(shell for c in $$(docker ps --format '{{.Names}}' | grep -- '-tests-cli-1'); do \
+	docker inspect $$c --format '{{range .Mounts}}{{.Destination}}{{"\n"}}{{end}}' \
+	| grep -q 'plugins/diluxone-offload-wordpress$$' && echo $$c; done | head -1)
+# wp-config.php reads the DB host/name/user from WORDPRESS_* env vars.
+TESTS_ENV  = $(shell docker inspect $(TESTS_CLI) --format '{{range .Config.Env}}{{.}}{{"\n"}}{{end}}' 2>/dev/null | grep '^WORDPRESS_' | sed 's/^/-e /' | tr '\n' ' ')
+TESTS_NET  = $(shell docker inspect $(TESTS_CLI) --format '{{range $$k,$$v := .NetworkSettings.Networks}}{{$$k}}{{end}}' 2>/dev/null)
+
+.PHONY: cov-image
+cov-image: ## Build the local coverage image (once; re-run after editing tests/docker/Dockerfile.cov).
+	docker build -t $(COV_IMAGE) -f tests/docker/Dockerfile.cov tests/docker
+
+.PHONY: coverage-unit
+coverage-unit: ## Unit-test line coverage → build/clover-unit.xml.
+	@mkdir -p build
+	docker run --rm -u $(DOCKER_USER) -v $(CURDIR):/app -w /app $(COV_IMAGE) \
+	    php -d pcov.enabled=1 -d memory_limit=512M vendor/bin/phpunit --testsuite unit --coverage-clover build/clover-unit.xml
+
+.PHONY: coverage-integration
+coverage-integration: ## Integration-test line coverage → build/clover-integration.xml (needs `make env` up).
+	@test -n "$(TESTS_CLI)" || { echo "wp-env tests container not running: make env first"; exit 1; }
+	@mkdir -p build
+	docker run --rm -u $(DOCKER_USER) --network $(TESTS_NET) $(TESTS_ENV) --volumes-from $(TESTS_CLI) \
+	    -w /var/www/html/wp-content/plugins/diluxone-offload-wordpress $(COV_IMAGE) \
+	    php -d pcov.enabled=1 -d memory_limit=512M vendor/bin/phpunit -c phpunit-integration.xml --coverage-clover build/clover-integration.xml
+
+.PHONY: coverage
+coverage: coverage-unit coverage-integration ## Unit + integration coverage merged into build/clover.xml, with a per-file table.
+	$(VENDOR) php tests/bin/merge-clover.php build/clover.xml build/clover-unit.xml build/clover-integration.xml
+
 # -- Aggregate ---------------------------------------------------------
 .PHONY: check
 check: lint stan psalm test ## Run every quality gate CI runs (lint, stan, psalm, unit tests).

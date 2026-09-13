@@ -928,7 +928,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			// Build Azure URL with proper encoding for spaces and special characters
 			// HTTPS is always enforced (Azure requirement)
-			$endpoint    = "https://{$this->storage_account}.blob.core.windows.net";
+			$endpoint    = $this->endpoint;
 			$remote_path = ltrim( $remote_path, '/' );
 
 			// ⭐ URL-encode the path components (but not the slashes)
@@ -1010,7 +1010,7 @@ class AzureProvider implements CloudStorageClientInterface {
 		try {
 			// Build Azure URL with proper encoding for spaces and special characters
 			// HTTPS is always enforced (Azure requirement)
-			$endpoint    = "https://{$this->storage_account}.blob.core.windows.net";
+			$endpoint    = $this->endpoint;
 			$remote_path = ltrim( $remote_path, '/' );
 
 			// ⭐ URL-encode the path components (but not the slashes)
@@ -1167,7 +1167,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			// HTTPS is always enforced (Azure requirement)
 
 			// Build Azure URL with proper encoding for spaces and special characters
-			$endpoint          = "https://{$this->storage_account}.blob.core.windows.net";
+			$endpoint          = $this->endpoint;
 			$remote_path_clean = ltrim( $remote_path, '/' );
 
 			// ⭐ URL-encode the path components (but not the slashes)

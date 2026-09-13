@@ -47,11 +47,16 @@ class ProviderConfig {
 	 *
 	 * @param array<string, mixed> $config
 	 * @return self
+	 * @throws \InvalidArgumentException When provider_config is not an array.
 	 */
 	public static function fromArray( array $config ): self {
+		$provider_config = $config['provider_config'] ?? array();
+		if ( ! is_array( $provider_config ) ) {
+			throw new \InvalidArgumentException( 'provider_config must be an array' );
+		}
 		return new self(
-			$config['cloud_provider'] ?? '',
-			$config['provider_config'] ?? array()
+			(string) ( $config['cloud_provider'] ?? '' ),
+			$provider_config
 		);
 	}
 

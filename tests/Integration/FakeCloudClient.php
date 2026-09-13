@@ -23,10 +23,21 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var int HTTP status the local server answers uploads with. */
     public int $upload_status = 201;
 
+    /** @var int HTTP status the local server answers downloads with. */
+    public int $download_status = 200;
+
+    /** @var bool Make test_connection() fail. */
+    public bool $connection_ok = true;
+
+    /** @var int Download handles handed out (one per attempted download). */
+    public int $downloads = 0;
+
     public function __construct(private string $upload_base_url) {}
 
     public function test_connection(): array {
-        return ['success' => true, 'message' => 'fake ok'];
+        return $this->connection_ok
+            ? ['success' => true, 'message' => 'fake ok']
+            : ['success' => false, 'message' => 'HTTP 403 fake refusal'];
     }
 
     public function upload_file(string $local_path, string $remote_path, array $options = []): array {
@@ -125,7 +136,28 @@ class FakeCloudClient implements CloudStorageClientInterface {
         return $this->prepare_batch_upload_handle($file_info);
     }
 
+    /**
+     * Real cURL handle for the reverse-sync download loop. The blob's content
+     * is written to the local file up front; the GET to the local server then
+     * answers 200 with an empty body, so CURLOPT_FILE appends nothing and the
+     * file ends up holding exactly what the "cloud" had.
+     */
     public function prepare_download_handle(array $file_info): array {
-        return ['success' => false, 'error' => 'not needed by these tests', 'file_handle' => null];
+        ++$this->downloads;
+        $key = ltrim($file_info['remote_path'], '/');
+        if (!isset($this->blobs[$key])) {
+            return ['success' => false, 'error' => 'HTTP 404', 'file_handle' => null];
+        }
+        wp_mkdir_p(dirname($file_info['local_path']));
+        file_put_contents($file_info['local_path'], $this->blobs[$key]);
+        $fh = fopen($file_info['local_path'], 'ab');
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $this->upload_base_url . '/' . $key . '?status=' . $this->download_status,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_FILE           => $fh,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        return ['success' => true, 'handle' => $ch, 'file_handle' => $fh];
     }
 }

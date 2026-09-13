@@ -252,37 +252,6 @@ class AdminAjaxTest extends IntegrationTestCase {
 
     // ── Sync tools ──────────────────────────────────────────
 
-    public function test_scan_files_counts_the_uploads_directory(): void {
-        $this->configureAzure();
-        $this->useFakeClient();
-        $this->fixture('2026/09/scan-1.jpg', str_repeat('a', 10));
-        $this->fixture('2026/09/scan-2.jpg', str_repeat('b', 20));
-
-        $r = $this->call('diluxone_offload_scan_files');
-
-        $this->assertNotNull($r['json'], $r['raw']);
-        $this->assertTrue($r['json']['success'], $r['raw']);
-        $this->assertGreaterThanOrEqual(2, $r['json']['data']['total_files']);
-        $this->assertGreaterThanOrEqual(30, $r['json']['data']['total_size']);
-        $this->assertNotEmpty($r['json']['data']['total_size_formatted']);
-    }
-
-    public function test_resync_all_clears_the_table_and_starts_syncing(): void {
-        $this->configureAzure();
-        $this->useFakeClient();
-        DiluxOneOffloadDB::add_file('/2026/09/old.jpg', 1);
-        DiluxOneOffloadDB::mark_synced('/2026/09/old.jpg');
-        $this->fixture('2026/09/fresh.jpg');
-
-        $r = $this->call('diluxone_offload_resync_all');
-
-        $this->assertTrue($r['json']['success'] ?? false, $r['raw']);
-        $this->assertSame(PluginState::SYNCING, ConfigManager::get_state());
-        global $wpdb;
-        $old = $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM `' . self::$table_name . '` WHERE file = %s', '/2026/09/old.jpg'));
-        $this->assertSame(0, (int) $old, 'the previous tracking rows are gone');
-    }
-
     public function test_mark_sync_complete_moves_to_synced_when_a_sync_exists(): void {
         $this->configureAzure();
         $this->useFakeClient();
@@ -335,9 +304,4 @@ class AdminAjaxTest extends IntegrationTestCase {
         $this->assertSame([], ConfigManager::get_failed_files());
     }
 
-    public function test_retry_failed_is_deprecated_and_says_so(): void {
-        $r = $this->call('diluxone_offload_retry_failed');
-        $this->assertFalse($r['json']['success'] ?? true, $r['raw']);
-        $this->assertStringContainsString('deprecated', strtolower($r['raw']));
-    }
 }

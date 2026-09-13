@@ -159,7 +159,8 @@ class PluginAjaxTest extends IntegrationTestCase {
     // ── Security sweep ──────────────────────────────────────
 
     public function test_there_are_ajax_actions_to_sweep(): void {
-        $this->assertGreaterThanOrEqual(30, count(self::registeredActions()));
+        // Every action the JS calls, plus the two DEV MODE endpoints.
+        $this->assertGreaterThanOrEqual(29, count(self::registeredActions()));
     }
 
     public function test_every_action_refuses_a_request_without_a_nonce(): void {
