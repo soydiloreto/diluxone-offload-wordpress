@@ -64,16 +64,14 @@ class Logger {
 			return;
 		}
 
-		if ( defined( 'DILUXONE_OFFLOAD_VERBOSE_LOGGING' ) && DILUXONE_OFFLOAD_VERBOSE_LOGGING ) {
-			self::$verbose_logging = true;
-		} else {
-			$config = get_option( 'diluxone_offload_config', array() );
-			if ( is_array( $config ) && ! empty( $config['enable_debug_logging'] ) ) {
-				self::$verbose_logging = true;
-			} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				self::$verbose_logging = false;
-			}
-		}
+		// Recompute from scratch every time. refresh() runs right after the
+		// settings form is saved, and if the toggle was just turned OFF the
+		// previous value must not survive: the old code only ever set the
+		// flag to true here, so switching debug off did not take effect until
+		// the next request.
+		$config                = get_option( 'diluxone_offload_config', array() );
+		self::$verbose_logging = ( defined( 'DILUXONE_OFFLOAD_VERBOSE_LOGGING' ) && DILUXONE_OFFLOAD_VERBOSE_LOGGING )
+			|| ( is_array( $config ) && ! empty( $config['enable_debug_logging'] ) );
 
 		self::$initialized = true;
 	}

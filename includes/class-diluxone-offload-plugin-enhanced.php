@@ -1456,14 +1456,62 @@ class Plugin {
 	}
 
 	/**
-	 * Plugin activation hook
+	 * Plugin activation hook.
+	 *
+	 * @param bool $network_wide True when activated across a whole multisite network.
+	 * @return void
 	 */
-	public static function activate(): void {
+	public static function activate( bool $network_wide = false ): void {
 		Logger::info( '[DiluxOne Offload Plugin] Activation hook called' );
 
-		// ⭐ Create custom database table for file tracking
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+
+		// The file-tracking table is per site: on multisite every blog has its
+		// own $wpdb->prefix, so a network activation that only ran here would
+		// leave every other site in the network without a table, and its first
+		// sync would fail on a missing table.
+		if ( $network_wide && is_multisite() ) {
+			foreach ( get_sites( array( 'fields' => 'ids' ) ) as $site_id ) {
+				switch_to_blog( (int) $site_id );
+				DiluxOneOffloadDB::create_files_table();
+				restore_current_blog();
+			}
+
+			Logger::info( '[DiluxOne Offload Plugin] Tables created network-wide.' );
+			return;
+		}
+
 		DiluxOneOffloadDB::create_files_table();
+	}
+
+	/**
+	 * Create this plugin's table on a site added after network activation.
+	 *
+	 * Without this, a blog created later never gets the table: activation
+	 * already ran, so nothing else would create it and the site's first sync
+	 * would fail.
+	 *
+	 * @param \WP_Site $site The newly created site.
+	 * @return void
+	 */
+	public static function on_new_site( $site ): void {
+		// wp_initialize_site can fire outside the admin, where this helper is
+		// not loaded yet.
+		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		if ( ! is_plugin_active_for_network( plugin_basename( DILUXONE_OFFLOAD_FILE ) ) ) {
+			return;
+		}
+
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+
+		switch_to_blog( (int) $site->blog_id );
+		DiluxOneOffloadDB::create_files_table();
+		restore_current_blog();
+
+		Logger::info( '[DiluxOne Offload Plugin] Table created for new site ' . (int) $site->blog_id );
 	}
 
 	/**

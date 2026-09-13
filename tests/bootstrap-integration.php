@@ -30,8 +30,26 @@ if (!defined('DOING_AJAX')) {
 $_SERVER['PHP_SELF'] = '/wp-admin/admin-ajax.php';
 
 // 2. Set HTTP_HOST etc. to prevent "Undefined array key" warnings under CLI.
+//
+//    On a multisite network the host MUST be one WordPress knows: for an
+//    unknown domain ms-settings.php redirects to the signup page and calls
+//    exit(0) before PHPUnit ever starts — no banner, no error, exit code 0,
+//    which is the worst possible way for a suite to fail. wp-config.php
+//    carries the network domain as DOMAIN_CURRENT_SITE; read it from the
+//    file (constants are not available before WordPress loads) and fall
+//    back to a placeholder on single-site installs, where any host works.
 if (empty($_SERVER['HTTP_HOST'])) {
-    $_SERVER['HTTP_HOST'] = getenv('HTTP_HOST') ?: 'tests.local';
+    $host = getenv('HTTP_HOST') ?: '';
+    if ($host === '' && is_readable('/var/www/html/wp-config.php')) {
+        if (preg_match(
+            "/define\\(\\s*'DOMAIN_CURRENT_SITE'\\s*,\\s*'([^']+)'/",
+            (string) file_get_contents('/var/www/html/wp-config.php'),
+            $m
+        )) {
+            $host = $m[1];
+        }
+    }
+    $_SERVER['HTTP_HOST'] = $host !== '' ? $host : 'tests.local';
 }
 if (empty($_SERVER['SERVER_NAME'])) {
     $_SERVER['SERVER_NAME'] = $_SERVER['HTTP_HOST'];
@@ -104,7 +122,14 @@ if (!defined('DILUXONE_OFFLOAD_INTEGRATION_TESTS')) {
 // 11. Override wp_die handlers globally so AJAX handlers throw an
 //     exception instead of terminating the PHPUnit process. Tests that
 //     expect wp_die catch WPAjaxDieContinueException.
-class WPAjaxDieContinueException extends \Exception {}
+// Extends \Error, not \Exception, on purpose. wp_send_json_*() ends with
+// wp_die(), which this throws to stand in for exit(). Almost every AJAX
+// handler in the plugin wraps its body in try { … } catch ( \Exception $e ),
+// and an Exception-based stand-in gets swallowed by that catch: the handler
+// then emits a SECOND json_error("… : ") after the real answer and the test
+// sees two concatenated documents. In production exit() is not catchable;
+// an \Error is the closest thing PHP offers to "not for you to catch".
+class WPAjaxDieContinueException extends \Error {}
 
 $_diluxone_offload_wp_die_test_handler = function ($message, $title = '', $args = []) {
     if (function_exists('is_wp_error') && is_wp_error($message)) {

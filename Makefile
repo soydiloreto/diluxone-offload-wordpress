@@ -111,8 +111,11 @@ test-unit: ## Run only the unit-test suite (no WordPress runtime).
 	$(VENDOR) ./vendor/bin/phpunit --testsuite unit
 
 .PHONY: test-integration
-test-integration: ## Run integration tests against the wp-env stack (must be `make env` first).
-	$(INTEG) ./vendor/bin/phpunit --testsuite integration
+test-integration: ## Run integration tests inside the wp-env tests container (needs `make env` first).
+	npx @wordpress/env run tests-cli wp plugin activate diluxone-offload-wordpress
+	npx @wordpress/env run tests-cli \
+	    ./wp-content/plugins/diluxone-offload-wordpress/vendor/bin/phpunit \
+	    -c ./wp-content/plugins/diluxone-offload-wordpress/phpunit-integration.xml
 
 # -- Distribution build ------------------------------------------------
 # The repo directory is diluxone-offload-wordpress (GitHub), but the plugin
@@ -138,20 +141,50 @@ dist: ## Build build/diluxone-offload/ — exactly what gets published.
 # but does not replace it: Plugin Check also enforces readme.txt structure,
 # plugin headers, i18n and directory rules that WPCS knows nothing about.
 #
-# It runs against the built dist, not the working tree. That is the artefact
-# the reviewer actually receives, so there is no exclusion list to drift out
-# of sync with .distignore, and the folder name matches the slug.
+# It runs in its own throwaway wp-env project under build/pcp, on its own
+# ports, mounting only the built dist. Two reasons it cannot share the main
+# environment: the plugin folder there is the repo name, and Plugin Check
+# compares the text domain against the folder name; and wp-env activates every
+# plugin it mounts, so mounting the repo and the dist together loads the plugin
+# twice and fatals on redeclaration.
+PCP_DIR := build/pcp
+PCP_ENV := npx @wordpress/env --debug=false
+
+.PHONY: pcp-env
+pcp-env: dist
+	@mkdir -p "$(PCP_DIR)"
+	@printf '%s\n' \
+	  '{' \
+	  '  "core": null,' \
+	  '  "phpVersion": "8.2",' \
+	  '  "plugins": [ "../diluxone-offload" ],' \
+	  '  "port": 8890,' \
+	  '  "testsPort": 8891' \
+	  '}' > "$(PCP_DIR)/.wp-env.json"
+	@cd "$(PCP_DIR)" && npx @wordpress/env start >/dev/null
+	@cd "$(PCP_DIR)" && (npx @wordpress/env run cli wp plugin is-installed plugin-check >/dev/null 2>&1 \
+	  || npx @wordpress/env run cli wp plugin install plugin-check --activate >/dev/null)
+
 .PHONY: plugin-check
-plugin-check: dist ## Run wordpress.org's Plugin Check on the built dist (needs `make env` first).
-	@npx @wordpress/env run cli wp plugin is-installed plugin-check >/dev/null 2>&1 \
-	  || npx @wordpress/env run cli wp plugin install plugin-check --activate
-	@npx @wordpress/env run cli wp plugin is-active plugin-check >/dev/null 2>&1 \
-	  || npx @wordpress/env run cli wp plugin activate plugin-check
-	npx @wordpress/env run cli wp plugin check diluxone-offload --format=table --severity=5
+plugin-check: pcp-env ## Run wordpress.org's Plugin Check on the built dist.
+	@cd "$(PCP_DIR)" && npx @wordpress/env run cli wp plugin check diluxone-offload --format=table --severity=5
 
 .PHONY: plugin-check-all
-plugin-check-all: dist ## Plugin Check on the built dist, including warnings and notices.
-	npx @wordpress/env run cli wp plugin check diluxone-offload --format=table
+plugin-check-all: pcp-env ## Plugin Check on the built dist, including warnings and notices.
+	@cd "$(PCP_DIR)" && npx @wordpress/env run cli wp plugin check diluxone-offload --format=table
+
+.PHONY: plugin-check-down
+plugin-check-down: ## Stop the Plugin Check environment.
+	@cd "$(PCP_DIR)" && npx @wordpress/env stop 2>/dev/null || true
+
+.PHONY: test-e2e
+test-e2e: ## Run the Playwright end-to-end suite against the wp-env dev site (needs `make env` first).
+	@mkdir -p build
+	npx playwright test
+
+.PHONY: test-all
+test-all: test-unit test-integration test-e2e ## Unit + integration + end-to-end.
+	@echo "✔ All three test levels passed."
 
 # -- Aggregate ---------------------------------------------------------
 .PHONY: check
@@ -161,7 +194,7 @@ check: lint stan psalm test ## Run every quality gate CI runs (lint, stan, psalm
 # -- Local dev environment (wp-env) ------------------------------------
 .PHONY: env env-up
 env: env-up ## Alias of env-up.
-env-up: dist ## Start the local wp-env Docker stack.
+env-up: ## Start the local wp-env Docker stack.
 	npx @wordpress/env start
 
 .PHONY: env-down
@@ -171,6 +204,15 @@ env-down: ## Stop the local wp-env Docker stack.
 .PHONY: env-clean
 env-clean: ## Destroy the local wp-env Docker stack and its volumes.
 	npx @wordpress/env destroy
+
+# The tests environment is single-site by default. Converting it to a network
+# is what lets tests/Integration/.../MultisiteTest.php run instead of skip; the
+# single-site tests keep passing on a network, so this is a superset.
+.PHONY: env-multisite
+env-multisite: ## Convert the wp-env tests site into a multisite network (idempotent).
+	@npx @wordpress/env run tests-cli wp core is-installed --network >/dev/null 2>&1 \
+	  || npx @wordpress/env run tests-cli wp core multisite-convert --title="Tests network"
+	@npx @wordpress/env run tests-cli wp plugin activate diluxone-offload-wordpress --network
 
 # -- Deploy / release --------------------------------------------------
 # The plugin is developed here and tried on a real site. `make deploy-test`

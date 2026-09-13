@@ -29,6 +29,14 @@ class ValidationHelperTest extends TestCase {
         parent::tearDown();
     }
 
+    /**
+     * Uses a Mockery alias mock of ConfigManager, which can only be installed
+     * while the real class is not loaded yet. Other suites load it, so this
+     * test needs its own process.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_validate_sync_start_in_configured_state(): void {
         // Replace ConfigManager statically; configure_state returns 'configured'.
         $config_manager = Mockery::mock('alias:DiluxOneOffload\ConfigManager');
@@ -42,6 +50,14 @@ class ValidationHelperTest extends TestCase {
         $this->assertArrayHasKey('passed', $result);
     }
 
+    /**
+     * Uses a Mockery alias mock of ConfigManager, which can only be installed
+     * while the real class is not loaded yet. Other suites load it, so this
+     * test needs its own process.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_validate_returns_array_structure(): void {
         // Mockery::close() in tearDown clears the previous alias, so re-mock.
         $config_manager = Mockery::mock('alias:DiluxOneOffload\ConfigManager');

@@ -24,9 +24,13 @@
         <include>
             <directory suffix=".php">includes</directory>
         </include>
+        <!--
+            DTOs are IN the report on purpose: they are pure value objects,
+            they are where the plugin's shapes are defined, and leaving them
+            out hid ~2,000 lines of trivially testable code behind a number
+            that looked worse than it was.
+        -->
         <exclude>
-            <directory>includes/Enums</directory>
-            <directory>includes/DTOs</directory>
             <file>includes/enhanced-autoloader.php</file>
         </exclude>
     </coverage>

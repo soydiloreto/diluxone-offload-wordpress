@@ -19,6 +19,7 @@
     "env:logs": "wp-env logs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@wordpress/env": "^10.0.0"
   }
 }

@@ -206,3 +206,200 @@ if (!function_exists('wp_salt')) {
         return 'test-salt-for-' . $scheme;
     }
 }
+
+// ── HTTP API, transients and filesystem helpers ─────────────────
+//
+// wp_remote_* dispatch to $GLOBALS['_test_wp_http'] when a test sets it:
+//     $GLOBALS['_test_wp_http'] = function (string $method, string $url, array $args) {
+//         return ['response' => ['code' => 200, 'message' => 'OK'], 'body' => '...', 'headers' => []];
+//     };
+// Return a WP_Error to simulate a transport failure. Without a handler every
+// request answers 200 with an empty body, so a test that forgets to set one
+// fails on its assertions rather than on a missing function.
+
+if (!class_exists('WP_Error')) {
+    class WP_Error {
+        /** @var array<string, string[]> */
+        private array $errors = [];
+        public function __construct(string $code = '', string $message = '', $data = '') {
+            if ($code !== '') { $this->errors[$code][] = $message; }
+        }
+        public function get_error_message(string $code = ''): string {
+            if ($code === '') { $code = (string) array_key_first($this->errors); }
+            return $this->errors[$code][0] ?? '';
+        }
+        public function get_error_code(): string { return (string) array_key_first($this->errors); }
+    }
+}
+
+if (!function_exists('is_wp_error')) {
+    function is_wp_error($thing): bool { return $thing instanceof WP_Error; }
+}
+
+if (!function_exists('_test_wp_http_dispatch')) {
+    function _test_wp_http_dispatch(string $method, string $url, array $args) {
+        $GLOBALS['_test_wp_http_log'][] = ['method' => $method, 'url' => $url, 'args' => $args];
+        $handler  = $GLOBALS['_test_wp_http'] ?? null;
+        $response = is_callable($handler)
+            ? $handler($method, $url, $args)
+            : ['response' => ['code' => 200, 'message' => 'OK'], 'body' => '', 'headers' => []];
+        // Honour WordPress's streamed download: with 'stream' => true the body
+        // lands in 'filename' and the response body is empty, exactly as the
+        // real transport behaves. The stream wrapper's read path depends on it.
+        if (is_array($response) && !empty($args['stream']) && !empty($args['filename'])) {
+            @mkdir(dirname($args['filename']), 0777, true);
+            file_put_contents($args['filename'], (string) ($response['body'] ?? ''));
+            $response['body'] = '';
+        }
+        return $response;
+    }
+}
+
+if (!function_exists('wp_remote_request')) {
+    function wp_remote_request(string $url, array $args = []) {
+        return _test_wp_http_dispatch(strtoupper((string) ($args['method'] ?? 'GET')), $url, $args);
+    }
+}
+if (!function_exists('wp_remote_get')) {
+    function wp_remote_get(string $url, array $args = []) { return _test_wp_http_dispatch('GET', $url, $args); }
+}
+if (!function_exists('wp_remote_post')) {
+    function wp_remote_post(string $url, array $args = []) { return _test_wp_http_dispatch('POST', $url, $args); }
+}
+if (!function_exists('wp_remote_head')) {
+    function wp_remote_head(string $url, array $args = []) { return _test_wp_http_dispatch('HEAD', $url, $args); }
+}
+if (!function_exists('wp_remote_retrieve_response_code')) {
+    function wp_remote_retrieve_response_code($response) {
+        return is_array($response) ? (int) ($response['response']['code'] ?? 0) : '';
+    }
+}
+if (!function_exists('wp_remote_retrieve_body')) {
+    function wp_remote_retrieve_body($response): string {
+        return is_array($response) ? (string) ($response['body'] ?? '') : '';
+    }
+}
+if (!function_exists('wp_remote_retrieve_headers')) {
+    function wp_remote_retrieve_headers($response) {
+        return is_array($response) ? ($response['headers'] ?? []) : [];
+    }
+}
+if (!function_exists('wp_remote_retrieve_header')) {
+    function wp_remote_retrieve_header($response, string $header) {
+        if (!is_array($response)) { return ''; }
+        $headers = array_change_key_case($response['headers'] ?? [], CASE_LOWER);
+        return $headers[strtolower($header)] ?? '';
+    }
+}
+
+if (!function_exists('get_transient')) {
+    function get_transient(string $key) {
+        return $GLOBALS['_test_wp_transients'][$key] ?? false;
+    }
+}
+if (!function_exists('set_transient')) {
+    function set_transient(string $key, $value, int $expiration = 0): bool {
+        $GLOBALS['_test_wp_transients'][$key] = $value;
+        return true;
+    }
+}
+if (!function_exists('delete_transient')) {
+    function delete_transient(string $key): bool {
+        $had = isset($GLOBALS['_test_wp_transients'][$key]);
+        unset($GLOBALS['_test_wp_transients'][$key]);
+        return $had;
+    }
+}
+
+if (!function_exists('wp_mkdir_p')) {
+    function wp_mkdir_p(string $target): bool { return is_dir($target) || @mkdir($target, 0777, true); }
+}
+if (!function_exists('wp_tempnam')) {
+    function wp_tempnam(string $filename = '', string $dir = ''): string {
+        return (string) tempnam($dir !== '' ? $dir : sys_get_temp_dir(), $filename !== '' ? $filename : 'wp');
+    }
+}
+if (!function_exists('wp_delete_file')) {
+    function wp_delete_file(string $file): void { @unlink($file); }
+}
+
+// ── Hooks (no-op registry), misc helpers ────────────────────────
+//
+// Hooks are recorded, never fired: unit tests assert on what a class does,
+// not on WordPress dispatching. A test that needs a hook to fire calls the
+// callback itself. $GLOBALS['_test_wp_hooks'] lets a test check what was
+// registered.
+
+if (!function_exists('add_action')) {
+    function add_action(string $hook, $callback, int $priority = 10, int $args = 1): bool {
+        $GLOBALS['_test_wp_hooks']['action'][$hook][] = ['callback' => $callback, 'priority' => $priority];
+        return true;
+    }
+}
+if (!function_exists('add_filter')) {
+    function add_filter(string $hook, $callback, int $priority = 10, int $args = 1): bool {
+        $GLOBALS['_test_wp_hooks']['filter'][$hook][] = ['callback' => $callback, 'priority' => $priority];
+        return true;
+    }
+}
+if (!function_exists('remove_filter')) {
+    function remove_filter(string $hook, $callback, int $priority = 10): bool {
+        $list = $GLOBALS['_test_wp_hooks']['filter'][$hook] ?? [];
+        $before = count($list);
+        $GLOBALS['_test_wp_hooks']['filter'][$hook] = array_values(array_filter(
+            $list, fn($h) => !($h['callback'] == $callback && $h['priority'] === $priority)
+        ));
+        return count($GLOBALS['_test_wp_hooks']['filter'][$hook]) < $before;
+    }
+}
+if (!function_exists('remove_action')) {
+    function remove_action(string $hook, $callback, int $priority = 10): bool {
+        return remove_filter($hook, $callback, $priority);
+    }
+}
+if (!function_exists('has_filter')) {
+    function has_filter(string $hook, $callback = false) {
+        $list = $GLOBALS['_test_wp_hooks']['filter'][$hook] ?? [];
+        if ($callback === false) { return count($list) > 0; }
+        foreach ($list as $h) { if ($h['callback'] == $callback) { return $h['priority']; } }
+        return false;
+    }
+}
+
+if (!function_exists('wp_unslash')) {
+    function wp_unslash($value) {
+        return is_array($value) ? array_map('wp_unslash', $value) : (is_string($value) ? stripslashes($value) : $value);
+    }
+}
+if (!function_exists('size_format')) {
+    function size_format($bytes, int $decimals = 0) {
+        $bytes = (float) $bytes;
+        foreach ([['TB', 1099511627776], ['GB', 1073741824], ['MB', 1048576], ['KB', 1024]] as [$unit, $size]) {
+            if ($bytes >= $size) { return number_format($bytes / $size, $decimals) . ' ' . $unit; }
+        }
+        return number_format($bytes, $decimals) . ' B';
+    }
+}
+if (!function_exists('wp_upload_dir')) {
+    /**
+     * Tests point this at a temp directory through $GLOBALS['_test_wp_upload_dir'];
+     * the shape mirrors WordPress's. The stream wrapper's filter_upload_dir
+     * is a filter callback, so a test that wants the cloud basedir applies it
+     * explicitly.
+     */
+    function wp_upload_dir(?string $time = null, bool $create_dir = true, bool $refresh_cache = false): array {
+        $base = $GLOBALS['_test_wp_upload_dir'] ?? (sys_get_temp_dir() . '/dlx-uploads');
+        if ($create_dir && !is_dir($base)) { @mkdir($base, 0777, true); }
+        return [
+            'path'    => $base,
+            'url'     => 'http://example.test/wp-content/uploads',
+            'subdir'  => '',
+            'basedir' => $base,
+            'baseurl' => 'http://example.test/wp-content/uploads',
+            'error'   => false,
+        ];
+    }
+}
+if (!function_exists('wp_get_upload_dir')) {
+    function wp_get_upload_dir(): array { return wp_upload_dir(null, false); }
+}

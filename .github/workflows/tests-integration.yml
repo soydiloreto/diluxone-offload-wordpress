@@ -46,7 +46,7 @@ jobs:
       - name: Install Composer dependencies
         # The vendor/ tree produced here is then mounted into the wp-env
         # container as part of the plugin volume — that's how the
-        # container can reach phpunit at /var/www/html/wp-content/plugins/diluxone-offload/vendor/.
+        # container can reach phpunit at /var/www/html/wp-content/plugins/diluxone-offload-wordpress/vendor/.
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Install npm dependencies
@@ -59,13 +59,17 @@ jobs:
         # (port 8889) — plus a shared MySQL. Plugin is auto-mounted.
         run: npx wp-env start
 
-      - name: Activate plugin in tests environment
-        # wp-env mounts but does not auto-activate. Activate explicitly so
-        # bootstrap-integration.php finds DILUXONE_OFFLOAD_DIR defined.
-        run: npx wp-env run tests-cli wp plugin activate diluxone-offload
+      - name: Convert the tests site into a multisite network
+        # The plugin folder inside the container is the repo name, not the
+        # wordpress.org slug. Converting to a network is what makes the
+        # multisite tests run instead of skip; single-site tests still pass
+        # on a network, so the suite is a superset.
+        run: |
+          npx wp-env run tests-cli wp core multisite-convert --title="Tests network"
+          npx wp-env run tests-cli wp plugin activate diluxone-offload-wordpress --network
 
       - name: Run integration tests
-        run: npx wp-env run tests-cli ./wp-content/plugins/diluxone-offload/vendor/bin/phpunit -c ./wp-content/plugins/diluxone-offload/phpunit-integration.xml
+        run: npx wp-env run tests-cli sh -c 'cd wp-content/plugins/diluxone-offload-wordpress && php vendor/bin/phpunit -c phpunit-integration.xml'
 
       - name: Stop wp-env
         if: always()
