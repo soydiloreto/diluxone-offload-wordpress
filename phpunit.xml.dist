@@ -23,6 +23,7 @@
     <coverage processUncoveredFiles="false">
         <include>
             <directory suffix=".php">includes</directory>
+            <directory suffix=".php">templates</directory>
         </include>
         <!--
             DTOs are IN the report on purpose: they are pure value objects,

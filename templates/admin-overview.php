@@ -97,12 +97,13 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						);
 						?>
 					</p>
-					<?php if ( ! empty( $config['account_name'] ) ) : ?>
+					<?php $overview_account = (string) ( $config['provider_config']['storage_account'] ?? '' ); ?>
+					<?php if ( $overview_account !== '' ) : ?>
 						<p class="status-details">
 							<?php
 							echo wp_kses(
 								/* translators: %s: storage account name */
-								sprintf( __( 'Account: <strong>%s</strong>', 'diluxone-offload' ), esc_html( $config['account_name'] ) ),
+								sprintf( __( 'Account: <strong>%s</strong>', 'diluxone-offload' ), esc_html( $overview_account ) ),
 								array( 'strong' => array() )
 							);
 							?>

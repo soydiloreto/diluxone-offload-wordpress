@@ -23,7 +23,7 @@ foreach (array_slice($argv, 2) as $in) {
     foreach ($doc->getElementsByTagName('file') as $file) {
         $name = $file->getAttribute('name');
         // Reports come from different containers; key by the path inside the plugin.
-        $key = preg_replace('#^.*?/(includes/.*)$#', '$1', $name);
+        $key = preg_replace('#^.*?/((?:includes|templates)/.*)$#', '$1', $name);
         foreach ($file->getElementsByTagName('line') as $line) {
             if ($line->getAttribute('type') !== 'stmt') {
                 continue;

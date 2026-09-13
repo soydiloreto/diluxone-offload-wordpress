@@ -466,6 +466,29 @@ class CloudStreamWrapper {
 			return false;
 		}
 
+		// Read/write: keep the blob in the buffer so writes reach the cloud on close.
+		if ( strpos( $mode, 'r' ) !== false && strpos( $mode, '+' ) !== false ) {
+			$cached_content = $this->cache_get( $this->path );
+			if ( $cached_content === null ) {
+				$temp_file = wp_tempnam( $this->path );
+				try {
+					$result = $cloud_client->download_file( $this->path, $temp_file );
+				} catch ( \Exception $e ) {
+					Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_open read/write exception: ' . $this->path . ' - ' . $e->getMessage() );
+					@unlink( $temp_file );
+					return false;
+				}
+				if ( ! $result['success'] ) {
+					@unlink( $temp_file );
+					return false;
+				}
+				$cached_content = (string) file_get_contents( $temp_file );
+				unlink( $temp_file );
+			}
+			$this->content = $cached_content;
+			return true;
+		}
+
 		// Handle different modes
 		if ( strpos( $mode, 'r' ) !== false ) {
 			// Read mode - check cache first (like Infinite Uploads)
@@ -606,7 +629,7 @@ class CloudStreamWrapper {
 	 */
 	public function stream_flush() {
 		// Read-only streams cannot be flushed (like Infinite Uploads line 539)
-		if ( $this->mode === 'r' || strpos( $this->mode, 'r' ) === 0 ) {
+		if ( strpos( $this->mode, 'r' ) === 0 && strpos( $this->mode, '+' ) === false ) {
 			return false;
 		}
 
@@ -757,7 +780,7 @@ class CloudStreamWrapper {
 		// file_put_contents() calls fflush() before fclose()
 		// So content is already uploaded by stream_flush()
 		// Only upload if flush was never called (direct fclose() without fflush())
-		if ( ! $this->saved_locally && ( strpos( $this->mode, 'w' ) !== false || strpos( $this->mode, 'a' ) !== false ) ) {
+		if ( ! $this->saved_locally && ( strpos( $this->mode, 'w' ) !== false || strpos( $this->mode, 'a' ) !== false || strpos( $this->mode, '+' ) !== false ) ) {
 			if ( ! empty( $this->content ) ) {
 				// Check if file is already in cache (uploaded by flush)
 				$cached_content = $this->cache_get( $this->path );
