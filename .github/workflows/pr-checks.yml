@@ -47,6 +47,13 @@ jobs:
         uses: wordpress/plugin-check-action@v1
         with:
           build-dir: ./
+          # Plugin Check derives the expected text domain from the folder it
+          # scans, and that folder here is the checkout — named after the
+          # repository, diluxone-offload-wordpress — while the text domain is
+          # the wordpress.org slug, diluxone-offload. Without this every
+          # translated string reads as a mismatch. What ships under the slug
+          # is built by `make dist`; this tells the check what it will be.
+          slug: diluxone-offload
           # Run all categories Plugin Check supports, including experimental
           # checks. Strict mode — we want to be more rigorous than wp.org
           # itself, so issues are caught here before they ever land on

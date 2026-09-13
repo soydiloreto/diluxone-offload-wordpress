@@ -258,6 +258,7 @@ env-multisite: ## Convert the wp-env tests site into a multisite network (idempo
 # files alone. Override SITE= to try it somewhere else.
 SITE ?= $(HOME)/repos/cst-website
 SITE_PLUGIN := $(SITE)/wp-content/plugins/diluxone-offload
+SITE_LANGS  := $(SITE)/wp-content/languages/plugins
 
 .PHONY: deploy-test
 deploy-test: ## Copy the working tree into a real site for manual smoke-testing.
@@ -266,11 +267,22 @@ deploy-test: ## Copy the working tree into a real site for manual smoke-testing.
 	  exit 1; \
 	fi
 	@mkdir -p "$(SITE_PLUGIN)"
-	rsync -a --delete \
+	@# --delete-excluded as well: a file that became excluded — or that was
+	@# there from an earlier layout — has to leave the site copy too, or the
+	@# site ends up running something the repo no longer ships.
+	rsync -a --delete --delete-excluded \
 	  --exclude-from=.distignore \
 	  --exclude='.git' \
 	  ./ "$(SITE_PLUGIN)/"
-	@echo "✔ Copied to $(SITE_PLUGIN)"
+	@# The bundled .mo files are inert on their own: with no
+	@# load_plugin_textdomain() call — discouraged by Plugin Check since
+	@# WordPress 4.6 — WordPress only reads plugin translations from
+	@# wp-content/languages/plugins/, which is where wordpress.org installs
+	@# its language packs. Until the plugin is published and those packs
+	@# exist, this puts the same files in the same place by hand.
+	@mkdir -p "$(SITE_LANGS)"
+	@cp languages/*.mo "$(SITE_LANGS)/" 2>/dev/null || true
+	@echo "✔ Copied to $(SITE_PLUGIN) (+ $$(ls languages/*.mo 2>/dev/null | wc -l) locales in $(SITE_LANGS))"
 
 .PHONY: release
 release: check ## Pre-release validation: full quality gate + version-alignment dry-run.

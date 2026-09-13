@@ -87,6 +87,11 @@ jobs:
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # The action defaults SLUG to the repository name. This repository is
+          # diluxone-offload-wordpress and the wordpress.org slug is
+          # diluxone-offload, so without this the deploy would target the wrong
+          # (non-existent) SVN path.
+          SLUG: diluxone-offload
 
       - name: Upload zip to GitHub Release
         if: ${{ steps.deploy.outputs.zip-path != '' }}
