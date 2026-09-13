@@ -1,6 +1,6 @@
-# French translations for DiluxOne Cloud Storage package.
-# Copyright (C) 2025 THE DiluxOne Cloud Storage'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the DiluxOne Cloud Storage package.
+# French translations for DiluxOne Offload package.
+# Copyright (C) 2025 THE DiluxOne Offload'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the DiluxOne Offload package.
 # Automatically generated, 2025.
 #
 msgid ""
