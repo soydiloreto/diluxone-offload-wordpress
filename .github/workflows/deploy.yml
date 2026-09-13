@@ -51,13 +51,13 @@ jobs:
           set -e
           tag="${GITHUB_REF#refs/tags/}"
           stable_tag=$(grep -oP '^Stable tag:\s*\K\S+' readme.txt)
-          php_version=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' offload-dlx-plus.php)
-          define_version=$(grep -oP "OFFLOAD_DLX_PLUS_VERSION',\s*'\K[^']+" offload-dlx-plus.php)
+          php_version=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' diluxone-offload.php)
+          define_version=$(grep -oP "DILUXONE_OFFLOAD_VERSION',\s*'\K[^']+" diluxone-offload.php)
 
           echo "Tag being deployed:          ${tag}"
           echo "readme.txt Stable tag:       ${stable_tag}"
           echo "PHP file Version header:     ${php_version}"
-          echo "PHP file OFFLOAD_DLX_PLUS_VERSION:   ${define_version}"
+          echo "PHP file DILUXONE_OFFLOAD_VERSION:   ${define_version}"
 
           fail=0
           if [ "${stable_tag}" != "${tag}" ]; then
@@ -65,15 +65,15 @@ jobs:
             fail=1
           fi
           if [ "${php_version}" != "${tag}" ]; then
-            echo "::error file=offload-dlx-plus.php::PHP Version header (${php_version}) does not match the git tag (${tag}). Drop any -dev/-alpha/-rc suffix and update Version: to ${tag} before tagging."
+            echo "::error file=diluxone-offload.php::PHP Version header (${php_version}) does not match the git tag (${tag}). Drop any -dev/-alpha/-rc suffix and update Version: to ${tag} before tagging."
             fail=1
           fi
           if [ "${define_version}" != "${tag}" ]; then
-            echo "::error file=offload-dlx-plus.php::OFFLOAD_DLX_PLUS_VERSION constant (${define_version}) does not match the git tag (${tag}). Update the constant to ${tag} before tagging."
+            echo "::error file=diluxone-offload.php::DILUXONE_OFFLOAD_VERSION constant (${define_version}) does not match the git tag (${tag}). Update the constant to ${tag} before tagging."
             fail=1
           fi
           if [ "${fail}" -ne 0 ]; then
-            echo "::error::Aborting deploy. The release-prep PR must drop pre-release suffixes from PHP and align all three version markers (Stable tag, Version, OFFLOAD_DLX_PLUS_VERSION) to the tag value."
+            echo "::error::Aborting deploy. The release-prep PR must drop pre-release suffixes from PHP and align all three version markers (Stable tag, Version, DILUXONE_OFFLOAD_VERSION) to the tag value."
             exit 1
           fi
 

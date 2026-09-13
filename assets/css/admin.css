@@ -1,16 +1,16 @@
-/* Dilux One Cloud Storage Admin Styles */
+/* DiluxOne Cloud Storage Admin Styles */
 
 /* =============================================================================
    Tab Navigation with Icons
    ========================================================================== */
 
-.offload-dlx-plus-admin .nav-tab-wrapper {
+.diluxone-offload-admin .nav-tab-wrapper {
     border-bottom: 1px solid #c3c4c7;
     padding: 0;
     margin: 20px 0 0 0;
 }
 
-.offload-dlx-plus-admin .nav-tab {
+.diluxone-offload-admin .nav-tab {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -18,27 +18,27 @@
     padding: 10px 15px;
 }
 
-.offload-dlx-plus-admin .nav-tab .dashicons {
+.diluxone-offload-admin .nav-tab .dashicons {
     font-size: 16px;
     width: 16px;
     height: 16px;
 }
 
-.offload-dlx-plus-admin h1 {
+.diluxone-offload-admin h1 {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.offload-dlx-plus-admin h1 .dashicons {
+.diluxone-offload-admin h1 .dashicons {
     color: #0073aa;
 }
 
-.offload-dlx-plus-settings,
-.offload-dlx-plus-overview,
-.offload-dlx-plus-migration,
-.offload-dlx-plus-activity,
-.offload-dlx-plus-status {
+.diluxone-offload-settings,
+.diluxone-offload-overview,
+.diluxone-offload-migration,
+.diluxone-offload-activity,
+.diluxone-offload-status {
     margin-top: 20px;
 }
 
@@ -417,13 +417,13 @@
 }
 
 /* DiluxOne Stats Panel */
-.offload-dlx-plus-stats-grid {
+.diluxone-offload-stats-grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
 	gap: 12px;
 }
 
-.offload-dlx-plus-stat-card {
+.diluxone-offload-stat-card {
 	background: #f9f9f9;
 	border: 1px solid #e2e4e7;
 	border-radius: 6px;
@@ -431,11 +431,11 @@
 	text-align: center;
 }
 
-.offload-dlx-plus-stat-card-wide {
+.diluxone-offload-stat-card-wide {
 	grid-column: 1 / -1;
 }
 
-.offload-dlx-plus-stat-label {
+.diluxone-offload-stat-label {
 	font-size: 12px;
 	color: #646970;
 	text-transform: uppercase;
@@ -443,26 +443,26 @@
 	margin-bottom: 6px;
 }
 
-.offload-dlx-plus-stat-value {
+.diluxone-offload-stat-value {
 	font-size: 20px;
 	font-weight: 600;
 	color: #1d2327;
 }
 
-.offload-dlx-plus-stat-detail {
+.diluxone-offload-stat-detail {
 	font-size: 13px;
 	color: #50575e;
 	margin-top: 6px;
 }
 
-.offload-dlx-plus-stat-bar-container {
+.diluxone-offload-stat-bar-container {
 	height: 10px;
 	border-radius: 5px;
 	overflow: hidden;
 	margin-top: 8px;
 }
 
-.offload-dlx-plus-stat-bar {
+.diluxone-offload-stat-bar {
 	height: 100%;
 	border-radius: 5px;
 	transition: width 0.3s ease;
@@ -470,24 +470,24 @@
 
 /* Spin animation for refresh button */
 .dashicons.spin {
-	animation: offload-dlx-plus-spin 1s linear infinite;
+	animation: diluxone-offload-spin 1s linear infinite;
 }
 
-@keyframes offload-dlx-plus-spin {
+@keyframes diluxone-offload-spin {
 	100% { transform: rotate(360deg); }
 }
 
 /* Provider Info table */
-.offload-dlx-plus-provider-info th {
+.diluxone-offload-provider-info th {
 	width: 150px;
 	padding: 8px 10px 8px 0;
 }
 
-.offload-dlx-plus-provider-info td {
+.diluxone-offload-provider-info td {
 	padding: 8px 10px;
 }
 
-.offload-dlx-plus-provider-info code {
+.diluxone-offload-provider-info code {
 	background: #f0f0f1;
 	padding: 2px 6px;
 	border-radius: 3px;
@@ -500,7 +500,7 @@
         grid-template-columns: 1fr;
     }
 
-    .offload-dlx-plus-stats-grid {
+    .diluxone-offload-stats-grid {
         grid-template-columns: 1fr;
     }
     

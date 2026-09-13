@@ -15,10 +15,10 @@
  * phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged
  * phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus;
+namespace DiluxOneOffload;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Removes deprecated options from database (compression_enabled, compression_quality)
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  * @since 1.0.0
  */
 class Cleanup {
@@ -48,7 +48,7 @@ class Cleanup {
 		);
 
 		// Get current config
-		$config = get_option( 'offload_dlx_plus_config', array() );
+		$config = get_option( 'diluxone_offload_config', array() );
 
 		if ( is_string( $config ) ) {
 			$config = @unserialize( $config );
@@ -72,7 +72,7 @@ class Cleanup {
 
 		// Save if changes were made
 		if ( ! empty( $results['removed'] ) ) {
-			$update_result = update_option( 'offload_dlx_plus_config', $config );
+			$update_result = update_option( 'diluxone_offload_config', $config );
 
 			if ( $update_result ) {
 				$results['success'] = true;
@@ -98,7 +98,7 @@ class Cleanup {
 	 * @return bool
 	 */
 	public static function has_compression_options(): bool {
-		$config = get_option( 'offload_dlx_plus_config', array() );
+		$config = get_option( 'diluxone_offload_config', array() );
 
 		if ( is_string( $config ) ) {
 			$config = @unserialize( $config );
@@ -116,7 +116,7 @@ class Cleanup {
 	 * @return array<string, mixed>
 	 */
 	public static function get_config_summary(): array {
-		$config = get_option( 'offload_dlx_plus_config', array() );
+		$config = get_option( 'diluxone_offload_config', array() );
 
 		if ( is_string( $config ) ) {
 			$config = @unserialize( $config );

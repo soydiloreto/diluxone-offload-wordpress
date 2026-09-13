@@ -46,9 +46,9 @@ jobs:
         run: |
           mkdir -p build
           set +e
-          OUTPUT=$(wp i18n make-pot . build/offload-dlx-plus.pot \
-            --slug=offload-dlx-plus \
-            --domain=offload-dlx-plus \
+          OUTPUT=$(wp i18n make-pot . build/diluxone-offload.pot \
+            --slug=diluxone-offload \
+            --domain=diluxone-offload \
             --exclude=tests,vendor,node_modules,.wordpress-org,assets,docs,build 2>&1)
           STATUS=$?
           echo "$OUTPUT"
@@ -78,7 +78,7 @@ jobs:
         # the WP-CLI scanner ignored every PHP file in the project).
         run: |
           set -e
-          POT_FILE=build/offload-dlx-plus.pot
+          POT_FILE=build/diluxone-offload.pot
           if [ ! -s "$POT_FILE" ]; then
             echo "::error::POT file is missing or empty: $POT_FILE"
             exit 1
@@ -95,6 +95,6 @@ jobs:
       - name: Upload .pot artefact
         uses: actions/upload-artifact@v4
         with:
-          name: offload-dlx-plus-pot
-          path: build/offload-dlx-plus.pot
+          name: diluxone-offload-pot
+          path: build/diluxone-offload.pot
           retention-days: 14

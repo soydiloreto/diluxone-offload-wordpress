@@ -2,10 +2,10 @@
 /**
  * File metadata value object (path, size, mtime, hash).
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus\DTOs;
+namespace DiluxOneOffload\DTOs;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Immutable value object for file metadata
  *
- * @package OffloadDlxPlus\DTOs
+ * @package DiluxOneOffload\DTOs
  * @since 1.0.0
  */
 class FileInfo {

@@ -2,10 +2,10 @@
 /**
  * Plugin-level configuration value object.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus\DTOs;
+namespace DiluxOneOffload\DTOs;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Immutable value object that composes provider configuration and plugin settings
  * This is the main configuration object used throughout the plugin.
  *
- * @package OffloadDlxPlus\DTOs
+ * @package DiluxOneOffload\DTOs
  * @since 1.0.0
  */
 class PluginConfig {

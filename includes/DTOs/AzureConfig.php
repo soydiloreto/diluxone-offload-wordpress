@@ -2,10 +2,10 @@
 /**
  * Azure provider configuration value object.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus\DTOs;
+namespace DiluxOneOffload\DTOs;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Immutable value object for Azure Blob Storage configuration
  *
- * @package OffloadDlxPlus\DTOs
+ * @package DiluxOneOffload\DTOs
  * @since 1.0.0
  */
 class AzureConfig {

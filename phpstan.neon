@@ -1,4 +1,4 @@
-# PHPStan configuration for offload-dlx-plus.
+# PHPStan configuration for diluxone-offload.
 #
 # Level 8 (max strictness) on the production code. The WordPress
 # extension (szepeviktor/phpstan-wordpress) is auto-registered via the
@@ -12,7 +12,7 @@ parameters:
     - phpstan-bootstrap.php
 
   paths:
-    - offload-dlx-plus.php
+    - diluxone-offload.php
     - includes
     - templates
 
@@ -32,9 +32,9 @@ parameters:
   # `define()`s become visible to static analysis, but their *runtime* values
   # are user-controlled (typically from wp-config.php) and may flip on a
   # per-deployment basis. Mark them dynamic so PHPStan does not collapse
-  # `if ( OFFLOAD_DLX_PLUS_DEV_MODE )` into "always false" based on the stub.
+  # `if ( DILUXONE_OFFLOAD_DEV_MODE )` into "always false" based on the stub.
   dynamicConstantNames:
-    - OFFLOAD_DLX_PLUS_DEV_MODE
-    - OFFLOAD_DLX_PLUS_VERBOSE_LOGGING
+    - DILUXONE_OFFLOAD_DEV_MODE
+    - DILUXONE_OFFLOAD_VERBOSE_LOGGING
     - DILUX_API_URL
     - WP_DEBUG

@@ -10,17 +10,17 @@
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use OffloadDlxPlus\Admin;
-use OffloadDlxPlus\ConfigManager;
+use DiluxOneOffload\Admin;
+use DiluxOneOffload\ConfigManager;
 
-use OffloadDlxPlus\Enums\PluginState;
+use DiluxOneOffload\Enums\PluginState;
 
 // Get plugin state and config
 $plugin_state = ConfigManager::get_state();
@@ -45,14 +45,14 @@ $pause_cause = (string) ( $health['error_code'] ?? '' );
 $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 ?>
 
-<div class="offload-dlx-plus-overview">
+<div class="diluxone-offload-overview">
 	<!-- Welcome Header -->
 	<div class="welcome-header">
-		<h2><?php esc_html_e( 'Welcome to Offload+', 'offload-dlx-plus' ); ?></h2>
+		<h2><?php esc_html_e( 'Welcome to DiluxOne Offload', 'diluxone-offload' ); ?></h2>
 		<p class="description">
-			<?php esc_html_e( 'Offload your WordPress media files to cloud storage and free up server space.', 'offload-dlx-plus' ); ?>
+			<?php esc_html_e( 'Offload your WordPress media files to cloud storage and free up server space.', 'diluxone-offload' ); ?>
 			<a href="<?php echo esc_url( 'https://diluxone.com/' ); ?>" target="_blank" rel="noopener noreferrer">
-				<?php esc_html_e( 'More Info', 'offload-dlx-plus' ); ?>
+				<?php esc_html_e( 'More Info', 'diluxone-offload' ); ?>
 			</a>
 		</p>
 	</div>
@@ -77,20 +77,20 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 				<span class="dashicons <?php echo esc_attr( $config_card_icon ); ?>"></span>
 			</div>
 			<div class="status-content">
-				<h3><?php esc_html_e( 'Configuration', 'offload-dlx-plus' ); ?></h3>
+				<h3><?php esc_html_e( 'Configuration', 'diluxone-offload' ); ?></h3>
 				<?php if ( $is_configured && ! $is_paused ) : ?>
-					<p class="status-label status-active"><?php esc_html_e( 'Configured', 'offload-dlx-plus' ); ?></p>
+					<p class="status-label status-active"><?php esc_html_e( 'Configured', 'diluxone-offload' ); ?></p>
 					<p class="status-details">
 						<?php
 						$provider_names   = array(
-							'diluxone' => 'Dilux One Cloud',
+							'diluxone' => 'DiluxOne Cloud',
 							'azure'    => 'Azure Blob Storage',
 						);
 						$provider_display = $provider_names[ $config['cloud_provider'] ?? '' ] ?? ucfirst( $config['cloud_provider'] ?? '' );
 						echo wp_kses(
 							sprintf(
 								/* translators: %s: cloud provider name */
-								__( 'Provider: <strong>%s</strong>', 'offload-dlx-plus' ),
+								__( 'Provider: <strong>%s</strong>', 'diluxone-offload' ),
 								esc_html( $provider_display )
 							),
 							array( 'strong' => array() )
@@ -102,40 +102,40 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 							<?php
 							echo wp_kses(
 								/* translators: %s: storage account name */
-								sprintf( __( 'Account: <strong>%s</strong>', 'offload-dlx-plus' ), esc_html( $config['account_name'] ) ),
+								sprintf( __( 'Account: <strong>%s</strong>', 'diluxone-offload' ), esc_html( $config['account_name'] ) ),
 								array( 'strong' => array() )
 							);
 							?>
 						</p>
 					<?php endif; ?>
 				<?php elseif ( $is_decrypt_failure ) : ?>
-					<p class="status-label" style="color:#dba617;"><?php esc_html_e( 'Awaiting Re-entry', 'offload-dlx-plus' ); ?></p>
+					<p class="status-label" style="color:#dba617;"><?php esc_html_e( 'Awaiting Re-entry', 'diluxone-offload' ); ?></p>
 					<p class="status-details" style="color:#856404;">
-						<?php esc_html_e( 'Stored credentials cannot be decrypted. See banner above.', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'Stored credentials cannot be decrypted. See banner above.', 'diluxone-offload' ); ?>
 					</p>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=offload-dlx-plus&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
-						<?php esc_html_e( 'Re-enter Credentials', 'offload-dlx-plus' ); ?>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
+						<?php esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
 					</a>
 				<?php elseif ( $is_configured && $is_paused ) : ?>
 					<p class="status-label" style="color:#dba617;">
 						<?php
 						printf(
 							/* translators: %s: short reason for the pause */
-							esc_html__( 'Paused (%s)', 'offload-dlx-plus' ),
+							esc_html__( 'Paused (%s)', 'diluxone-offload' ),
 							esc_html( $pause_label )
 						);
 						?>
 					</p>
 					<p class="status-details" style="color:#856404;">
-						<?php esc_html_e( 'See banner above for details.', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'See banner above for details.', 'diluxone-offload' ); ?>
 					</p>
 				<?php else : ?>
-					<p class="status-label status-inactive"><?php esc_html_e( 'Not Configured', 'offload-dlx-plus' ); ?></p>
+					<p class="status-label status-inactive"><?php esc_html_e( 'Not Configured', 'diluxone-offload' ); ?></p>
 					<p class="status-details">
-						<?php esc_html_e( 'Connect a cloud provider to get started', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'Connect a cloud provider to get started', 'diluxone-offload' ); ?>
 					</p>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=offload-dlx-plus&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
-						<?php esc_html_e( 'Configure Now', 'offload-dlx-plus' ); ?>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
+						<?php esc_html_e( 'Configure Now', 'diluxone-offload' ); ?>
 					</a>
 				<?php endif; ?>
 			</div>
@@ -150,39 +150,39 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 				<span class="dashicons <?php echo $is_synced ? 'dashicons-cloud-saved' : 'dashicons-cloud-upload'; ?>"></span>
 			</div>
 			<div class="status-content">
-				<h3><?php esc_html_e( 'Synchronization', 'offload-dlx-plus' ); ?></h3>
+				<h3><?php esc_html_e( 'Synchronization', 'diluxone-offload' ); ?></h3>
 				<?php if ( $is_synced && ! $is_paused ) : ?>
-					<p class="status-label status-active"><?php esc_html_e( 'Synced', 'offload-dlx-plus' ); ?></p>
+					<p class="status-label status-active"><?php esc_html_e( 'Synced', 'diluxone-offload' ); ?></p>
 					<p class="status-details">
-						<?php esc_html_e( 'Your files are in the cloud', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'Your files are in the cloud', 'diluxone-offload' ); ?>
 					</p>
 				<?php elseif ( $is_synced && $is_paused ) : ?>
 					<p class="status-label" style="color:#dba617;">
 						<?php
 						printf(
 							/* translators: %s: short reason for the pause */
-							esc_html__( 'Paused (%s)', 'offload-dlx-plus' ),
+							esc_html__( 'Paused (%s)', 'diluxone-offload' ),
 							esc_html( $pause_label )
 						);
 						?>
 					</p>
 					<p class="status-details">
-						<?php esc_html_e( 'Files were synced previously, but the plugin cannot reach the cloud right now.', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'Files were synced previously, but the plugin cannot reach the cloud right now.', 'diluxone-offload' ); ?>
 					</p>
 				<?php else : ?>
-					<p class="status-label status-inactive"><?php esc_html_e( 'Not Synced', 'offload-dlx-plus' ); ?></p>
+					<p class="status-label status-inactive"><?php esc_html_e( 'Not Synced', 'diluxone-offload' ); ?></p>
 					<p class="status-details">
 						<?php
 						if ( $is_configured ) {
-							esc_html_e( 'Ready to sync your files', 'offload-dlx-plus' );
+							esc_html_e( 'Ready to sync your files', 'diluxone-offload' );
 						} else {
-							esc_html_e( 'Configure cloud storage first', 'offload-dlx-plus' );
+							esc_html_e( 'Configure cloud storage first', 'diluxone-offload' );
 						}
 						?>
 					</p>
 					<?php if ( $is_configured && ! $is_paused ) : ?>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=offload-dlx-plus&tab=sync' ) ); ?>" class="button button-primary button-small">
-							<?php esc_html_e( 'Start Sync', 'offload-dlx-plus' ); ?>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=sync' ) ); ?>" class="button button-primary button-small">
+							<?php esc_html_e( 'Start Sync', 'diluxone-offload' ); ?>
 						</a>
 					<?php endif; ?>
 				<?php endif; ?>
@@ -198,33 +198,33 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 				<span class="dashicons <?php echo $is_offloading ? 'dashicons-superhero' : 'dashicons-database'; ?>"></span>
 			</div>
 			<div class="status-content">
-				<h3><?php esc_html_e( 'Offloading', 'offload-dlx-plus' ); ?></h3>
+				<h3><?php esc_html_e( 'Offloading', 'diluxone-offload' ); ?></h3>
 				<?php if ( $is_offloading && ! $is_paused ) : ?>
-					<p class="status-label status-active"><?php esc_html_e( 'Active', 'offload-dlx-plus' ); ?></p>
+					<p class="status-label status-active"><?php esc_html_e( 'Active', 'diluxone-offload' ); ?></p>
 					<p class="status-details">
-						<?php esc_html_e( 'Files served from cloud storage', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'Files served from cloud storage', 'diluxone-offload' ); ?>
 					</p>
 				<?php elseif ( $is_offloading && $is_paused ) : ?>
 					<p class="status-label" style="color:#dba617;">
 						<?php
 						printf(
 							/* translators: %s: short reason for the pause */
-							esc_html__( 'Paused (%s)', 'offload-dlx-plus' ),
+							esc_html__( 'Paused (%s)', 'diluxone-offload' ),
 							esc_html( $pause_label )
 						);
 						?>
 					</p>
 					<p class="status-details">
-						<?php esc_html_e( 'Falling back to local storage for new uploads.', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'Falling back to local storage for new uploads.', 'diluxone-offload' ); ?>
 					</p>
 				<?php else : ?>
-					<p class="status-label status-inactive"><?php esc_html_e( 'Inactive', 'offload-dlx-plus' ); ?></p>
+					<p class="status-label status-inactive"><?php esc_html_e( 'Inactive', 'diluxone-offload' ); ?></p>
 					<p class="status-details">
 						<?php
 						if ( $is_synced ) {
-							esc_html_e( 'Files still served locally', 'offload-dlx-plus' );
+							esc_html_e( 'Files still served locally', 'diluxone-offload' );
 						} else {
-							esc_html_e( 'Sync files first to enable', 'offload-dlx-plus' );
+							esc_html_e( 'Sync files first to enable', 'diluxone-offload' );
 						}
 						?>
 					</p>
@@ -238,7 +238,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 				<span class="dashicons dashicons-info"></span>
 			</div>
 			<div class="status-content">
-				<h3><?php esc_html_e( 'Plugin State', 'offload-dlx-plus' ); ?></h3>
+				<h3><?php esc_html_e( 'Plugin State', 'diluxone-offload' ); ?></h3>
 				<p class="status-label">
 					<?php
 					$badge_class = 'state-gray';
@@ -246,23 +246,23 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					switch ( $plugin_state ) {
 						case PluginState::NOT_CONFIGURED:
 							$badge_class = 'state-gray';
-							$badge_label = __( 'Not Configured', 'offload-dlx-plus' );
+							$badge_label = __( 'Not Configured', 'diluxone-offload' );
 							break;
 						case PluginState::CONFIGURED:
 							$badge_class = 'state-blue';
-							$badge_label = __( 'Configured', 'offload-dlx-plus' );
+							$badge_label = __( 'Configured', 'diluxone-offload' );
 							break;
 						case PluginState::SYNCING:
 							$badge_class = 'state-yellow';
-							$badge_label = __( 'Syncing', 'offload-dlx-plus' );
+							$badge_label = __( 'Syncing', 'diluxone-offload' );
 							break;
 						case PluginState::SYNCED:
 							$badge_class = 'state-green';
-							$badge_label = __( 'Synced', 'offload-dlx-plus' );
+							$badge_label = __( 'Synced', 'diluxone-offload' );
 							break;
 						case PluginState::OFFLOADING_ACTIVE:
 							$badge_class = 'state-purple';
-							$badge_label = __( 'Offloading Active', 'offload-dlx-plus' );
+							$badge_label = __( 'Offloading Active', 'diluxone-offload' );
 							break;
 					}
 					if ( $is_paused ) {
@@ -276,14 +276,14 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						<?php
 						printf(
 							/* translators: %s: short reason for the pause */
-							esc_html__( 'Paused (%s) — see banner above.', 'offload-dlx-plus' ),
+							esc_html__( 'Paused (%s) — see banner above.', 'diluxone-offload' ),
 							esc_html( $pause_label )
 						);
 						?>
 					</p>
 				<?php else : ?>
 					<p class="status-details">
-						<?php esc_html_e( 'Current operational mode', 'offload-dlx-plus' ); ?>
+						<?php esc_html_e( 'Current operational mode', 'diluxone-offload' ); ?>
 					</p>
 				<?php endif; ?>
 			</div>
@@ -294,36 +294,36 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 	<?php if ( $is_configured && $cloud_stats ) : ?>
 		<div class="storage-overview-section">
 			<h3 style="display: flex; align-items: center; justify-content: space-between;">
-				<?php esc_html_e( 'Storage Overview', 'offload-dlx-plus' ); ?>
+				<?php esc_html_e( 'Storage Overview', 'diluxone-offload' ); ?>
 				<button type="button" id="refresh-stats-btn" class="button button-small">
 					<span class="dashicons dashicons-update" style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle;"></span>
-					<?php esc_html_e( 'Refresh', 'offload-dlx-plus' ); ?>
+					<?php esc_html_e( 'Refresh', 'diluxone-offload' ); ?>
 				</button>
 			</h3>
 
 			<div id="stats-loading" style="display: none; text-align: center; padding: 20px;">
 				<span class="spinner is-active" style="float: none;"></span>
-				<p class="description"><?php esc_html_e( 'Loading storage statistics...', 'offload-dlx-plus' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Loading storage statistics...', 'diluxone-offload' ); ?></p>
 			</div>
 
 			<div id="stats-content">
 				<?php if ( ! $cloud_stats['success'] ) : ?>
 					<!-- Storage bar with ERROR -->
-					<div class="offload-dlx-plus-overview-bars">
-						<div class="offload-dlx-plus-bar-section">
-							<div class="offload-dlx-plus-bar-header">
-								<span class="offload-dlx-plus-bar-title"><?php esc_html_e( 'Storage', 'offload-dlx-plus' ); ?></span>
-								<span class="offload-dlx-plus-bar-value" id="stat-storage-detail" style="color: #d63638; font-weight: 600;">ERROR</span>
+					<div class="diluxone-offload-overview-bars">
+						<div class="diluxone-offload-bar-section">
+							<div class="diluxone-offload-bar-header">
+								<span class="diluxone-offload-bar-title"><?php esc_html_e( 'Storage', 'diluxone-offload' ); ?></span>
+								<span class="diluxone-offload-bar-value" id="stat-storage-detail" style="color: #d63638; font-weight: 600;">ERROR</span>
 							</div>
 						</div>
 					</div>
 					<!-- Files section with ERROR -->
-					<div class="offload-dlx-plus-files-section">
-						<div class="offload-dlx-plus-files-grid">
-							<div class="offload-dlx-plus-files-count">
-								<span class="offload-dlx-plus-stat-label"><?php esc_html_e( 'Total Files', 'offload-dlx-plus' ); ?></span>
-								<div id="stat-file-count" class="offload-dlx-plus-stat-value" style="color: #d63638; font-size: 16px;">
-									<?php esc_html_e( 'ERROR: please update your credentials', 'offload-dlx-plus' ); ?>
+					<div class="diluxone-offload-files-section">
+						<div class="diluxone-offload-files-grid">
+							<div class="diluxone-offload-files-count">
+								<span class="diluxone-offload-stat-label"><?php esc_html_e( 'Total Files', 'diluxone-offload' ); ?></span>
+								<div id="stat-file-count" class="diluxone-offload-stat-value" style="color: #d63638; font-size: 16px;">
+									<?php esc_html_e( 'ERROR: please update your credentials', 'diluxone-offload' ); ?>
 								</div>
 							</div>
 						</div>
@@ -348,7 +348,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					$files_by_type = $cs_data['filesByType'] ?? null;
 
 					// Color helper for bar charts
-					$offload_dlx_plus_bar_color = function ( float $pct, bool $exceeded = false ): array {
+					$diluxone_offload_bar_color = function ( float $pct, bool $exceeded = false ): array {
 						if ( $exceeded ) {
 							return array(
 								'color' => '#d63638',
@@ -366,31 +366,31 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 							'bg'    => '#d1e7dd',
 						);
 					};
-					$storage_colors             = $offload_dlx_plus_bar_color( $storage_pct, $quota_exceeded );
-					$bw_colors                  = $offload_dlx_plus_bar_color( $bw_pct );
+					$storage_colors             = $diluxone_offload_bar_color( $storage_pct, $quota_exceeded );
+					$bw_colors                  = $diluxone_offload_bar_color( $bw_pct );
 					?>
 
 					<?php if ( $quota_exceeded ) : ?>
 					<div id="quota-exceeded-warning" style="background: #f8d7da; border-left: 4px solid #d63638; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
-						<strong style="color: #721c24;"><?php esc_html_e( 'Storage quota exceeded. Uploads are disabled until you free up space or upgrade your plan.', 'offload-dlx-plus' ); ?></strong>
+						<strong style="color: #721c24;"><?php esc_html_e( 'Storage quota exceeded. Uploads are disabled until you free up space or upgrade your plan.', 'diluxone-offload' ); ?></strong>
 					</div>
 					<?php endif; ?>
 
 					<!-- Plan name -->
 					<?php if ( ( $cs_data['plan'] ?? null ) !== null ) : ?>
 					<div id="stat-plan-section" style="text-align: center; margin-bottom: 20px;">
-						<span class="offload-dlx-plus-stat-label"><?php esc_html_e( 'Current Plan', 'offload-dlx-plus' ); ?></span>
+						<span class="diluxone-offload-stat-label"><?php esc_html_e( 'Current Plan', 'diluxone-offload' ); ?></span>
 						<div id="stat-plan" style="font-size: 28px; font-weight: 700; color: #2271b1; margin-top: 4px;"><?php echo esc_html( $cs_data['plan'] ); ?></div>
 					</div>
 					<?php endif; ?>
 
 					<!-- Progress bars -->
-					<div class="offload-dlx-plus-overview-bars">
+					<div class="diluxone-offload-overview-bars">
 						<!-- Storage bar -->
-						<div class="offload-dlx-plus-bar-section">
-							<div class="offload-dlx-plus-bar-header">
-								<span class="offload-dlx-plus-bar-title"><?php esc_html_e( 'Storage', 'offload-dlx-plus' ); ?></span>
-								<span class="offload-dlx-plus-bar-value" id="stat-storage-detail">
+						<div class="diluxone-offload-bar-section">
+							<div class="diluxone-offload-bar-header">
+								<span class="diluxone-offload-bar-title"><?php esc_html_e( 'Storage', 'diluxone-offload' ); ?></span>
+								<span class="diluxone-offload-bar-value" id="stat-storage-detail">
 									<?php if ( $has_storage_limit ) : ?>
 										<?php echo esc_html( sprintf( '%s / %s (%s%%)', (string) size_format( $used_bytes ), (string) size_format( $storage_limit ), $storage_pct ) ); ?>
 									<?php else : ?>
@@ -399,28 +399,28 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 								</span>
 							</div>
 							<?php if ( $has_storage_limit ) : ?>
-							<div class="offload-dlx-plus-stat-bar-container" style="background: <?php echo esc_attr( $storage_colors['bg'] ); ?>;">
-								<div id="stat-storage-bar" class="offload-dlx-plus-stat-bar" style="width: <?php echo esc_attr( (string) min( $storage_pct, 100 ) ); ?>%; background: <?php echo esc_attr( $storage_colors['color'] ); ?>;"></div>
+							<div class="diluxone-offload-stat-bar-container" style="background: <?php echo esc_attr( $storage_colors['bg'] ); ?>;">
+								<div id="stat-storage-bar" class="diluxone-offload-stat-bar" style="width: <?php echo esc_attr( (string) min( $storage_pct, 100 ) ); ?>%; background: <?php echo esc_attr( $storage_colors['color'] ); ?>;"></div>
 							</div>
 							<?php endif; ?>
 						</div>
 
 						<!-- Bandwidth bar (DiluxOne only) -->
 						<?php if ( $bw_used !== null ) : ?>
-						<div class="offload-dlx-plus-bar-section" id="stat-bandwidth-section">
-							<div class="offload-dlx-plus-bar-header">
-								<span class="offload-dlx-plus-bar-title"><?php esc_html_e( 'Bandwidth (30 days)', 'offload-dlx-plus' ); ?></span>
-								<span class="offload-dlx-plus-bar-value" id="stat-bandwidth-detail">
+						<div class="diluxone-offload-bar-section" id="stat-bandwidth-section">
+							<div class="diluxone-offload-bar-header">
+								<span class="diluxone-offload-bar-title"><?php esc_html_e( 'Bandwidth (30 days)', 'diluxone-offload' ); ?></span>
+								<span class="diluxone-offload-bar-value" id="stat-bandwidth-detail">
 									<?php if ( $has_bw_limit ) : ?>
 										<?php echo esc_html( sprintf( '%s / %s (%s%%)', (string) size_format( $bw_used ), (string) size_format( $bw_limit ), $bw_pct ) ); ?>
 									<?php else : ?>
-										<?php echo $bw_used > 0 ? esc_html( (string) size_format( $bw_used ) ) : esc_html__( 'Not available', 'offload-dlx-plus' ); ?>
+										<?php echo $bw_used > 0 ? esc_html( (string) size_format( $bw_used ) ) : esc_html__( 'Not available', 'diluxone-offload' ); ?>
 									<?php endif; ?>
 								</span>
 							</div>
 							<?php if ( $has_bw_limit ) : ?>
-							<div class="offload-dlx-plus-stat-bar-container" style="background: <?php echo esc_attr( $bw_colors['bg'] ); ?>;">
-								<div id="stat-bandwidth-bar" class="offload-dlx-plus-stat-bar" style="width: <?php echo esc_attr( (string) min( $bw_pct, 100 ) ); ?>%; background: <?php echo esc_attr( $bw_colors['color'] ); ?>;"></div>
+							<div class="diluxone-offload-stat-bar-container" style="background: <?php echo esc_attr( $bw_colors['bg'] ); ?>;">
+								<div id="stat-bandwidth-bar" class="diluxone-offload-stat-bar" style="width: <?php echo esc_attr( (string) min( $bw_pct, 100 ) ); ?>%; background: <?php echo esc_attr( $bw_colors['color'] ); ?>;"></div>
 							</div>
 							<?php endif; ?>
 						</div>
@@ -428,12 +428,12 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					</div>
 
 					<!-- Files section with pie chart -->
-					<div class="offload-dlx-plus-files-section">
-						<div class="offload-dlx-plus-files-grid">
+					<div class="diluxone-offload-files-section">
+						<div class="diluxone-offload-files-grid">
 							<!-- File count -->
-							<div class="offload-dlx-plus-files-count">
-								<span class="offload-dlx-plus-stat-label"><?php esc_html_e( 'Total Files', 'offload-dlx-plus' ); ?></span>
-								<div id="stat-file-count" class="offload-dlx-plus-stat-value"><?php echo esc_html( number_format_i18n( $cs_data['fileCount'] ?? 0 ) ); ?></div>
+							<div class="diluxone-offload-files-count">
+								<span class="diluxone-offload-stat-label"><?php esc_html_e( 'Total Files', 'diluxone-offload' ); ?></span>
+								<div id="stat-file-count" class="diluxone-offload-stat-value"><?php echo esc_html( number_format_i18n( $cs_data['fileCount'] ?? 0 ) ); ?></div>
 							</div>
 
 							<!-- Pie chart (only if filesByType exists from API) -->
@@ -449,31 +449,31 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 									$s2         = $s1 + $pct_videos;
 									$s3         = $s2 + $pct_audio;
 									?>
-							<div class="offload-dlx-plus-pie-container" id="stat-pie-section">
-								<div class="offload-dlx-plus-pie" style="background: conic-gradient(#2271b1 0% <?php echo esc_attr( (string) $s1 ); ?>%, #d63638 <?php echo esc_attr( (string) $s1 ); ?>% <?php echo esc_attr( (string) $s2 ); ?>%, #dba617 <?php echo esc_attr( (string) $s2 ); ?>% <?php echo esc_attr( (string) $s3 ); ?>%, #8c8f94 <?php echo esc_attr( (string) $s3 ); ?>% 100%);"></div>
-								<div class="offload-dlx-plus-pie-legend">
-									<div class="offload-dlx-plus-legend-item"><span class="offload-dlx-plus-legend-dot" style="background: #2271b1;"></span>
+							<div class="diluxone-offload-pie-container" id="stat-pie-section">
+								<div class="diluxone-offload-pie" style="background: conic-gradient(#2271b1 0% <?php echo esc_attr( (string) $s1 ); ?>%, #d63638 <?php echo esc_attr( (string) $s1 ); ?>% <?php echo esc_attr( (string) $s2 ); ?>%, #dba617 <?php echo esc_attr( (string) $s2 ); ?>% <?php echo esc_attr( (string) $s3 ); ?>%, #8c8f94 <?php echo esc_attr( (string) $s3 ); ?>% 100%);"></div>
+								<div class="diluxone-offload-pie-legend">
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #2271b1;"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
-										echo esc_html( sprintf( __( 'Images %1$s (%2$s%%)', 'offload-dlx-plus' ), number_format_i18n( $files_by_type['images'] ?? 0 ), $pct_images ) );
+										echo esc_html( sprintf( __( 'Images %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['images'] ?? 0 ), $pct_images ) );
 									?>
 									</div>
-									<div class="offload-dlx-plus-legend-item"><span class="offload-dlx-plus-legend-dot" style="background: #d63638;"></span>
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #d63638;"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
-										echo esc_html( sprintf( __( 'Videos %1$s (%2$s%%)', 'offload-dlx-plus' ), number_format_i18n( $files_by_type['videos'] ?? 0 ), $pct_videos ) );
+										echo esc_html( sprintf( __( 'Videos %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['videos'] ?? 0 ), $pct_videos ) );
 									?>
 									</div>
-									<div class="offload-dlx-plus-legend-item"><span class="offload-dlx-plus-legend-dot" style="background: #dba617;"></span>
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #dba617;"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
-										echo esc_html( sprintf( __( 'Audio %1$s (%2$s%%)', 'offload-dlx-plus' ), number_format_i18n( $files_by_type['audio'] ?? 0 ), $pct_audio ) );
+										echo esc_html( sprintf( __( 'Audio %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['audio'] ?? 0 ), $pct_audio ) );
 									?>
 									</div>
-									<div class="offload-dlx-plus-legend-item"><span class="offload-dlx-plus-legend-dot" style="background: #8c8f94;"></span>
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #8c8f94;"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
-										echo esc_html( sprintf( __( 'Other %1$s (%2$s%%)', 'offload-dlx-plus' ), number_format_i18n( $files_by_type['other'] ?? 0 ), $pct_other ) );
+										echo esc_html( sprintf( __( 'Other %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['other'] ?? 0 ), $pct_other ) );
 									?>
 									</div>
 								</div>
@@ -492,15 +492,15 @@ endif;
 						$timestamp = strtotime( $checked_at );
 						$diff      = time() - $timestamp;
 						if ( $diff < 60 ) {
-							$ago = __( 'just now', 'offload-dlx-plus' );
+							$ago = __( 'just now', 'diluxone-offload' );
 						} elseif ( $diff < 3600 ) {
 							$minutes = (int) ( $diff / 60 );
 							/* translators: %d: number of minutes */
-							$ago = sprintf( _n( '%d minute ago', '%d minutes ago', $minutes, 'offload-dlx-plus' ), $minutes );
+							$ago = sprintf( _n( '%d minute ago', '%d minutes ago', $minutes, 'diluxone-offload' ), $minutes );
 						} elseif ( $diff < 86400 ) {
 							$hours = (int) ( $diff / 3600 );
 							/* translators: %d: number of hours */
-							$ago = sprintf( _n( '%d hour ago', '%d hours ago', $hours, 'offload-dlx-plus' ), $hours );
+							$ago = sprintf( _n( '%d hour ago', '%d hours ago', $hours, 'diluxone-offload' ), $hours );
 						} else {
 							$ago = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp );
 						}
@@ -508,7 +508,7 @@ endif;
 					<p id="stat-last-updated" class="description" style="margin-top: 10px; text-align: right; font-size: 12px;">
 						<?php
 						/* translators: %s: relative time, e.g. "3 minutes ago" */
-						echo esc_html( sprintf( __( 'Last updated: %s', 'offload-dlx-plus' ), $ago ) );
+						echo esc_html( sprintf( __( 'Last updated: %s', 'diluxone-offload' ), $ago ) );
 						?>
 					</p>
 					<?php endif; ?>
@@ -520,15 +520,15 @@ endif;
 	<!-- Quick Actions -->
 	<?php if ( $is_configured ) : ?>
 		<div class="quick-links-section">
-			<h3><?php esc_html_e( 'Quick Actions', 'offload-dlx-plus' ); ?></h3>
+			<h3><?php esc_html_e( 'Quick Actions', 'diluxone-offload' ); ?></h3>
 			<div class="quick-links">
 				<a href="<?php echo esc_url( 'https://diluxone.com/support' ); ?>" target="_blank" rel="noopener noreferrer" class="quick-link">
 					<span class="dashicons dashicons-sos"></span>
-					<?php esc_html_e( 'Get Help', 'offload-dlx-plus' ); ?>
+					<?php esc_html_e( 'Get Help', 'diluxone-offload' ); ?>
 				</a>
 				<a href="<?php echo esc_url( 'https://diluxone.com/' ); ?>" target="_blank" rel="noopener noreferrer" class="quick-link">
 					<span class="dashicons dashicons-info"></span>
-					<?php esc_html_e( 'More Info', 'offload-dlx-plus' ); ?>
+					<?php esc_html_e( 'More Info', 'diluxone-offload' ); ?>
 				</a>
 			</div>
 		</div>
@@ -537,595 +537,24 @@ endif;
 	<!-- Getting Started (if not configured) -->
 	<?php if ( ! $is_configured ) : ?>
 		<div class="getting-started-section">
-			<h3><?php esc_html_e( 'Getting Started', 'offload-dlx-plus' ); ?></h3>
+			<h3><?php esc_html_e( 'Getting Started', 'diluxone-offload' ); ?></h3>
 			<ol class="setup-steps">
 				<li>
-					<strong><?php esc_html_e( 'Configure Cloud Provider', 'offload-dlx-plus' ); ?></strong>
-					<p><?php esc_html_e( 'Choose your cloud provider and enter your credentials', 'offload-dlx-plus' ); ?></p>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=offload-dlx-plus&tab=cloud-provider' ) ); ?>" class="button button-primary">
-						<?php esc_html_e( 'Go to Cloud Provider', 'offload-dlx-plus' ); ?>
+					<strong><?php esc_html_e( 'Configure Cloud Provider', 'diluxone-offload' ); ?></strong>
+					<p><?php esc_html_e( 'Choose your cloud provider and enter your credentials', 'diluxone-offload' ); ?></p>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary">
+						<?php esc_html_e( 'Go to Cloud Provider', 'diluxone-offload' ); ?>
 					</a>
 				</li>
 				<li>
-					<strong><?php esc_html_e( 'Sync Your Files', 'offload-dlx-plus' ); ?></strong>
-					<p><?php esc_html_e( 'Upload your existing media files to the cloud', 'offload-dlx-plus' ); ?></p>
+					<strong><?php esc_html_e( 'Sync Your Files', 'diluxone-offload' ); ?></strong>
+					<p><?php esc_html_e( 'Upload your existing media files to the cloud', 'diluxone-offload' ); ?></p>
 				</li>
 				<li>
-					<strong><?php esc_html_e( 'Enable Offloading', 'offload-dlx-plus' ); ?></strong>
-					<p><?php esc_html_e( 'Serve files directly from the cloud', 'offload-dlx-plus' ); ?></p>
+					<strong><?php esc_html_e( 'Enable Offloading', 'diluxone-offload' ); ?></strong>
+					<p><?php esc_html_e( 'Serve files directly from the cloud', 'diluxone-offload' ); ?></p>
 				</li>
 			</ol>
 		</div>
 	<?php endif; ?>
 </div>
-
-<style>
-.offload-dlx-plus-overview {
-	max-width: 1200px;
-}
-
-/* Welcome Header */
-.welcome-header {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 24px;
-	margin-bottom: 24px;
-}
-
-.welcome-header h2 {
-	margin: 0 0 8px 0;
-	font-size: 24px;
-	color: #1d2327;
-}
-
-.welcome-header .description {
-	margin: 0;
-	color: #646970;
-	font-size: 14px;
-}
-
-/* Status Grid */
-.status-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-	gap: 20px;
-	margin-bottom: 30px;
-}
-
-.status-card {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 20px;
-	display: flex;
-	align-items: flex-start;
-	gap: 16px;
-}
-
-.status-card.status-success {
-	border-left: 4px solid #28a745;
-}
-
-.status-card.status-warning {
-	border-left: 4px solid #ffc107;
-}
-
-.status-card.status-neutral {
-	border-left: 4px solid #6c757d;
-}
-
-.status-card.status-info {
-	border-left: 4px solid #17a2b8;
-}
-
-.status-icon {
-	flex-shrink: 0;
-}
-
-.status-icon .dashicons {
-	font-size: 40px;
-	width: 40px;
-	height: 40px;
-}
-
-.status-success .status-icon .dashicons {
-	color: #28a745;
-}
-
-.status-warning .status-icon .dashicons {
-	color: #ffc107;
-}
-
-.status-neutral .status-icon .dashicons {
-	color: #6c757d;
-}
-
-.status-info .status-icon .dashicons {
-	color: #17a2b8;
-}
-
-.status-content {
-	flex: 1;
-}
-
-.status-content h3 {
-	margin: 0 0 8px 0;
-	font-size: 16px;
-	font-weight: 600;
-	color: #1d2327;
-}
-
-.status-label {
-	font-size: 14px;
-	font-weight: 600;
-	margin: 0 0 6px 0;
-}
-
-.status-label.status-active {
-	color: #28a745;
-}
-
-.status-label.status-inactive {
-	color: #6c757d;
-}
-
-.status-details {
-	font-size: 13px;
-	color: #646970;
-	margin: 4px 0;
-	line-height: 1.5;
-}
-
-.status-details strong {
-	color: #1d2327;
-}
-
-.button-small {
-	padding: 4px 12px;
-	font-size: 12px;
-	height: auto;
-	line-height: 1.5;
-	margin-top: 8px;
-}
-
-/* State Badge */
-.state-badge {
-	display: inline-block;
-	padding: 4px 12px;
-	border-radius: 4px;
-	font-size: 12px;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-}
-
-.state-badge.state-gray {
-	background: #f0f0f0;
-	color: #6c757d;
-}
-
-.state-badge.state-blue {
-	background: #e7f3ff;
-	color: #0073aa;
-}
-
-.state-badge.state-yellow {
-	background: #fff8e1;
-	color: #f57c00;
-}
-
-.state-badge.state-green {
-	background: #e8f5e9;
-	color: #2e7d32;
-}
-
-.state-badge.state-purple {
-	background: #f3e5f5;
-	color: #7b1fa2;
-}
-
-/* Greyed-out badge when the connection-health system reports a pause —
- * the underlying state is preserved but visually de-emphasised because
- * the feature is not actually working at the moment. */
-.state-badge.is-paused {
-	opacity: 0.5;
-}
-
-/* Quick Links Section */
-.quick-links-section {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 20px;
-	margin-bottom: 24px;
-}
-
-.quick-links-section h3 {
-	margin: 0 0 16px 0;
-	font-size: 16px;
-	font-weight: 600;
-}
-
-.quick-links {
-	display: flex;
-	gap: 12px;
-	flex-wrap: wrap;
-}
-
-.quick-link {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	padding: 10px 16px;
-	background: #f6f7f7;
-	border: 1px solid #ddd;
-	border-radius: 6px;
-	text-decoration: none;
-	color: #1d2327;
-	font-size: 14px;
-	font-weight: 500;
-	transition: all 0.2s ease;
-}
-
-.quick-link:hover {
-	background: #fff;
-	border-color: #0073aa;
-	color: #0073aa;
-	text-decoration: none;
-	transform: translateY(-1px);
-}
-
-.quick-link .dashicons {
-	font-size: 18px;
-	width: 18px;
-	height: 18px;
-}
-
-/* Getting Started Section */
-.getting-started-section {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 24px;
-}
-
-.getting-started-section h3 {
-	margin: 0 0 20px 0;
-	font-size: 18px;
-	font-weight: 600;
-}
-
-.setup-steps {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	counter-reset: step-counter;
-}
-
-.setup-steps li {
-	position: relative;
-	padding: 20px 0 20px 60px;
-	border-left: 2px solid #e0e0e0;
-	margin-left: 20px;
-}
-
-.setup-steps li:last-child {
-	border-left-color: transparent;
-}
-
-.setup-steps li::before {
-	content: counter(step-counter);
-	counter-increment: step-counter;
-	position: absolute;
-	left: -21px;
-	top: 20px;
-	width: 40px;
-	height: 40px;
-	background: #0073aa;
-	color: #fff;
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-weight: bold;
-	font-size: 18px;
-}
-
-.setup-steps li strong {
-	display: block;
-	margin-bottom: 8px;
-	font-size: 15px;
-	color: #1d2327;
-}
-
-.setup-steps li p {
-	margin: 0 0 12px 0;
-	color: #646970;
-	font-size: 14px;
-	line-height: 1.6;
-}
-
-/* Responsive */
-@media (max-width: 782px) {
-	.status-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.quick-links {
-		flex-direction: column;
-	}
-
-	.quick-link {
-		justify-content: center;
-	}
-}
-
-/* Storage Overview Section */
-.storage-overview-section {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 20px;
-	margin-bottom: 24px;
-}
-
-.storage-overview-section h3 {
-	margin: 0 0 16px 0;
-	font-size: 16px;
-	font-weight: 600;
-	padding-bottom: 10px;
-	border-bottom: 1px solid #eee;
-}
-
-/* Progress bars layout */
-.offload-dlx-plus-overview-bars {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-	margin-bottom: 20px;
-}
-
-.offload-dlx-plus-bar-section {
-	background: #f9f9f9;
-	border: 1px solid #e2e4e7;
-	border-radius: 6px;
-	padding: 14px;
-}
-
-.offload-dlx-plus-bar-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 8px;
-}
-
-.offload-dlx-plus-bar-title {
-	font-size: 13px;
-	font-weight: 600;
-	color: #1d2327;
-}
-
-.offload-dlx-plus-bar-value {
-	font-size: 13px;
-	color: #50575e;
-}
-
-/* Files section with pie */
-.offload-dlx-plus-files-section {
-	margin-top: 20px;
-	padding-top: 16px;
-	border-top: 1px solid #eee;
-}
-
-.offload-dlx-plus-files-grid {
-	display: flex;
-	align-items: center;
-	gap: 30px;
-}
-
-.offload-dlx-plus-files-count {
-	text-align: center;
-	min-width: 120px;
-}
-
-/* Pie chart CSS */
-.offload-dlx-plus-pie-container {
-	display: flex;
-	align-items: center;
-	gap: 24px;
-	flex: 1;
-}
-
-.offload-dlx-plus-pie {
-	width: 140px;
-	height: 140px;
-	border-radius: 50%;
-	flex-shrink: 0;
-}
-
-.offload-dlx-plus-pie-legend {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.offload-dlx-plus-legend-item {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 13px;
-	color: #50575e;
-}
-
-.offload-dlx-plus-legend-dot {
-	width: 12px;
-	height: 12px;
-	border-radius: 50%;
-	flex-shrink: 0;
-}
-
-/* Spin animation */
-.dashicons.spin {
-	animation: offload-dlx-plus-spin 1s linear infinite;
-}
-
-@keyframes offload-dlx-plus-spin {
-	100% { transform: rotate(360deg); }
-}
-
-/* Responsive for storage overview */
-@media (max-width: 782px) {
-	.offload-dlx-plus-files-grid {
-		flex-direction: column;
-		text-align: center;
-	}
-
-	.offload-dlx-plus-pie-container {
-		flex-direction: column;
-	}
-}
-</style>
-
-<script>
-jQuery(document).ready(function($) {
-	function formatBytes(bytes) {
-		if (!bytes || bytes === 0) return '0 B';
-		var k = 1024;
-		var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-		var i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-	}
-
-	$('#refresh-stats-btn').on('click', function() {
-		var $button = $(this);
-		var $loading = $('#stats-loading');
-		var $content = $('#stats-content');
-
-		$button.prop('disabled', true);
-		$button.find('.dashicons').addClass('spin');
-		$loading.show();
-		$content.hide();
-
-		$.ajax({
-			url: ajaxurl,
-			type: 'POST',
-			data: {
-				action: 'offload_dlx_plus_refresh_stats',
-				nonce: '<?php echo esc_js( wp_create_nonce( 'offload_dlx_plus_admin' ) ); ?>'
-			},
-			timeout: 30000,
-			success: function(response) {
-				if (response.success) {
-					var d = response.data;
-					$('#stat-file-count').text(parseInt(d.fileCount || 0).toLocaleString());
-
-					// Hide pie chart if no files
-					if (parseInt(d.fileCount || 0) === 0) {
-						$('#stat-pie-section').hide();
-					}
-
-					if (d.storageLimitBytes) {
-						var pct = Math.min((d.storageUsedBytes / d.storageLimitBytes) * 100, 100).toFixed(1);
-						$('#stat-storage-bar').css('width', pct + '%');
-						$('#stat-storage-detail').text(formatBytes(d.storageUsedBytes) + ' / ' + formatBytes(d.storageLimitBytes) + ' (' + pct + '%)');
-					} else {
-						$('#stat-storage-detail').text(formatBytes(d.storageUsedBytes));
-					}
-
-					if (d.bandwidthLimitBytes) {
-						var bwPct = Math.min((d.bandwidthUsedBytes / d.bandwidthLimitBytes) * 100, 100).toFixed(1);
-						$('#stat-bandwidth-bar').css('width', bwPct + '%');
-						$('#stat-bandwidth-detail').text(formatBytes(d.bandwidthUsedBytes) + ' / ' + formatBytes(d.bandwidthLimitBytes) + ' (' + bwPct + '%)');
-					} else if (d.bandwidthUsedBytes !== null) {
-						$('#stat-bandwidth-detail').text(d.bandwidthUsedBytes > 0 ? formatBytes(d.bandwidthUsedBytes) : 'Not available');
-					}
-
-					if (d.plan !== null && d.plan !== undefined) {
-						$('#stat-plan').text(d.plan);
-					}
-
-					if (d.quotaExceeded) {
-						$('#quota-exceeded-warning').show();
-					} else {
-						$('#quota-exceeded-warning').hide();
-					}
-
-					// Update pie chart
-					if (d.filesByType) {
-						var ft = d.filesByType;
-						var total = (ft.images || 0) + (ft.videos || 0) + (ft.audio || 0) + (ft.other || 0);
-						if (total > 0) {
-							var pImages = ((ft.images || 0) / total * 100).toFixed(1);
-							var pVideos = ((ft.videos || 0) / total * 100).toFixed(1);
-							var pAudio = ((ft.audio || 0) / total * 100).toFixed(1);
-							var pOther = (100 - pImages - pVideos - pAudio).toFixed(1);
-							var s1 = parseFloat(pImages);
-							var s2 = s1 + parseFloat(pVideos);
-							var s3 = s2 + parseFloat(pAudio);
-							var $pie = $('#stat-pie-section');
-							if ($pie.length) {
-								$pie.find('.offload-dlx-plus-pie').css('background', 'conic-gradient(#2271b1 0% ' + s1 + '%, #d63638 ' + s1 + '% ' + s2 + '%, #dba617 ' + s2 + '% ' + s3 + '%, #8c8f94 ' + s3 + '% 100%)');
-								var $legends = $pie.find('.offload-dlx-plus-legend-item');
-								var labels = [
-									'<?php echo esc_js( __( 'Images', 'offload-dlx-plus' ) ); ?>',
-									'<?php echo esc_js( __( 'Videos', 'offload-dlx-plus' ) ); ?>',
-									'<?php echo esc_js( __( 'Audio', 'offload-dlx-plus' ) ); ?>',
-									'<?php echo esc_js( __( 'Other', 'offload-dlx-plus' ) ); ?>'
-								];
-								var counts = [ft.images || 0, ft.videos || 0, ft.audio || 0, ft.other || 0];
-								var pcts = [pImages, pVideos, pAudio, pOther];
-								$legends.each(function(i) {
-									var $dot = $(this).find('.offload-dlx-plus-legend-dot').clone();
-									$(this).empty().append($dot).append(document.createTextNode(' ' + labels[i] + ' ' + parseInt(counts[i]).toLocaleString() + ' (' + pcts[i] + '%)'));
-								});
-							} else {
-								// Pie chart section doesn't exist yet — build it
-								var pieHtml = '<div class="offload-dlx-plus-pie-container" id="stat-pie-section">';
-								pieHtml += '<div class="offload-dlx-plus-pie" style="background: conic-gradient(#2271b1 0% ' + s1 + '%, #d63638 ' + s1 + '% ' + s2 + '%, #dba617 ' + s2 + '% ' + s3 + '%, #8c8f94 ' + s3 + '% 100%);"></div>';
-								pieHtml += '<div class="offload-dlx-plus-pie-legend">';
-								var colors = ['#2271b1', '#d63638', '#dba617', '#8c8f94'];
-								var labels2 = [
-									'<?php echo esc_js( __( 'Images', 'offload-dlx-plus' ) ); ?>',
-									'<?php echo esc_js( __( 'Videos', 'offload-dlx-plus' ) ); ?>',
-									'<?php echo esc_js( __( 'Audio', 'offload-dlx-plus' ) ); ?>',
-									'<?php echo esc_js( __( 'Other', 'offload-dlx-plus' ) ); ?>'
-								];
-								var counts2 = [ft.images || 0, ft.videos || 0, ft.audio || 0, ft.other || 0];
-								var pcts2 = [pImages, pVideos, pAudio, pOther];
-								for (var i = 0; i < 4; i++) {
-									pieHtml += '<div class="offload-dlx-plus-legend-item"><span class="offload-dlx-plus-legend-dot" style="background: ' + colors[i] + ';"></span> ' + labels2[i] + ' ' + parseInt(counts2[i]).toLocaleString() + ' (' + pcts2[i] + '%)</div>';
-								}
-								pieHtml += '</div></div>';
-								$('.offload-dlx-plus-files-count').after(pieHtml);
-							}
-						}
-					}
-
-					$('#stat-last-updated').text('<?php echo esc_js( __( 'Last updated:', 'offload-dlx-plus' ) ); ?> <?php echo esc_js( __( 'just now', 'offload-dlx-plus' ) ); ?>');
-				} else {
-					// Remove stale pie chart and show ERROR state
-					$('#stat-pie-section').remove();
-					var errorHtml = '<div class="offload-dlx-plus-overview-bars"><div class="offload-dlx-plus-bar-section"><div class="offload-dlx-plus-bar-header"><span class="offload-dlx-plus-bar-title"><?php echo esc_js( __( 'Storage', 'offload-dlx-plus' ) ); ?></span><span class="offload-dlx-plus-bar-value" id="stat-storage-detail" style="color: #d63638; font-weight: 600;">ERROR</span></div></div></div>';
-					errorHtml += '<div class="offload-dlx-plus-files-section"><div class="offload-dlx-plus-files-grid"><div class="offload-dlx-plus-files-count"><span class="offload-dlx-plus-stat-label"><?php echo esc_js( __( 'Total Files', 'offload-dlx-plus' ) ); ?></span><div id="stat-file-count" class="offload-dlx-plus-stat-value" style="color: #d63638; font-size: 16px;"><?php echo esc_js( __( 'ERROR: please update your credentials', 'offload-dlx-plus' ) ); ?></div></div></div></div>';
-					errorHtml += '<p class="description" style="color: #d63638; margin-top: 10px;">' + (response.data.message || 'Unknown error') + '</p>';
-					$('#stats-content').html(errorHtml);
-				}
-			},
-			error: function(xhr, status, error) {
-				var msg = status === 'timeout' ? '<?php echo esc_js( __( 'Request timed out. Try again later.', 'offload-dlx-plus' ) ); ?>' : 'Network error: ' + error;
-				var errorHtml = '<div class="offload-dlx-plus-overview-bars"><div class="offload-dlx-plus-bar-section"><div class="offload-dlx-plus-bar-header"><span class="offload-dlx-plus-bar-title"><?php echo esc_js( __( 'Storage', 'offload-dlx-plus' ) ); ?></span><span class="offload-dlx-plus-bar-value" style="color: #d63638; font-weight: 600;">ERROR</span></div></div></div>';
-				errorHtml += '<div class="offload-dlx-plus-files-section"><div class="offload-dlx-plus-files-grid"><div class="offload-dlx-plus-files-count"><span class="offload-dlx-plus-stat-label"><?php echo esc_js( __( 'Total Files', 'offload-dlx-plus' ) ); ?></span><div class="offload-dlx-plus-stat-value" style="color: #d63638; font-size: 16px;"><?php echo esc_js( __( 'ERROR: please update your credentials', 'offload-dlx-plus' ) ); ?></div></div></div></div>';
-				errorHtml += '<p class="description" style="color: #d63638; margin-top: 10px;">' + msg + '</p>';
-				$('#stats-content').html(errorHtml);
-			},
-			complete: function() {
-				$button.prop('disabled', false);
-				$button.find('.dashicons').removeClass('spin');
-				$loading.hide();
-				$content.show();
-			}
-		});
-	});
-});
-</script>

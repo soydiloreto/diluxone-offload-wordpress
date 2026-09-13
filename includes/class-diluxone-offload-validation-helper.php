@@ -2,12 +2,12 @@
 /**
  * Validation helpers for sync operations.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus;
+namespace DiluxOneOffload;
 
-use OffloadDlxPlus\Enums\PluginState;
+use DiluxOneOffload\Enums\PluginState;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -33,7 +33,7 @@ class ValidationHelper {
 	 * @return array<string, mixed> ['passed' => bool, 'reason' => string, 'details' => array]
 	 */
 	public static function validate_sync_operation( $requesting_session_id, $operation_type ) {
-		Logger::debug( '[Offload+ Validation] Validating operation: ' . $operation_type . ' from session: ' . $requesting_session_id );
+		Logger::debug( '[DiluxOne Offload Validation] Validating operation: ' . $operation_type . ' from session: ' . $requesting_session_id );
 
 		// 1. Multi-tab check (aplica a operaciones que modifican sync)
 		if ( self::requires_multi_tab_check( $operation_type ) ) {
@@ -56,7 +56,7 @@ class ValidationHelper {
 		}
 
 		// ✅ Todas las validaciones pasaron
-		Logger::info( '[Offload+ Validation] All validations PASSED for operation: ' . $operation_type );
+		Logger::info( '[DiluxOne Offload Validation] All validations PASSED for operation: ' . $operation_type );
 		return array(
 			'passed'  => true,
 			'reason'  => '',
@@ -92,7 +92,7 @@ class ValidationHelper {
 	 * @return array<string, mixed>
 	 */
 	private static function validate_multi_tab( $requesting_session_id ): array {
-		$sync_meta = get_option( 'offload_dlx_plus_sync_meta', array() );
+		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
 
 		if ( empty( $sync_meta ) ) {
 			// No hay sync activa → OK
@@ -128,8 +128,8 @@ class ValidationHelper {
 			if ( time() - $last_heartbeat > $heartbeat_timeout ) {
 				// ⭐ FIX: Si es reverse sync, NO cambiar estado (debe permanecer OFFLOADING_ACTIVE)
 				if ( $is_reverse_sync ) {
-					Logger::warning( '[Offload+ Validation] Reverse sync session expired (no heartbeat for ' . ( time() - $last_heartbeat ) . 's), clearing metadata but preserving OFFLOADING_ACTIVE state' );
-					delete_option( 'offload_dlx_plus_sync_meta' );
+					Logger::warning( '[DiluxOne Offload Validation] Reverse sync session expired (no heartbeat for ' . ( time() - $last_heartbeat ) . 's), clearing metadata but preserving OFFLOADING_ACTIVE state' );
+					delete_option( 'diluxone_offload_sync_meta' );
 					return array(
 						'passed'  => true,
 						'reason'  => '',
@@ -138,7 +138,7 @@ class ValidationHelper {
 				}
 
 				// Forward sync expirada → limpiar y resetear a CONFIGURED
-				Logger::warning( '[Offload+ Validation] Forward sync session expired (no heartbeat for ' . ( time() - $last_heartbeat ) . 's), cleaning up' );
+				Logger::warning( '[DiluxOne Offload Validation] Forward sync session expired (no heartbeat for ' . ( time() - $last_heartbeat ) . 's), cleaning up' );
 				ConfigManager::set_state( PluginState::CONFIGURED );
 				ConfigManager::clear_sync_progress();
 				return array(
@@ -152,7 +152,7 @@ class ValidationHelper {
 		// Hay sync activa → verificar si este tab es el dueño
 		if ( $active_session !== $requesting_session_id ) {
 			// Otro tab es el dueño → BLOCK
-			Logger::error( '[Offload+ Validation] FAILED: Another tab is active (active: ' . $active_session . ', requesting: ' . $requesting_session_id . ')' );
+			Logger::error( '[DiluxOne Offload Validation] FAILED: Another tab is active (active: ' . $active_session . ', requesting: ' . $requesting_session_id . ')' );
 			return array(
 				'passed'  => false,
 				'reason'  => 'sync_active_in_another_tab',
@@ -182,7 +182,7 @@ class ValidationHelper {
 			case 'retry_failed':
 				// No se puede iniciar sync si ya está SYNCING
 				if ( $current_state === PluginState::SYNCING ) {
-					Logger::error( '[Offload+ Validation] FAILED: Cannot start sync, state is already SYNCING' );
+					Logger::error( '[DiluxOne Offload Validation] FAILED: Cannot start sync, state is already SYNCING' );
 					return array(
 						'passed'  => false,
 						'reason'  => 'sync_already_active',
@@ -194,7 +194,7 @@ class ValidationHelper {
 			case 'enable_offloading':
 				// Solo se puede activar offloading desde estado SYNCED
 				if ( $current_state !== PluginState::SYNCED ) {
-					Logger::error( '[Offload+ Validation] FAILED: Cannot enable offloading, state is ' . $current_state . ' (required: SYNCED)' );
+					Logger::error( '[DiluxOne Offload Validation] FAILED: Cannot enable offloading, state is ' . $current_state . ' (required: SYNCED)' );
 					return array(
 						'passed'  => false,
 						'reason'  => 'state_conflict',
@@ -209,7 +209,7 @@ class ValidationHelper {
 			case 'disconnect':
 				// Solo se puede desconectar desde OFFLOADING_ACTIVE
 				if ( $current_state !== PluginState::OFFLOADING_ACTIVE ) {
-					Logger::error( '[Offload+ Validation] FAILED: Cannot disconnect, state is ' . $current_state . ' (required: OFFLOADING_ACTIVE)' );
+					Logger::error( '[DiluxOne Offload Validation] FAILED: Cannot disconnect, state is ' . $current_state . ' (required: OFFLOADING_ACTIVE)' );
 					return array(
 						'passed'  => false,
 						'reason'  => 'state_conflict',
@@ -246,14 +246,14 @@ class ValidationHelper {
 		}
 
 		// Enable offloading requiere que NO haya archivos failed o pending
-		require_once OFFLOAD_DLX_PLUS_DIR . 'includes/class-offload-dlx-plus-db.php';
-		$stats = OffloadDlxPlusDB::get_stats();
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+		$stats = DiluxOneOffloadDB::get_stats();
 
 		$failed_count  = (int) ( $stats['failed_files'] ?? 0 );
 		$pending_count = (int) ( $stats['pending_files'] ?? 0 );
 
 		if ( $failed_count > 0 || $pending_count > 0 ) {
-			Logger::error( '[Offload+ Validation] FAILED: Cannot enable offloading, failed=' . $failed_count . ', pending=' . $pending_count );
+			Logger::error( '[DiluxOne Offload Validation] FAILED: Cannot enable offloading, failed=' . $failed_count . ', pending=' . $pending_count );
 			return array(
 				'passed'  => false,
 				'reason'  => 'files_not_synced',

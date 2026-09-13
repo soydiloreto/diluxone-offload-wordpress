@@ -2,10 +2,10 @@
 /**
  * SyncStatus enum — values for the sync state machine.
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  */
 
-namespace OffloadDlxPlus\Enums;
+namespace DiluxOneOffload\Enums;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Represents the current state of a synchronization operation
  *
- * @package OffloadDlxPlus\Enums
+ * @package DiluxOneOffload\Enums
  * @since 1.0.0
  */
 class SyncStatus {

@@ -1,8 +1,8 @@
 <?php
 /**
- * Offload+ custom Image Editor for Imagick
+ * DiluxOne Offload custom Image Editor for Imagick
  *
- * Extends WP_Image_Editor_Imagick to handle offloaddlxplus:// stream wrapper paths.
+ * Extends WP_Image_Editor_Imagick to handle diluxoneoffload:// stream wrapper paths.
  * Based on Infinite Uploads approach - uses temp files to avoid stream wrapper
  * limitations. Temp file cleanup uses native unlink() because the temp paths
  * live outside /wp-content/uploads/. The image_make_intermediate_size filter
@@ -14,32 +14,32 @@
  * phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged
  *
  * Why this is needed:
- * - Imagick can't handle offloaddlxplus:// paths directly for saving images
+ * - Imagick can't handle diluxoneoffload:// paths directly for saving images
  * - WordPress needs local files to generate thumbnails
- * - Solution: Save to temp file, copy to offloaddlxplus://, clean up temp
+ * - Solution: Save to temp file, copy to diluxoneoffload://, clean up temp
  *
- * @package OffloadDlxPlus
+ * @package DiluxOneOffload
  * @since 1.0.0
  */
 
-namespace OffloadDlxPlus;
+namespace DiluxOneOffload;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Imagick image editor that handles offloaddlxplus:// paths via temp files.
+ * Imagick image editor that handles diluxoneoffload:// paths via temp files.
  *
  * Extends the WordPress core Imagick editor so the standard image-resize
  * pipeline keeps working when offloading is active. WordPress core will
  * try Imagick first then fall back to GD; both are wired through this
- * pair (OffloadDlxPlus_Image_Editor_Imagick + OffloadDlxPlus_Image_Editor_GD).
+ * pair (DiluxOneOffload_Image_Editor_Imagick + DiluxOneOffload_Image_Editor_GD).
  */
-class OffloadDlxPlus_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
+class DiluxOneOffload_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
 
 	/**
-	 * Remote filename (offloaddlxplus:// path)
+	 * Remote filename (diluxoneoffload:// path)
 	 *
 	 * @var string
 	 */
@@ -56,7 +56,7 @@ class OffloadDlxPlus_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
 	/**
 	 * Load image into Imagick object
 	 *
-	 * If file is in offloaddlxplus://, download to temp first, then load.
+	 * If file is in diluxoneoffload://, download to temp first, then load.
 	 *
 	 * @return true|\WP_Error True if loaded; \WP_Error on failure.
 	 */
@@ -72,37 +72,37 @@ class OffloadDlxPlus_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
 		}
 
 		// @phpstan-ignore-next-line deadCode.unreachable
-		Logger::info( '[Offload+ Image Editor] load() called for: ' . $this->file );
+		Logger::info( '[DiluxOne Offload Image Editor] load() called for: ' . $this->file );
 
 		if ( ! is_file( $this->file ) && ! preg_match( '|^https?://|', $this->file ) ) {
-			Logger::error( '[Offload+ Image Editor] File does not exist: ' . $this->file );
-			return new \WP_Error( 'error_loading_image', __( 'File doesn&#8217;t exist?', 'offload-dlx-plus' ), $this->file );
+			Logger::error( '[DiluxOne Offload Image Editor] File does not exist: ' . $this->file );
+			return new \WP_Error( 'error_loading_image', __( 'File doesn&#8217;t exist?', 'diluxone-offload' ), $this->file );
 		}
 
 		$upload_dir = wp_upload_dir();
 
 		// If file is NOT in our stream wrapper, use parent load
 		if ( strpos( $this->file, $upload_dir['basedir'] ) !== 0 ) {
-			Logger::info( '[Offload+ Image Editor] Not our stream wrapper, using parent load' );
+			Logger::info( '[DiluxOne Offload Image Editor] Not our stream wrapper, using parent load' );
 			return parent::load();
 		}
 
-		// ⭐ File is offloaddlxplus:// - download to temp for Imagick processing
-		Logger::info( '[Offload+ Image Editor] File is in offloaddlxplus://, creating temp' );
-		$temp_filename                 = tempnam( get_temp_dir(), 'offload-dlx-plus' );
+		// ⭐ File is diluxoneoffload:// - download to temp for Imagick processing
+		Logger::info( '[DiluxOne Offload Image Editor] File is in diluxoneoffload://, creating temp' );
+		$temp_filename                 = tempnam( get_temp_dir(), 'diluxone-offload' );
 		$this->temp_files_to_cleanup[] = $temp_filename;
 
-		// Copy from offloaddlxplus:// to local temp
-		Logger::info( '[Offload+ Image Editor] Copying from ' . $this->file . ' to ' . $temp_filename );
+		// Copy from diluxoneoffload:// to local temp
+		Logger::info( '[DiluxOne Offload Image Editor] Copying from ' . $this->file . ' to ' . $temp_filename );
 		$copy_result = copy( $this->file, $temp_filename );
 
 		if ( ! $copy_result ) {
-			Logger::error( '[Offload+ Image Editor] FAILED to copy file!' );
+			Logger::error( '[DiluxOne Offload Image Editor] FAILED to copy file!' );
 			@unlink( $temp_filename );
-			return new \WP_Error( 'unable-to-copy-from-cloud', __( 'Unable to copy file from cloud', 'offload-dlx-plus' ) );
+			return new \WP_Error( 'unable-to-copy-from-cloud', __( 'Unable to copy file from cloud', 'diluxone-offload' ) );
 		}
 
-		Logger::info( '[Offload+ Image Editor] Copy successful, temp size: ' . filesize( $temp_filename ) );
+		Logger::info( '[DiluxOne Offload Image Editor] Copy successful, temp size: ' . filesize( $temp_filename ) );
 
 		// Store remote path and switch to temp
 		$this->remote_filename = $this->file;
@@ -118,11 +118,11 @@ class OffloadDlxPlus_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
 	}
 
 	/**
-	 * Save image to offloaddlxplus:// path
+	 * Save image to diluxoneoffload:// path
 	 *
-	 * Imagick can't save directly to offloaddlxplus://, so:
+	 * Imagick can't save directly to diluxoneoffload://, so:
 	 * 1. Save to temp file
-	 * 2. Copy temp to offloaddlxplus:// (triggers stream wrapper upload to Azure)
+	 * 2. Copy temp to diluxoneoffload:// (triggers stream wrapper upload to Azure)
 	 * 3. Delete temp
 	 *
 	 * @param \Imagick $image Imagick object
@@ -141,7 +141,7 @@ class OffloadDlxPlus_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
 
 		// Only use temp file if saving to our stream wrapper
 		if ( strpos( $filename, $upload_dir['basedir'] ) === 0 ) {
-			$temp_filename = tempnam( get_temp_dir(), 'offload-dlx-plus' );
+			$temp_filename = tempnam( get_temp_dir(), 'diluxone-offload' );
 		} else {
 			// Not our stream wrapper, use parent directly
 			return parent::_save( $image, $filename, $mime_type );
@@ -155,7 +155,7 @@ class OffloadDlxPlus_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
 			return $save;
 		}
 
-		// Copy temp to offloaddlxplus:// (triggers upload to Azure)
+		// Copy temp to diluxoneoffload:// (triggers upload to Azure)
 		$copy_result = copy( $save['path'], $filename );
 
 		// Clean up temp files
@@ -165,7 +165,7 @@ class OffloadDlxPlus_Image_Editor_Imagick extends \WP_Image_Editor_Imagick {
 		if ( ! $copy_result ) {
 			return new \WP_Error(
 				'unable-to-copy-to-cloud',
-				__( 'Unable to copy the temp image to the cloud', 'offload-dlx-plus' )
+				__( 'Unable to copy the temp image to the cloud', 'diluxone-offload' )
 			);
 		}
 
