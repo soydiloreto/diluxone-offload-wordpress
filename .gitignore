@@ -24,6 +24,7 @@ build/
 
 # Test caches
 .phpunit.result.cache
+.phpunit.result.cache.*
 .phpunit.result.cache.integration
 .phpunit.cache/
 .phpcs-cache/

@@ -133,7 +133,9 @@ dist: ## Build build/diluxone-offload/ — exactly what gets published.
 	@mkdir -p "$(DIST_DIR)"
 	@# --delete, never `rm -rf` the directory itself: wp-env bind-mounts it, and
 	@# replacing the inode leaves the container looking at a mount that is gone.
-	@rsync -a --delete --exclude-from=.distignore --exclude='build' ./ "$(DIST_DIR)/"
+	@# --delete-excluded too: a file that became excluded must leave the dist,
+	@# --delete alone keeps it there from an earlier build.
+	@rsync -a --delete --delete-excluded --exclude-from=.distignore --exclude='build' ./ "$(DIST_DIR)/"
 	@echo "✔ Built $(DIST_DIR) ($$(find "$(DIST_DIR)" -type f | wc -l) files)"
 
 # -- Plugin Check (wordpress.org review gate) --------------------------
@@ -141,13 +143,13 @@ dist: ## Build build/diluxone-offload/ — exactly what gets published.
 # but does not replace it: Plugin Check also enforces readme.txt structure,
 # plugin headers, i18n and directory rules that WPCS knows nothing about.
 #
-# It runs in its own throwaway wp-env project under build/pcp, on its own
-# ports, mounting only the built dist. Two reasons it cannot share the main
+# It runs in its own throwaway wp-env project under build/pcp, on ports
+# 8896/8897 (8888-8891 belong to this repo's dev env and to other projects), mounting only the built dist. Two reasons it cannot share the main
 # environment: the plugin folder there is the repo name, and Plugin Check
 # compares the text domain against the folder name; and wp-env activates every
 # plugin it mounts, so mounting the repo and the dist together loads the plugin
 # twice and fatals on redeclaration.
-PCP_DIR := build/pcp
+PCP_DIR := $(CURDIR)/build/pcp
 PCP_ENV := npx @wordpress/env --debug=false
 
 .PHONY: pcp-env
@@ -158,8 +160,8 @@ pcp-env: dist
 	  '  "core": null,' \
 	  '  "phpVersion": "8.2",' \
 	  '  "plugins": [ "../diluxone-offload" ],' \
-	  '  "port": 8890,' \
-	  '  "testsPort": 8891' \
+	  '  "port": 8896,' \
+	  '  "testsPort": 8897' \
 	  '}' > "$(PCP_DIR)/.wp-env.json"
 	@cd "$(PCP_DIR)" && npx @wordpress/env start >/dev/null
 	@cd "$(PCP_DIR)" && (npx @wordpress/env run cli wp plugin is-installed plugin-check >/dev/null 2>&1 \
