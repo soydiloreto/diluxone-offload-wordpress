@@ -4,7 +4,7 @@ Tags: media, offload, azure, cloud storage, uploads
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,11 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 
 == Changelog ==
 
+= 1.0.1 =
+Bug fix.
+
+* Clearing the failed files now lets offloading be enabled in the same step. Discarding them left the plugin in the SYNCING state, which is not one offloading can be activated from, so the "Clear Failed & Enable" button reported that the files were discarded but offloading could not be enabled — with no way forward from the screen.
+
 = 1.0.0 =
 First public release.
 
@@ -138,6 +143,9 @@ First public release.
 * Translations included for es_AR, es_ES, es_MX, pt_BR, pt_PT, fr_FR, de_DE and it_IT.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Fixes the "Clear Failed & Enable" button, which discarded the failed files but could not enable offloading afterwards.
 
 = 1.0.0 =
 First public release.
