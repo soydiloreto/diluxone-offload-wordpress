@@ -10,9 +10,9 @@ use DiluxOneOffload\Enums\PluginState;
 use WPAjaxDieContinueException;
 
 /**
- * Admin AJAX handlers, second helping: the DiluxOne provider through "test
- * connection" / "save updated credentials", the reset that "cancel sync"
- * performs when nothing is running, and stats refresh for each provider.
+ * Admin AJAX handlers, second helping: the nonce shapes "test connection"
+ * accepts, the reset that "cancel sync" performs when nothing is running, and
+ * the stats refresh.
  */
 class AdminAjaxExtrasTest extends IntegrationTestCase {
     use ScriptedHttp;
@@ -82,35 +82,6 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
         return self::httpReply($code, (string) json_encode($payload));
     }
 
-    private function configureDiluxOne(string $key = 'dlx_live_0123456789'): void {
-        ConfigManager::save_config(['cloud_provider' => 'diluxone', 'provider_config' => ['api_key' => $key, 'cdn_base_url' => 'https://cdn.example.net/c']]);
-        ConfigManager::set_state(PluginState::CONFIGURED);
-    }
-
-    // ── test_connection: DiluxOne ───────────────────────────
-
-    public function test_diluxone_connection_needs_an_api_key(): void {
-        $r = $this->call('diluxone_offload_test_connection', ['provider' => 'diluxone', 'api_key' => '']);
-        $this->assertFalse($r['json']['success']);
-        $this->assertStringContainsString('API Key', $r['json']['data']['message']);
-    }
-
-    public function test_diluxone_connection_success_is_remembered_by_key_prefix(): void {
-        $this->scriptHttp(fn() => self::json(200, ['data' => ['plan' => 'pro', 'storageUsedBytes' => 0, 'storageLimitBytes' => 1]]));
-        $r = $this->call('diluxone_offload_test_connection', ['provider' => 'diluxone', 'api_key' => 'dlx_live_0123456789abc']);
-        $this->assertTrue($r['json']['success'], $r['raw']);
-        $t = get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id);
-        $this->assertSame('diluxone', $t['provider']);
-        $this->assertSame('dlx_live_012', $t['api_key_prefix']);
-    }
-
-    public function test_diluxone_connection_failure_is_reported(): void {
-        $this->scriptHttp(fn() => self::json(401, ['error' => ['message' => 'invalid key']]));
-        $r = $this->call('diluxone_offload_test_connection', ['provider' => 'diluxone', 'api_key' => 'dlx_live_bad']);
-        $this->assertFalse($r['json']['success']);
-        $this->assertSame('invalid key', $r['json']['data']['message']);
-    }
-
     public function test_connection_test_accepts_the_form_nonce_too(): void {
         $_POST = ['_wpnonce' => wp_create_nonce('diluxone_offload_admin'), 'provider' => 'azure'];
         $_REQUEST = $_POST;
@@ -140,23 +111,6 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
     public function test_saving_credentials_requires_a_prior_test(): void {
         $r = $this->call('diluxone_offload_save_updated_credentials', ['provider' => 'azure']);
         $this->assertStringContainsString('test the connection first', $r['json']['data']['message']);
-    }
-
-    public function test_saving_diluxone_credentials_that_differ_from_the_tested_ones_is_refused(): void {
-        set_transient('diluxone_offload_connection_test_passed_' . $this->admin_id, ['provider' => 'diluxone', 'api_key_prefix' => 'dlx_live_012', 'timestamp' => time()], 300);
-        $r = $this->call('diluxone_offload_save_updated_credentials', ['provider' => 'diluxone', 'api_key' => 'dlx_live_OTHERKEY']);
-        $this->assertStringContainsString('do not match', $r['json']['data']['message']);
-    }
-
-    public function test_saving_diluxone_credentials_keeps_the_known_cdn_url(): void {
-        $this->configureDiluxOne('dlx_live_old');
-        set_transient('diluxone_offload_connection_test_passed_' . $this->admin_id, ['provider' => 'diluxone', 'api_key_prefix' => 'dlx_live_012', 'timestamp' => time()], 300);
-        $r = $this->call('diluxone_offload_save_updated_credentials', ['provider' => 'diluxone', 'api_key' => 'dlx_live_0123456789new']);
-        $this->assertTrue($r['json']['success'], $r['raw']);
-        $cfg = ConfigManager::get_current_provider_config();
-        $this->assertSame('dlx_live_0123456789new', $cfg['api_key']);
-        $this->assertSame('https://cdn.example.net/c', $cfg['cdn_base_url']);
-        $this->assertFalse(get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id), 'the test token is spent');
     }
 
     public function test_saving_azure_credentials_that_differ_from_the_tested_ones_is_refused(): void {
@@ -225,23 +179,6 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
     }
 
     // ── refresh_stats per provider ──────────────────────────
-
-    public function test_refresh_stats_for_diluxone_calls_the_api(): void {
-        $this->configureDiluxOne();
-        $this->scriptHttp(fn() => self::json(200, ['data' => ['fileCount' => 7, 'storageUsedBytes' => 70]]));
-        $r = $this->call('diluxone_offload_refresh_stats');
-        $this->assertTrue($r['json']['success'], $r['raw']);
-        $this->assertSame(7, $r['json']['data']['fileCount']);
-        $this->assertSame('healthy', ConfigManager::get_connection_health()['status']);
-    }
-
-    public function test_refresh_stats_for_diluxone_reports_an_api_refusal(): void {
-        $this->configureDiluxOne();
-        $this->scriptHttp(fn() => self::json(503, ['error' => ['message' => 'maintenance']]));
-        $r = $this->call('diluxone_offload_refresh_stats');
-        $this->assertFalse($r['json']['success']);
-        $this->assertSame('maintenance', $r['json']['data']['message']);
-    }
 
     public function test_refresh_stats_with_an_unknown_provider_type_is_an_error(): void {
         $this->fake = new FakeCloudClient(self::$server->base_url);

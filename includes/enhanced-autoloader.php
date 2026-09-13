@@ -53,7 +53,6 @@ function diluxone_offload_autoloader( string $class_name ): void {
 
 		// Providers
 		'Providers\\AzureProvider'                => 'includes/providers/class-azure-provider.php',
-		'Providers\\DiluxOneCloudProvider'        => 'includes/providers/class-diluxone-cloud-provider.php',
 
 		// Factories
 		'Factories\\CloudStorageFactory'          => 'includes/factories/class-cloud-storage-factory.php',

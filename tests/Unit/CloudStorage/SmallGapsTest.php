@@ -10,9 +10,8 @@ use DiluxOneOffload\Logger;
 
 /**
  * Branches too small for a file of their own: providers the factory knows
- * about but does not ship, the DiluxOne side of ProviderConfig::fromPost,
- * the byte formatter behind the size-limit message, and the logger's
- * verbosity switch.
+ * about but does not ship, the byte formatter behind the size-limit message,
+ * and the logger's verbosity switch.
  */
 class SmallGapsTest extends TestCase {
 
@@ -39,19 +38,6 @@ class SmallGapsTest extends TestCase {
 			'aws' => array( 'AWS', 'not implemented' ),
 			'gcp' => array( 'gcp', 'not implemented' ),
 		);
-	}
-
-	public function test_diluxone_from_post_needs_an_api_key(): void {
-		$this->expectException( \InvalidArgumentException::class );
-		$this->expectExceptionMessage( 'API Key is required' );
-		ProviderConfig::fromPost( array( 'cloud_provider' => 'diluxone', 'api_key' => '' ) );
-	}
-
-	public function test_diluxone_from_post_builds_the_config(): void {
-		$cfg = ProviderConfig::fromPost( array( 'cloud_provider' => 'diluxone', 'api_key' => 'dlx_live_abc' ) );
-		$this->assertSame( 'diluxone', $cfg->getCloudProvider() );
-		$this->assertSame( 'dlx_live_abc', $cfg->getProviderConfig()['api_key'] );
-		$this->assertSame( '', $cfg->getProviderConfig()['cdn_base_url'] );
 	}
 
 	public function test_from_post_rejects_an_unknown_provider(): void {

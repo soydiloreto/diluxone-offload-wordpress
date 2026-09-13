@@ -18,9 +18,7 @@ The plugin uses a custom PHP stream wrapper to intercept every read and write to
 
 = Key features =
 
-* **Two providers supported out of the box**
-  * Azure Blob Storage (bring-your-own credentials).
-  * DiluxOne Cloud (managed — get an API key from [diluxone.com](https://diluxone.com/)).
+* **Azure Blob Storage** — bring your own storage account; nothing is shared with anyone else.
 * **Transparent stream wrapper** — no URL rewriting, no regex on post content, no database migration required for URLs.
 * **Sync with resumable state machine** — start, pause, resume, cancel, retry failed files, resync from scratch.
 * **Offloading mode** — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working.
@@ -49,12 +47,11 @@ Most offload plugins rewrite media URLs in post content, which breaks when you s
 * PHP 7.4 or higher.
 * `ext-curl` and `ext-openssl` enabled.
 * Writable `wp-content/uploads/` directory during sync (needed for temporary files).
-* For Azure: a Blob Storage account and access key.
-* For DiluxOne Cloud: an API key.
+* An Azure Blob Storage account and its access key.
 
 == External Services ==
 
-This plugin integrates with third-party cloud storage services. **Nothing is sent to any external service until you explicitly enable a provider** in the *Cloud Provider* tab. You always choose which service to use and supply your own credentials or API key.
+This plugin integrates with a third-party cloud storage service. **Nothing is sent to it until you explicitly configure it** in the *Cloud Provider* tab, with credentials you supply.
 
 = Azure Blob Storage =
 
@@ -70,21 +67,6 @@ This is **your own Azure account**. DiluxOne Offload is not involved and has no 
 * Service: [Azure Blob Storage](https://azure.microsoft.com/services/storage/blobs/)
 * Terms of Service: [Microsoft Online Services Terms](https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure)
 * Privacy Policy: [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement)
-
-= DiluxOne Cloud =
-
-When DiluxOne Cloud is selected as the active provider, the plugin connects to the DiluxOne Cloud REST API at `https://api.diluxone.com/cloud-storage-wp/v1` using the API key you provide. The plugin issues these requests:
-
-* `POST /auth/verify` — to validate the API key when you click *Test Connection*.
-* `POST /storage/sas-token` — to obtain a short-lived upload URL before each upload.
-* `GET /stats` — to retrieve your storage and bandwidth usage shown on the *Overview* tab.
-* File transfers (PUT/GET/DELETE) — sent to the URL returned by the SAS token endpoint.
-
-Data sent to DiluxOne Cloud: API key (in request header), file path, file size, MIME type, and file content. No information about visitors of your site is collected or transmitted.
-
-* Service: [DiluxOne Cloud](https://diluxone.com/)
-* Terms of Service: [diluxone.com/terms](https://diluxone.com/terms/)
-* Privacy Policy: [diluxone.com/privacy](https://diluxone.com/privacy/)
 
 == Frequently Asked Questions ==
 
@@ -116,9 +98,9 @@ Go to **DiluxOne Offload → Settings → Enable detailed debug logging**. Logs 
 
 Yes. You can configure per-site, or at the network level.
 
-= How are my Azure / DiluxOne credentials stored? =
+= How are my Azure credentials stored? =
 
-The Azure access key and the DiluxOne Cloud API key are encrypted with AES-256-GCM before they are written to the WordPress options table. The encryption key is derived from your site's WordPress salts (`AUTH_KEY` / `SECURE_AUTH_KEY` and the corresponding salts in `wp-config.php`), so a database dump on its own is not enough to recover the credentials — the attacker also needs filesystem access to `wp-config.php`.
+The Azure access key is encrypted with AES-256-GCM before they are written to the WordPress options table. The encryption key is derived from your site's WordPress salts (`AUTH_KEY` / `SECURE_AUTH_KEY` and the corresponding salts in `wp-config.php`), so a database dump on its own is not enough to recover the credentials — the attacker also needs filesystem access to `wp-config.php`.
 
 If you ever rotate the WordPress salts, the existing encrypted credentials become unreadable; the plugin will surface the provider as "not configured" and you simply re-enter the credentials in the *Cloud Provider* tab. There is intentionally no plaintext fallback.
 
@@ -142,7 +124,6 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 First public release.
 
 * Azure Blob Storage provider — bring-your-own credentials, files served from `https://<your-account-name>.blob.core.windows.net`.
-* DiluxOne Cloud provider — managed alternative (get an API key from [diluxone.com](https://diluxone.com/)).
 * Transparent stream wrapper with read/write interception — no URL rewriting, no regex on post content, no database migration required for URLs.
 * Sync state machine with pause, resume, cancel and retry of failed files.
 * Offloading mode with optional local file deletion after a successful sync.

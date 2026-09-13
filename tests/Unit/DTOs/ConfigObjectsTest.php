@@ -121,13 +121,13 @@ class ConfigObjectsTest extends TestCase {
 	}
 
 	public function test_merge_can_switch_provider(): void {
-		$p = ( new ProviderConfig( 'azure', array( 'a' => 1 ) ) )->merge( array( 'cloud_provider' => 'diluxone' ) );
-		$this->assertSame( 'diluxone', $p->getCloudProvider() );
+		$p = ( new ProviderConfig( 'azure', array( 'a' => 1 ) ) )->merge( array( 'cloud_provider' => 'aws' ) );
+		$this->assertSame( 'aws', $p->getCloudProvider() );
 	}
 
 	public function test_provider_merge_returns_a_new_instance(): void {
 		$a = new ProviderConfig( 'azure', array( 'k' => 'v' ) );
-		$b = $a->merge( array( 'cloud_provider' => 'diluxone' ) );
+		$b = $a->merge( array( 'cloud_provider' => 'aws' ) );
 		$this->assertNotSame( $a, $b );
 		$this->assertSame( 'azure', $a->getCloudProvider() );
 	}

@@ -84,7 +84,7 @@ class ConnectionHealthTest extends IntegrationTestCase {
     }
 
     public function test_clear_connection_health_removes_the_option_entirely(): void {
-        ConfigManager::record_connection_failure('401', 'Unauthorized', 'diluxone');
+        ConfigManager::record_connection_failure('401', 'Unauthorized', 'azure');
         $this->assertNotFalse(get_option('diluxone_offload_connection_health', false));
 
         ConfigManager::clear_connection_health();

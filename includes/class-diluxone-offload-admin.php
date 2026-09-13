@@ -593,7 +593,6 @@ class Admin {
 				$payload = array(
 					'i18n' => array(
 						'connection_failed'               => __( 'Connection Failed', 'diluxone-offload' ),
-						'please_enter_the_api_key'        => __( 'Please enter the API Key.', 'diluxone-offload' ),
 						'please_fill_in_all_required_fields' => __( 'Please fill in all required fields.', 'diluxone-offload' ),
 						'testing'                         => __( 'Testing...', 'diluxone-offload' ),
 						'test_connection'                 => __( 'Test Connection', 'diluxone-offload' ),
@@ -602,7 +601,6 @@ class Admin {
 						'container_name_must_contain_only_lowercase' => __( 'Container Name must contain only lowercase letters, numbers, and hyphens.', 'diluxone-offload' ),
 						'deleting_configuration'          => __( 'Deleting configuration...', 'diluxone-offload' ),
 						'yes_delete_configuration'        => __( 'Yes, Delete Configuration', 'diluxone-offload' ),
-						'please_enter_the_new_api_key'    => __( 'Please enter the new API Key.', 'diluxone-offload' ),
 						'please_enter_the_new_access_key' => __( 'Please enter the new access key.', 'diluxone-offload' ),
 						'saving'                          => __( 'Saving...', 'diluxone-offload' ),
 						'save'                            => __( 'Save', 'diluxone-offload' ),
@@ -1457,42 +1455,27 @@ class Admin {
 			wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions', 'diluxone-offload' ) ) );
 		}
 
-		// Detect provider type
 		$provider = sanitize_text_field( wp_unslash( $_POST['provider'] ?? 'azure' ) );
 
-		$api_key        = '';
 		$account_name   = '';
 		$container_name = '';
 
 		try {
-			if ( $provider === 'diluxone' ) {
-				$api_key = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
-				if ( empty( $api_key ) ) {
-					wp_send_json_error( array( 'message' => esc_html__( 'API Key is required', 'diluxone-offload' ) ) );
-				}
-				$client = \DiluxOneOffload\Factories\CloudStorageFactory::create(
-					'diluxone',
-					array(
-						'api_key' => $api_key,
-					)
-				);
-			} else {
-				$account_name   = sanitize_text_field( wp_unslash( $_POST['account_name'] ?? '' ) );
-				$account_key    = sanitize_text_field( wp_unslash( $_POST['account_key'] ?? '' ) );
-				$container_name = sanitize_text_field( wp_unslash( $_POST['container_name'] ?? '' ) );
+			$account_name   = sanitize_text_field( wp_unslash( $_POST['account_name'] ?? '' ) );
+			$account_key    = sanitize_text_field( wp_unslash( $_POST['account_key'] ?? '' ) );
+			$container_name = sanitize_text_field( wp_unslash( $_POST['container_name'] ?? '' ) );
 
-				if ( empty( $account_name ) || empty( $account_key ) || empty( $container_name ) ) {
-					wp_send_json_error( array( 'message' => esc_html__( 'Missing required fields', 'diluxone-offload' ) ) );
-				}
-				$client = \DiluxOneOffload\Factories\CloudStorageFactory::create(
-					'azure',
-					array(
-						'storage_account' => $account_name,
-						'access_key'      => $account_key,
-						'container_name'  => $container_name,
-					)
-				);
+			if ( empty( $account_name ) || empty( $account_key ) || empty( $container_name ) ) {
+				wp_send_json_error( array( 'message' => esc_html__( 'Missing required fields', 'diluxone-offload' ) ) );
 			}
+			$client = \DiluxOneOffload\Factories\CloudStorageFactory::create(
+				$provider,
+				array(
+					'storage_account' => $account_name,
+					'access_key'      => $account_key,
+					'container_name'  => $container_name,
+				)
+			);
 
 			if ( $client === null ) {
 				wp_send_json_error( array( 'message' => esc_html__( 'Could not instantiate cloud client for the selected provider.', 'diluxone-offload' ) ) );
@@ -1504,21 +1487,13 @@ class Admin {
 				Logger::info( '[DiluxOne Offload] Connection successful for provider: ' . $provider );
 				ConfigManager::record_connection_success();
 
-				// Save provider-aware transient for validation when saving
-				if ( $provider === 'diluxone' ) {
-					$transient_data = array(
-						'provider'       => 'diluxone',
-						'api_key_prefix' => substr( $api_key, 0, 12 ),
-						'timestamp'      => time(),
-					);
-				} else {
-					$transient_data = array(
-						'provider'       => 'azure',
-						'account_name'   => $account_name,
-						'container_name' => $container_name,
-						'timestamp'      => time(),
-					);
-				}
+				// Remembered so the save can verify it is the tested account.
+				$transient_data = array(
+					'provider'       => 'azure',
+					'account_name'   => $account_name,
+					'container_name' => $container_name,
+					'timestamp'      => time(),
+				);
 
 				set_transient(
 					'diluxone_offload_connection_test_passed_' . get_current_user_id(),
@@ -1571,9 +1546,7 @@ class Admin {
 
 		try {
 			$stats = null;
-			if ( $client instanceof \DiluxOneOffload\Providers\DiluxOneCloudProvider ) {
-				$stats = $client->get_stats( true );
-			} elseif ( $client instanceof \DiluxOneOffload\Providers\AzureProvider ) {
+			if ( $client instanceof \DiluxOneOffload\Providers\AzureProvider ) {
 				$stats = $client->get_container_stats( true );
 			} else {
 				wp_send_json_error( array( 'message' => esc_html__( 'Unknown provider type', 'diluxone-offload' ) ) );
@@ -1610,51 +1583,30 @@ class Admin {
 
 		$provider = sanitize_text_field( wp_unslash( $_POST['provider'] ?? '' ) );
 
-		// Build provider_data based on provider type
-		if ( $provider === 'diluxone' ) {
-			$api_key = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
+		$account_name   = sanitize_text_field( wp_unslash( $_POST['account_name'] ?? '' ) );
+		$account_key    = sanitize_text_field( wp_unslash( $_POST['account_key'] ?? '' ) );
+		$container_name = sanitize_text_field( wp_unslash( $_POST['container_name'] ?? '' ) );
 
-			// Validate transient matches diluxone test
-			if ( ( $test_data['provider'] ?? '' ) !== 'diluxone' ||
-				( $test_data['api_key_prefix'] ?? '' ) !== substr( $api_key, 0, 12 ) ) {
-				wp_send_json_error( array( 'message' => esc_html__( 'Credentials do not match tested values. Please test again.', 'diluxone-offload' ) ) );
-			}
+		// The credentials being saved must be the ones that were tested.
+		if ( ( $test_data['account_name'] ?? '' ) !== $account_name ||
+			( $test_data['container_name'] ?? '' ) !== $container_name ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Credentials do not match tested values. Please test again.', 'diluxone-offload' ) ) );
+		}
 
-			// Preserve cdn_base_url from existing config
-			$current_config = ConfigManager::get_provider_config();
-			$provider_data  = array(
-				'cloud_provider'  => 'diluxone',
-				'provider_config' => array(
-					'api_key'      => $api_key,
-					'cdn_base_url' => $current_config['provider_config']['cdn_base_url'] ?? '',
-				),
-			);
-		} else {
-			$account_name   = sanitize_text_field( wp_unslash( $_POST['account_name'] ?? '' ) );
-			$account_key    = sanitize_text_field( wp_unslash( $_POST['account_key'] ?? '' ) );
-			$container_name = sanitize_text_field( wp_unslash( $_POST['container_name'] ?? '' ) );
+		$provider_data = array(
+			'cloud_provider'  => $provider,
+			'provider_config' => array(
+				'storage_account' => $account_name,
+				'access_key'      => $account_key,
+				'container_name'  => $container_name,
+			),
+		);
 
-			// Validate transient matches azure test
-			if ( ( $test_data['account_name'] ?? '' ) !== $account_name ||
-				( $test_data['container_name'] ?? '' ) !== $container_name ) {
-				wp_send_json_error( array( 'message' => esc_html__( 'Credentials do not match tested values. Please test again.', 'diluxone-offload' ) ) );
-			}
-
-			$provider_data = array(
-				'cloud_provider'  => $provider,
-				'provider_config' => array(
-					'storage_account' => $account_name,
-					'access_key'      => $account_key,
-					'container_name'  => $container_name,
-				),
-			);
-
-			// Preserve custom_domain if exists
-			$current_config = ConfigManager::get_provider_config();
-			if ( ! empty( $current_config['provider_config']['custom_domain'] ) ) {
-				$provider_data['provider_config']['custom_domain'] =
-					$current_config['provider_config']['custom_domain'];
-			}
+		// Preserve custom_domain if exists
+		$current_config = ConfigManager::get_provider_config();
+		if ( ! empty( $current_config['provider_config']['custom_domain'] ) ) {
+			$provider_data['provider_config']['custom_domain'] =
+				$current_config['provider_config']['custom_domain'];
 		}
 
 		try {

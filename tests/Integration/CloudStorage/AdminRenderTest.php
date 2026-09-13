@@ -356,24 +356,17 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertStringContainsString('renderacct', $html);
     }
 
-    private function configureDiluxOne(): void {
-        ConfigManager::save_config(['cloud_provider' => 'diluxone', 'provider_config' => ['api_key' => 'dlx_live_0123456789abcdef', 'cdn_base_url' => 'https://cdn.example.net/c']]);
-        ConfigManager::set_state(PluginState::SYNCED);
-    }
-
-    public function test_provider_tab_masks_the_diluxone_api_key(): void {
-        $this->configureDiluxOne();
+    /**
+     * The overview paints plan, quota and bandwidth whenever the provider
+     * reports them. Azure never does; a managed provider will, so the branches
+     * are exercised with a payload that carries them.
+     *
+     * @dataProvider checkedAtAges
+     */
+    public function test_overview_renders_plan_quota_and_bandwidth_when_the_provider_reports_them(int $age, string $expect): void {
+        $this->configure(PluginState::SYNCED);
         $this->useFakeClient();
-        $html = $this->render('cloud-provider');
-        $this->assertStringContainsString('dlx_live...cdef', $html);
-        $this->assertStringNotContainsString('dlx_live_0123456789abcdef', $html, 'the key itself is never printed');
-    }
-
-    /** @dataProvider checkedAtAges */
-    public function test_overview_renders_the_diluxone_plan_quota_and_bandwidth(int $age, string $expect): void {
-        $this->configureDiluxOne();
-        $this->useFakeClient();
-        set_transient('diluxone_offload_stats', [
+        set_transient('diluxone_offload_azure_stats', [
             'fileCount' => 5, 'storageUsedBytes' => 900, 'storageLimitBytes' => 1000, 'plan' => 'Pro',
             'bandwidthUsedBytes' => 50, 'bandwidthLimitBytes' => 100, 'quotaExceeded' => true,
             'storageCheckedAt' => gmdate('c', time() - $age), 'filesByType' => ['images' => 5, 'videos' => 0, 'audio' => 0, 'other' => 0],
@@ -381,7 +374,7 @@ class AdminRenderTest extends IntegrationTestCase {
         try {
             $html = $this->render('overview');
         } finally {
-            delete_transient('diluxone_offload_stats');
+            delete_transient('diluxone_offload_azure_stats');
         }
         $this->assertStringContainsString('Current Plan', $html);
         $this->assertStringContainsString('Pro', $html);
@@ -402,13 +395,13 @@ class AdminRenderTest extends IntegrationTestCase {
     }
 
     public function test_overview_without_limits_shows_plain_usage(): void {
-        $this->configureDiluxOne();
+        $this->configure(PluginState::SYNCED);
         $this->useFakeClient();
-        set_transient('diluxone_offload_stats', ['fileCount' => 1, 'storageUsedBytes' => 2048, 'storageLimitBytes' => null, 'plan' => null, 'bandwidthUsedBytes' => 0, 'bandwidthLimitBytes' => null, 'quotaExceeded' => false, 'storageCheckedAt' => null, 'filesByType' => null], 300);
+        set_transient('diluxone_offload_azure_stats', ['fileCount' => 1, 'storageUsedBytes' => 2048, 'storageLimitBytes' => null, 'plan' => null, 'bandwidthUsedBytes' => 0, 'bandwidthLimitBytes' => null, 'quotaExceeded' => false, 'storageCheckedAt' => null, 'filesByType' => null], 300);
         try {
             $html = $this->render('overview');
         } finally {
-            delete_transient('diluxone_offload_stats');
+            delete_transient('diluxone_offload_azure_stats');
         }
         $this->assertStringContainsString('2 KB', $html);
         $this->assertStringContainsString('Not available', $html, 'bandwidth without data');
