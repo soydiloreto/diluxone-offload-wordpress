@@ -252,6 +252,32 @@ class ConfigManager {
 	}
 
 	/**
+	 * Write an option, treating "already stored this exact value" as success.
+	 *
+	 * WordPress's update_option() returns false both when the write fails AND
+	 * when the new value is identical to the stored one (it skips the query). Every
+	 * caller here reported that second case as "Failed to save settings to
+	 * database", so opening Settings and pressing Save without changing
+	 * anything showed an error for a save that had nothing to do. Compare
+	 * first, and only trust the return value when a write was actually needed.
+	 *
+	 * @param string $name     Option name.
+	 * @param mixed  $value    Value to store.
+	 * @param bool   $autoload Whether to autoload the option.
+	 * @return bool True when the option now holds $value, false on a real failure.
+	 */
+	private static function persist_option( string $name, $value, bool $autoload ): bool {
+		$sentinel = new \stdClass();
+		$current  = get_option( $name, $sentinel );
+
+		if ( $current !== $sentinel && $current === $value ) {
+			return true;
+		}
+
+		return update_option( $name, $value, $autoload );
+	}
+
+	/**
 	 * Save plugin configuration
 	 * Uses autoload=true because config is needed on every request (stream wrapper)
 	 *
@@ -282,7 +308,7 @@ class ConfigManager {
 		$payload = self::encrypt_credentials( $plugin_config->toArray() );
 
 		// Save with autoload=true (config needed in every request for stream wrapper)
-		$saved = update_option( self::CONFIG_OPTION, $payload, true );
+		$saved = self::persist_option( self::CONFIG_OPTION, $payload, true );
 
 		if ( $saved ) {
 			Logger::refresh();
@@ -358,7 +384,7 @@ class ConfigManager {
 
 		// Save merged config (with credentials encrypted at rest)
 		$payload = self::encrypt_credentials( $new_plugin_config->toArray() );
-		$saved   = update_option( self::CONFIG_OPTION, $payload, true );
+		$saved   = self::persist_option( self::CONFIG_OPTION, $payload, true );
 
 		if ( $saved ) {
 			Logger::info( '[DiluxOne Offload ConfigManager] Provider configuration saved successfully' );
@@ -396,7 +422,7 @@ class ConfigManager {
 		// Save merged config — re-encrypt credentials so the existing provider
 		// section keeps its protection even when only settings changed.
 		$payload = self::encrypt_credentials( $new_plugin_config->toArray() );
-		$saved   = update_option( self::CONFIG_OPTION, $payload, true );
+		$saved   = self::persist_option( self::CONFIG_OPTION, $payload, true );
 
 		if ( $saved ) {
 			// Setting toggle may have changed — pick it up without requiring a reload.
@@ -432,7 +458,7 @@ class ConfigManager {
 		$old_state = self::get_state();
 
 		// Save with autoload=true (state checked frequently in admin UI)
-		$updated = update_option( self::STATE_OPTION, $state, true );
+		$updated = self::persist_option( self::STATE_OPTION, $state, true );
 
 		if ( $updated ) {
 			// Get caller information for debugging — only when verbose logging is on,
@@ -521,6 +547,21 @@ class ConfigManager {
 	 * @return \DiluxOneOffload\Interfaces\CloudStorageClientInterface|null
 	 */
 	public static function get_cloud_client() {
+		/**
+		 * Short-circuit the provider lookup.
+		 *
+		 * Mirrors WordPress's pre_* convention: return a client here and the
+		 * saved configuration is not consulted at all. This is the seam for
+		 * a custom or wrapped provider — and for tests, which use it to drive
+		 * the sync engine against a stand-in without a cloud account.
+		 *
+		 * @param \DiluxOneOffload\Interfaces\CloudStorageClientInterface|null $pre Client to use, or null to continue.
+		 */
+		$pre = apply_filters( 'diluxone_offload_pre_cloud_client', null );
+		if ( $pre instanceof \DiluxOneOffload\Interfaces\CloudStorageClientInterface ) {
+			return $pre;
+		}
+
 		if ( ! self::is_configured() ) {
 			return null;
 		}
@@ -574,7 +615,7 @@ class ConfigManager {
 	 * @return bool
 	 */
 	public static function save_sync_progress( $progress ) {
-		return update_option( self::SYNC_META_OPTION, $progress, false );
+		return self::persist_option( self::SYNC_META_OPTION, $progress, false );
 	}
 
 	/**
@@ -602,7 +643,7 @@ class ConfigManager {
 	 * @return bool
 	 */
 	public static function save_failed_files( $failed_files ) {
-		return update_option( self::FAILED_FILES_OPTION, $failed_files );
+		return self::persist_option( self::FAILED_FILES_OPTION, $failed_files, false );
 	}
 
 	/**

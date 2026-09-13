@@ -76,6 +76,16 @@ class CloudStreamWrapper {
 	/** @var int Maximum file size to cache (32MB like Infinite Uploads) */
 	const CACHE_MAX_BYTES = 33554432; // 32 * 1024 * 1024
 
+	/**
+	 * Set when stream_flush() wrote the content to local disk instead of the
+	 * cloud because the connection is unhealthy. stream_close() checks it so
+	 * the same content is not then pushed to the cloud anyway, which would
+	 * defeat the fallback and add one more failure to the health counter.
+	 *
+	 * @var bool
+	 */
+	private bool $saved_locally = false;
+
 	/** @var string|null Per-request memo of the cloud_host (host where assets are
 	 *  served from). Empty string when the plugin is not configured. */
 	private static ?string $cloud_host_cache = null;
@@ -440,10 +450,11 @@ class CloudStreamWrapper {
 	 * @return bool
 	 */
 	public function stream_open( $path, $mode, $options, &$opened_path ) {
-		$this->path     = $this->parse_path( $path );
-		$this->mode     = $mode;
-		$this->position = 0;
-		$this->content  = '';
+		$this->path          = $this->parse_path( $path );
+		$this->mode          = $mode;
+		$this->position      = 0;
+		$this->content       = '';
+		$this->saved_locally = false;
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			Logger::debug( '[DiluxOne Offload CloudStreamWrapper] Opening: ' . $this->path . ' (mode: ' . $mode . ')' );
@@ -624,6 +635,7 @@ class CloudStreamWrapper {
 			}
 			$written = @file_put_contents( $local_path, $this->content );
 			if ( $written !== false ) {
+				$this->saved_locally = true;
 				Logger::warning( '[DiluxOne Offload CloudStreamWrapper] FALLBACK: Saved locally due to unhealthy connection (' . $health['consecutive_failures'] . ' failures): ' . $this->path );
 				// Track fallback for admin notification
 				$fallbacks = get_transient( 'diluxone_offload_fallback_uploads' );
@@ -745,7 +757,7 @@ class CloudStreamWrapper {
 		// file_put_contents() calls fflush() before fclose()
 		// So content is already uploaded by stream_flush()
 		// Only upload if flush was never called (direct fclose() without fflush())
-		if ( strpos( $this->mode, 'w' ) !== false || strpos( $this->mode, 'a' ) !== false ) {
+		if ( ! $this->saved_locally && ( strpos( $this->mode, 'w' ) !== false || strpos( $this->mode, 'a' ) !== false ) ) {
 			if ( ! empty( $this->content ) ) {
 				// Check if file is already in cache (uploaded by flush)
 				$cached_content = $this->cache_get( $this->path );

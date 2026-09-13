@@ -19,6 +19,18 @@
         </testsuite>
     </testsuites>
 
+    <!-- Same filter as the unit config, so the two clover reports can be
+         merged line for line into one number. Without an include list
+         PHPUnit skips coverage entirely, even when asked for a report. -->
+    <coverage processUncoveredFiles="false">
+        <include>
+            <directory suffix=".php">includes</directory>
+        </include>
+        <exclude>
+            <file>includes/enhanced-autoloader.php</file>
+        </exclude>
+    </coverage>
+
     <!--
         Integration tests run inside the wp-env tests container. WordPress
         emits notices/warnings under various conditions that are not

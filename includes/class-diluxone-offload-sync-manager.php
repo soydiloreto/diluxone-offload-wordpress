@@ -609,16 +609,19 @@ class SyncManager {
 
 		$elapsed_time = time() - ( $sync_meta['start_time'] ?? time() );
 
+		// $wpdb hands aggregates back as strings. Cast here so the JSON the
+		// browser polls carries numbers, not "2": the progress bar does
+		// arithmetic on these and the tests compare them strictly.
 		return array(
 			'status'             => $sync_meta['status'] ?? 'idle',
-			'total_files'        => $stats['total_files'],
-			'processed_files'    => $stats['synced_files'],
-			'successful_uploads' => $stats['synced_files'],
-			'failed_uploads'     => $stats['failed_files'],
-			'percentage'         => $stats['percentage'],
-			'elapsed_time'       => $elapsed_time,
-			'pending_files'      => $stats['pending_files'],
-			'remaining_files'    => $stats['pending_files'],
+			'total_files'        => (int) $stats['total_files'],
+			'processed_files'    => (int) $stats['synced_files'],
+			'successful_uploads' => (int) $stats['synced_files'],
+			'failed_uploads'     => (int) $stats['failed_files'],
+			'percentage'         => (float) $stats['percentage'],
+			'elapsed_time'       => (int) $elapsed_time,
+			'pending_files'      => (int) $stats['pending_files'],
+			'remaining_files'    => (int) $stats['pending_files'],
 		);
 	}
 

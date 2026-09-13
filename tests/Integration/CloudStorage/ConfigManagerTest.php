@@ -162,4 +162,28 @@ class ConfigManagerTest extends IntegrationTestCase {
         // tightened it to a safer cap that fits most shared-hosting limits.
         $this->assertSame(20971520, $config['max_file_size']);
     }
+
+    /**
+     * update_option() returns false when the stored value is identical, and
+     * that used to surface as "Failed to save settings to database" the
+     * moment someone pressed Save without changing anything. Found by the
+     * E2E suite on its first run.
+     */
+    public function test_saving_an_unchanged_config_is_still_a_success(): void {
+        $config = [
+            'cloud_provider'  => 'azure',
+            'provider_config' => [
+                'storage_account' => 'acct',
+                'container_name'  => 'cont',
+                'access_key'      => base64_encode(random_bytes(32)),
+            ],
+        ];
+
+        $this->assertTrue(ConfigManager::save_config($config), 'first save writes');
+        $this->assertTrue(ConfigManager::save_config($config), 'identical second save must not read as a failure');
+
+        $settings = ConfigManager::get_plugin_settings();
+        $this->assertTrue(ConfigManager::save_plugin_settings($settings), 'settings save with no changes');
+        $this->assertTrue(ConfigManager::save_plugin_settings($settings), 'and again');
+    }
 }

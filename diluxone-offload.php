@@ -49,14 +49,17 @@ function diluxone_offload_init() {
 }
 add_action( 'plugins_loaded', 'diluxone_offload_init', 10 );
 
+// A site added to a network after activation still needs this plugin's table.
+add_action( 'wp_initialize_site', array( Plugin::class, 'on_new_site' ), 20 );
+
 /**
  * Plugin activation hook.
  */
 register_activation_hook(
 	__FILE__,
-	function () {
+	function ( $network_wide ) {
 		\DiluxOneOffload\Logger::log( '[DiluxOne Offload] Activation hook fired.', 'info', true );
-		Plugin::activate();
+		Plugin::activate( (bool) $network_wide );
 	}
 );
 
