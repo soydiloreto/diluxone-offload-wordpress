@@ -244,41 +244,6 @@
     color: #721c24;
 }
 
-/* Migration Tools */
-.migration-tools {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    margin: 20px 0;
-}
-
-.migration-tool {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    padding: 20px;
-}
-
-.migration-tool h4 {
-    margin-top: 0;
-    color: #0073aa;
-}
-
-.migration-progress {
-    background: #f6f7f7;
-    border-radius: 10px;
-    height: 20px;
-    margin: 10px 0;
-    overflow: hidden;
-}
-
-.migration-progress-bar {
-    background: #0073aa;
-    height: 100%;
-    border-radius: 10px;
-    transition: width 0.3s ease;
-}
-
 /* Status Health */
 .system-health {
     margin: 20px 0;
@@ -337,73 +302,6 @@
 .summary-label {
     color: #646970;
     font-size: 0.9em;
-}
-
-/* Status Checks */
-.status-checks {
-    margin: 20px 0;
-}
-
-.status-check {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    margin: 10px 0;
-    padding: 20px;
-    position: relative;
-}
-
-.status-check.passed {
-    border-left: 4px solid #00a32a;
-}
-
-.status-check.warning {
-    border-left: 4px solid #dba617;
-}
-
-.status-check.failed {
-    border-left: 4px solid #d63638;
-}
-
-.check-header {
-    display: flex;
-    justify-content: between;
-    align-items: center;
-}
-
-.check-status {
-    padding: 3px 8px;
-    border-radius: 3px;
-    font-size: 0.85em;
-    font-weight: 600;
-}
-
-.check-status.passed {
-    background: #d1e7dd;
-    color: #0f5132;
-}
-
-.check-status.warning {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.check-status.failed {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.check-details {
-    margin-top: 10px;
-    padding: 10px;
-    background: #f6f7f7;
-    border-radius: 3px;
-    font-size: 0.9em;
-}
-
-.check-description {
-    margin: 10px 0;
-    color: #646970;
 }
 
 /* Network Settings */

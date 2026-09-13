@@ -42,6 +42,10 @@ if (!defined('DILUXONE_OFFLOAD_URL')) {
 // 3. WordPress function stubs (sanitize_text_field, get_option, esc_html, etc.).
 //    These are minimal implementations sufficient for the helpers/DTOs under test.
 //    For hook functions (add_action, add_filter), use Brain Monkey in the test itself.
+// Like a developer's site: the debug-only logging branches run too.
+if (!defined('WP_DEBUG')) {
+    define('WP_DEBUG', true);
+}
 require_once __DIR__ . '/stubs/wordpress-stubs.php';
 
 // 4. Plugin's class autoloader. Maps DiluxOneOffload\* to includes/.

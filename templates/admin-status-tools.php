@@ -29,21 +29,10 @@ $diluxone_offload_options = $wpdb->get_results(
 	ARRAY_A
 );
 
-// Build config array for display - unserialize values for proper JSON export
+// Build config array for display; WordPress auto-serializes arrays/objects in options.
 $config_data = array();
 foreach ( $diluxone_offload_options as $option ) {
-	$value = $option['option_value'];
-
-	// Try to unserialize - WordPress auto-serializes arrays/objects in options.
-	// Source bytes can only have been written by code we control via
-	// update_option(); Object-Injection risk does not apply.
-	// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- See comment above.
-	$unserialized = @unserialize( $value );
-
-	// Use unserialized value if it worked, otherwise use original string
-	$config_data[ $option['option_name'] ] = ( $unserialized !== false || $value === 'b:0;' )
-		? $unserialized
-		: $value;
+	$config_data[ $option['option_name'] ] = maybe_unserialize( $option['option_value'] );
 }
 
 // Get current state

@@ -136,76 +136,6 @@ jQuery(document).ready(function($) {
         }
     }
     
-    // Migration Tools functionality
-    $('.migration-action').on('click', function(e) {
-        e.preventDefault();
-        
-        var $button = $(this);
-        var action = $button.data('action');
-        var $progressContainer = $button.closest('.migration-tool').find('.migration-progress-container');
-        
-        if (!action) {
-            alert('Invalid migration action.');
-            return;
-        }
-        
-        // Confirm destructive actions
-        if (action.includes('delete') || action.includes('remove')) {
-            if (!confirm('Are you sure you want to perform this action? This cannot be undone.')) {
-                return;
-            }
-        }
-        
-        // Update button state
-        $button.prop('disabled', true).text('Processing...');
-        
-        // Show progress bar if available
-        if ($progressContainer.length) {
-            $progressContainer.show();
-            updateMigrationProgress(0);
-        }
-        
-        // Make AJAX request
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'diluxone_offload_migration_action',
-                nonce: diluxOneOffloadAdmin.nonce,
-                migration_action: action
-            },
-            success: function(response) {
-                if (response.success) {
-                    if (response.data.redirect) {
-                        window.location.href = response.data.redirect;
-                    } else {
-                        alert('Action completed successfully: ' + response.data.message);
-                        // Refresh the page to show updated stats
-                        location.reload();
-                    }
-                } else {
-                    alert('Action failed: ' + (response.data.message || 'Unknown error'));
-                }
-            },
-            error: function(xhr, status, error) {
-                alert('Action failed: ' + error);
-            },
-            complete: function() {
-                $button.prop('disabled', false).text($button.data('original-text') || 'Start');
-                if ($progressContainer.length) {
-                    $progressContainer.hide();
-                }
-            }
-        });
-    });
-    
-    /**
-     * Update migration progress bar
-     */
-    function updateMigrationProgress(percentage) {
-        $('.migration-progress-bar').css('width', percentage + '%');
-    }
-    
     // Activity Log filters
     $('#activity-filters-form').on('submit', function(e) {
         e.preventDefault();
@@ -239,47 +169,6 @@ jQuery(document).ready(function($) {
         url.searchParams.delete('paged');
         
         window.location.href = url.toString();
-    });
-    
-    // Status page - Test individual checks
-    $('.test-check').on('click', function(e) {
-        e.preventDefault();
-        
-        var $button = $(this);
-        var checkType = $button.data('check');
-        var $statusCheck = $button.closest('.status-check');
-        
-        $button.prop('disabled', true).text('Testing...');
-        
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'diluxone_offload_test_check',
-                nonce: diluxOneOffloadAdmin.nonce,
-                check_type: checkType
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Update the check status
-                    $statusCheck.removeClass('passed warning failed')
-                                .addClass(response.data.status);
-                    $statusCheck.find('.check-status')
-                                .removeClass('passed warning failed')
-                                .addClass(response.data.status)
-                                .text(response.data.status_text);
-                    $statusCheck.find('.check-description').text(response.data.message);
-                } else {
-                    alert('Test failed: ' + (response.data.message || 'Unknown error'));
-                }
-            },
-            error: function() {
-                alert('Test failed: Network error');
-            },
-            complete: function() {
-                $button.prop('disabled', false).text('Test Now');
-            }
-        });
     });
     
     // Auto-refresh status checks every 5 minutes

@@ -166,22 +166,15 @@ class Admin {
 		\add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		\add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_admin_assets' ) );
 		\add_action( 'admin_post_diluxone_offload_save_config', array( __CLASS__, 'save_config' ) );
-		\add_action( 'admin_post_diluxone_offload_save_offloading', array( __CLASS__, 'save_offloading_config' ) );
 		\add_action( 'admin_post_diluxone_offload_remove_provider', array( __CLASS__, 'remove_provider_config' ) );
 
 		// Register AJAX handlers
 		\add_action( 'wp_ajax_diluxone_offload_test_connection', array( __CLASS__, 'ajax_test_connection' ) );
 		\add_action( 'wp_ajax_diluxone_offload_save_updated_credentials', array( __CLASS__, 'ajax_save_updated_credentials' ) );
-		\add_action( 'wp_ajax_diluxone_offload_migration_action', array( __CLASS__, 'ajax_migration_action' ) );
-		\add_action( 'wp_ajax_diluxone_offload_test_check', array( __CLASS__, 'ajax_test_check' ) );
-		\add_action( 'wp_ajax_diluxone_offload_scan_files', array( __CLASS__, 'ajax_scan_files' ) );
 		// DISABLED: ajax_diluxone_offload_start_sync now handled by Plugin::ajax_cs_start_sync in class-diluxone-offload-plugin-enhanced.php (legacy handler removed).
 		\add_action( 'wp_ajax_diluxone_offload_cancel_sync', array( __CLASS__, 'ajax_cancel_sync' ) );
 		\add_action( 'wp_ajax_diluxone_offload_mark_sync_complete', array( __CLASS__, 'ajax_mark_sync_complete' ) );
-		\add_action( 'wp_ajax_diluxone_offload_delete_local_files', array( __CLASS__, 'ajax_delete_local_files' ) );
-		\add_action( 'wp_ajax_diluxone_offload_retry_failed', array( __CLASS__, 'ajax_retry_failed' ) );
 		\add_action( 'wp_ajax_diluxone_offload_clear_failed', array( __CLASS__, 'ajax_clear_failed' ) );
-		\add_action( 'wp_ajax_diluxone_offload_resync_all', array( __CLASS__, 'ajax_resync_all' ) );
 		\add_action( 'wp_ajax_diluxone_offload_ajax_remove_provider', array( __CLASS__, 'ajax_remove_provider' ) );
 		\add_action( 'wp_ajax_diluxone_offload_import_config', array( __CLASS__, 'ajax_import_config' ) );
 		\add_action( 'wp_ajax_diluxone_offload_refresh_stats', array( __CLASS__, 'ajax_refresh_stats' ) );
@@ -1038,7 +1031,6 @@ class Admin {
 				$template_data           = array(
 					'config'        => $config,
 					'health_status' => self::get_basic_health_status(),
-					'status_checks' => self::get_basic_status_checks(),
 					'storage_stats' => self::get_basic_stats(),
 					'section'       => ( $current_tab === 'tools' ) ? 'tools' : 'status',
 				);
@@ -1296,65 +1288,6 @@ class Admin {
 			'checks_passed'   => 3,
 			'warnings'        => 2,
 			'critical_issues' => 1,
-		);
-	}
-
-	/**
-	 * Get basic status checks for templates
-	 *
-	 * @return array<string, mixed>
-	 */
-	private static function get_basic_status_checks(): array {
-		return array(
-			'azure_connection'      => array(
-				'status'  => 'warning',
-				'message' => \__( 'Not configured yet', 'diluxone-offload' ),
-				'details' => array(),
-			),
-			'stream_wrapper'        => array(
-				'status'  => 'success',
-				'message' => \__( 'Stream wrapper registered', 'diluxone-offload' ),
-				'details' => array(
-					'protocol'   => 'diluxone-offload://',
-					'registered' => true,
-				),
-			),
-			'file_operations'       => array(
-				'status'  => 'warning',
-				'message' => \__( 'Not tested yet', 'diluxone-offload' ),
-				'details' => array(
-					'write'  => false,
-					'read'   => false,
-					'delete' => false,
-				),
-			),
-			'performance'           => array(
-				'status'  => 'warning',
-				'message' => \__( 'Not tested yet', 'diluxone-offload' ),
-				'details' => array(
-					'upload_speed'   => '0 MB/s',
-					'download_speed' => '0 MB/s',
-					'latency'        => '0 ms',
-				),
-			),
-			'wordpress_integration' => array(
-				'status'  => 'success',
-				'message' => \__( 'WordPress integration active', 'diluxone-offload' ),
-				'details' => array(
-					'media_library' => true,
-					'url_rewriting' => true,
-					'multisite'     => \is_multisite(),
-				),
-			),
-			'security'              => array(
-				'status'  => 'success',
-				'message' => \__( 'Security features active', 'diluxone-offload' ),
-				'details' => array(
-					'ssl'            => true,
-					'encryption'     => true,
-					'access_control' => true,
-				),
-			),
 		);
 	}
 
@@ -1721,7 +1654,9 @@ class Admin {
 
 		try {
 			$provider_config = \DiluxOneOffload\DTOs\ProviderConfig::fromArray( $provider_data );
-			ConfigManager::save_provider_config( $provider_config );
+			if ( ! ConfigManager::save_provider_config( $provider_config ) ) {
+				wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved: the provider configuration is invalid.', 'diluxone-offload' ) ) );
+			}
 
 			// Clear transient
 			delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
@@ -1738,173 +1673,6 @@ class Admin {
 			wp_send_json_error(
 				array(
 					'message' => 'Error saving: ' . $e->getMessage(),
-				)
-			);
-		}
-	}
-
-	/**
-	 * Handle offloading configuration save
-	 */
-	public static function save_offloading_config(): void {
-		// Check nonce for security
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ?? '' ) ), 'diluxone_offload_save_offloading' ) ) {
-			wp_die( esc_html__( 'Security check failed', 'diluxone-offload' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
-		}
-
-		// Sanitize and validate input
-		$offloading_enabled  = isset( $_POST['offloading_enabled'] );
-		$offloading_strategy = sanitize_text_field( wp_unslash( $_POST['offloading_strategy'] ?? 'new_uploads_only' ) );
-		$delete_local_files  = isset( $_POST['delete_local_files'] );
-
-		// Save offloading configuration
-		try {
-			$config                        = ConfigManager::get_config();
-			$config['offloading_enabled']  = $offloading_enabled;
-			$config['offloading_strategy'] = $offloading_strategy;
-			$config['delete_local_files']  = $delete_local_files;
-
-			// Set activation timestamp for new uploads strategy
-			if ( $offloading_enabled && $offloading_strategy === 'new_uploads_only' ) {
-				if ( empty( $config['diluxone_offload_activation_timestamp'] ) ) {
-					update_option( 'diluxone_offload_activation_timestamp', time() );
-				}
-			}
-
-			ConfigManager::save_config( $config );
-
-			$redirect_url = add_query_arg(
-				array(
-					'page'    => 'diluxone-offload',
-					'tab'     => 'offloading',
-					'success' => rawurlencode( 'Offloading configuration saved successfully!' ),
-				),
-				admin_url( 'admin.php' )
-			);
-
-		} catch ( \Exception $e ) {
-			$redirect_url = add_query_arg(
-				array(
-					'page'  => 'diluxone-offload',
-					'tab'   => 'offloading',
-					'error' => rawurlencode( 'Failed to save offloading configuration: ' . $e->getMessage() ),
-				),
-				admin_url( 'admin.php' )
-			);
-		}
-
-		wp_safe_redirect( $redirect_url );
-		exit;
-	}
-
-	/**
-	 * AJAX handler for migration actions
-	 */
-	public static function ajax_migration_action(): void {
-		// Check nonce for security
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
-			wp_die( esc_html__( 'Security check failed', 'diluxone-offload' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
-		}
-
-		$action = sanitize_text_field( wp_unslash( $_POST['migration_action'] ?? '' ) );
-
-		if ( empty( $action ) ) {
-			wp_send_json_error( array( 'message' => esc_html__( 'No action specified', 'diluxone-offload' ) ) );
-		}
-
-		// Legacy endpoint - MigrationTools class was removed.
-		// Migration is now handled via the sync flow in class-diluxone-offload-plugin-enhanced.php
-		wp_send_json_error(
-			array(
-				'message' => 'This migration endpoint is deprecated. Please use the Sync & Offloading tab instead.',
-			)
-		);
-	}
-
-	/**
-	 * AJAX handler for individual status checks
-	 */
-	public static function ajax_test_check(): void {
-		// Check nonce for security
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
-			wp_die( esc_html__( 'Security check failed', 'diluxone-offload' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
-		}
-
-		$check_type = sanitize_text_field( wp_unslash( $_POST['check_type'] ?? '' ) );
-
-		if ( empty( $check_type ) ) {
-			wp_send_json_error( array( 'message' => esc_html__( 'No check type specified', 'diluxone-offload' ) ) );
-		}
-
-		try {
-			switch ( $check_type ) {
-				case 'azure_connection':
-					// Use new architecture: ConfigManager::get_cloud_client()
-					$cloud_client = ConfigManager::get_cloud_client();
-
-					if ( ! $cloud_client ) {
-						$result = array(
-							'success' => false,
-							'message' => 'Cloud provider not configured',
-						);
-					} else {
-						$result = $cloud_client->test_connection();
-					}
-					break;
-
-				case 'stream_wrapper':
-					$is_registered = in_array( 'diluxoneoffload', stream_get_wrappers(), true );
-					$result        = array(
-						'success' => $is_registered,
-						'message' => $is_registered
-							? 'Stream wrapper diluxoneoffload:// is registered'
-							: 'Stream wrapper diluxoneoffload:// is NOT registered',
-					);
-					break;
-
-				case 'upload_test':
-				case 'download_test':
-					// These legacy tests are no longer needed - stream wrapper handles uploads/downloads
-					$result = array(
-						'success' => true,
-						'message' => 'Test deprecated - functionality handled by stream wrapper',
-					);
-					break;
-
-				default:
-					/* translators: %s: requested check type identifier */
-					wp_send_json_error( array( 'message' => sprintf( esc_html__( 'Invalid check type: %s', 'diluxone-offload' ), $check_type ) ) );
-			}
-
-			wp_send_json_success(
-				array(
-					'status'      => $result['success'] ? 'passed' : 'failed',
-					'status_text' => $result['success'] ? 'Passed' : 'Failed',
-					'message'     => $result['message'] ?? ( $result['success'] ? 'Check passed' : 'Check failed' ),
-				)
-			);
-
-		} catch ( \Exception $e ) {
-			wp_send_json_error(
-				array(
-					'status'      => 'failed',
-					'status_text' => 'Failed',
-					'message'     => 'Check error: ' . $e->getMessage(),
 				)
 			);
 		}
@@ -1971,239 +1739,6 @@ class Admin {
 
 		wp_safe_redirect( $redirect_url );
 		exit;
-	}
-
-	/**
-	 * AJAX: Scan files for sync
-	 */
-	public static function ajax_scan_files(): void {
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
-			wp_die( esc_html__( 'Invalid nonce', 'diluxone-offload' ) );
-		}
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
-		}
-
-		try {
-			// Get upload directory
-			$upload_dir = wp_upload_dir();
-			$files      = array();
-			$total_size = 0;
-
-			Logger::log( '[DiluxOne Offload Admin] Scanning directory (ajax): ' . $upload_dir['basedir'], 'info', true );
-
-			// Scan files recursively
-			$iterator = new \RecursiveIteratorIterator(
-				new \RecursiveDirectoryIterator( $upload_dir['basedir'] )
-			);
-
-			foreach ( $iterator as $file ) {
-				if ( $file->isFile() ) {
-					$files[]     = $file->getPathname();
-					$total_size += $file->getSize();
-				}
-			}
-
-			wp_send_json_success(
-				array(
-					'total_files'          => count( $files ),
-					'total_size'           => $total_size,
-					'total_size_formatted' => size_format( $total_size ),
-					/* translators: 1: number of files, 2: human-readable total size */
-					'message'              => sprintf( __( 'Found %1$d files (%2$s)', 'diluxone-offload' ), count( $files ), size_format( $total_size ) ),
-				)
-			);
-
-		} catch ( \Exception $e ) {
-			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error scanning files: %s', 'diluxone-offload' ), $e->getMessage() ) );
-		}
-	}
-
-	/**
-	 * AJAX: Start sync process
-	 */
-	public static function ajax_start_sync(): void {
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
-			wp_die( esc_html__( 'Invalid nonce', 'diluxone-offload' ) );
-		}
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
-		}
-
-		try {
-			// Start sync using SyncManager
-			$sync_manager = new \DiluxOneOffload\SyncManager();
-			$result       = $sync_manager->start_sync();
-
-			if ( ! empty( $result['success'] ) ) {
-				// Update state to syncing
-				ConfigManager::set_state( 'syncing' );
-
-				wp_send_json_success(
-					array(
-						'message'  => __( 'Sync started successfully', 'diluxone-offload' ),
-						'redirect' => true,
-					)
-				);
-			} else {
-				$msg = $result['message'] !== '' ? (string) $result['message'] : __( 'Failed to start sync', 'diluxone-offload' );
-				wp_send_json_error( esc_html( $msg ) );
-			}
-		} catch ( \Exception $e ) {
-			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error starting sync: %s', 'diluxone-offload' ), $e->getMessage() ) );
-		}
-	}
-
-	/**
-	 * AJAX: Delete local files after sync
-	 */
-	public static function ajax_delete_local_files(): void {
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
-			wp_die( esc_html__( 'Invalid nonce', 'diluxone-offload' ) );
-		}
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
-		}
-
-		try {
-			// Check that offloading is active - only allow deletion if offloading is ON
-			$current_state = ConfigManager::get_state();
-			if ( $current_state !== 'offloading_active' ) {
-				wp_send_json_error(
-					array(
-						'message' => __( 'Offloading must be active before deleting local files', 'diluxone-offload' ),
-					)
-				);
-			}
-
-			// Get all synced files from DB
-			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
-
-			$synced_files = \DiluxOneOffload\DiluxOneOffloadDB::get_synced_files();
-
-			if ( empty( $synced_files ) ) {
-				wp_send_json_error(
-					array(
-						'message' => __( 'No synced files found to delete', 'diluxone-offload' ),
-					)
-				);
-			}
-
-			// Get upload directory base path
-			$upload_dir = wp_upload_dir();
-			$base_path  = $upload_dir['basedir'];
-
-			$deleted_count    = 0;
-			$failed_count     = 0;
-			$total_size_freed = 0;
-			$errors           = array();
-
-			foreach ( $synced_files as $file ) {
-				$file_path = $base_path . $file['file'];
-
-				// Safety check: ensure file is within uploads directory.
-				// realpath() returns false for non-existent paths; treat that as "outside".
-				$real_file = realpath( $file_path );
-				$real_base = realpath( $base_path );
-				if ( $real_file === false || $real_base === false || strpos( $real_file, $real_base ) !== 0 ) {
-					$errors[] = 'Skipped file outside uploads directory: ' . $file['file'];
-					continue;
-				}
-
-				// Check if file exists
-				if ( ! file_exists( $file_path ) ) {
-					continue; // Already deleted or doesn't exist
-				}
-
-				// Get file size before deletion
-				$file_size = filesize( $file_path );
-
-				// Delete the file. wp_delete_file() returns void, so we re-check existence.
-				wp_delete_file( $file_path );
-				clearstatcache( true, $file_path );
-				if ( ! file_exists( $file_path ) ) {
-					++$deleted_count;
-					$total_size_freed += $file_size;
-				} else {
-					++$failed_count;
-					$errors[] = 'Failed to delete: ' . $file['file'];
-				}
-			}
-
-			// Clean up empty directories
-			self::cleanup_empty_directories( $base_path );
-
-			wp_send_json_success(
-				array(
-					'message'       => sprintf(
-						/* translators: 1: number of deleted files, 2: total MB freed (decimal), 3: number of failures */
-						__( 'Deleted %1$d files (%2$.2f MB freed). %3$d failures.', 'diluxone-offload' ),
-						$deleted_count,
-						$total_size_freed / 1048576,
-						$failed_count
-					),
-					'deleted_count' => $deleted_count,
-					'failed_count'  => $failed_count,
-					'size_freed'    => $total_size_freed,
-					'errors'        => $errors,
-				)
-			);
-
-		} catch ( \Exception $e ) {
-			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error deleting local files: %s', 'diluxone-offload' ), $e->getMessage() ) );
-		}
-	}
-
-	/**
-	 * Recursively cleanup empty directories
-	 *
-	 * @param mixed $path
-	 */
-	private static function cleanup_empty_directories( $path ): void {
-		if ( ! is_dir( $path ) ) {
-			return;
-		}
-
-		$entries = scandir( $path );
-		if ( $entries === false ) {
-			return;
-		}
-		$entries = array_diff( $entries, array( '.', '..' ) );
-
-		foreach ( $entries as $entry ) {
-			$full_path = $path . '/' . $entry;
-			if ( is_dir( $full_path ) ) {
-				self::cleanup_empty_directories( $full_path );
-			}
-		}
-
-		// Check again after recursive cleanup
-		$entries = scandir( $path );
-		if ( $entries === false ) {
-			return;
-		}
-		$entries = array_diff( $entries, array( '.', '..' ) );
-
-		// Only delete if empty and not the base uploads directory.
-		// WP_Filesystem doesn't expose a portable rmdir() that works without
-		// re-initialising file ownership credentials in admin context, so we
-		// use the native call here, restricted to verified-empty subdirectories
-		// under wp-content/uploads/.
-		$upload_dir = wp_upload_dir();
-		if ( empty( $entries ) && realpath( $path ) !== realpath( $upload_dir['basedir'] ) ) {
-			// Best-effort rmdir on an already-empty directory inside the
-			// uploads tree. The @ silencing matches the WP-core pattern
-			// for idempotent cleanup — a "directory not empty" race
-			// during plugin uninstall is harmless.
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir,WordPress.PHP.NoSilencedErrors.Discouraged -- Idempotent cleanup of already-verified-empty directory.
-			@rmdir( $path );
-		}
 	}
 
 	/**
@@ -2340,16 +1875,6 @@ class Admin {
 	}
 
 	/**
-	 * AJAX: Retry failed files (deprecated — kept as a stub).
-	 *
-	 * Old method removed in favor of the unified sync flow. Retry is now
-	 * handled by Plugin::ajax_cs_start_sync with retry_failed=1.
-	 */
-	public static function ajax_retry_failed(): void {
-		wp_send_json_error( esc_html__( 'This endpoint is deprecated. Use ajax_cs_start_sync with retry_failed parameter instead.', 'diluxone-offload' ) );
-	}
-
-	/**
 	 * AJAX: Clear failed files list
 	 */
 	public static function ajax_clear_failed(): void {
@@ -2369,54 +1894,6 @@ class Admin {
 		} catch ( \Exception $e ) {
 			/* translators: %s: error message */
 			wp_send_json_error( sprintf( esc_html__( 'Error clearing failed files: %s', 'diluxone-offload' ), $e->getMessage() ) );
-		}
-	}
-
-	/**
-	 * AJAX: Resync all files (re-scan and upload missing files)
-	 */
-	public static function ajax_resync_all(): void {
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
-			wp_die( esc_html__( 'Invalid nonce', 'diluxone-offload' ) );
-		}
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
-		}
-
-		try {
-			// Clear table and start sync from scratch
-			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
-
-			\DiluxOneOffload\DiluxOneOffloadDB::clear_table();
-
-			// Start sync using SyncManager
-			$sync_manager = new \DiluxOneOffload\SyncManager();
-			$result       = $sync_manager->start_sync();
-
-			if ( $result['success'] ) {
-				ConfigManager::set_state( \DiluxOneOffload\Enums\PluginState::SYNCING );
-
-				wp_send_json_success(
-					array(
-						'message'     => __( 'Resync started - scanning files...', 'diluxone-offload' ),
-						'total_files' => $result['total_files'] ?? 0,
-					)
-				);
-			} else {
-				wp_send_json_error(
-					array(
-						'message' => __( 'Failed to start resync', 'diluxone-offload' ),
-					)
-				);
-			}
-		} catch ( \Exception $e ) {
-			Logger::info( '[DiluxOne Offload Admin] Resync error: ' . $e->getMessage() );
-			wp_send_json_error(
-				array(
-					'message' => __( 'Error starting resync: ', 'diluxone-offload' ) . $e->getMessage(),
-				)
-			);
 		}
 	}
 

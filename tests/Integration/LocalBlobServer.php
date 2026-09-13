@@ -24,6 +24,9 @@ class LocalBlobServer {
         file_put_contents($this->docroot . '/router.php', <<<'PHP'
 <?php
 $status = (int) ($_GET['status'] ?? 201);
+if (preg_match('#/status-(\d{3})/#', (string) ($_SERVER['REQUEST_URI'] ?? ''), $m)) {
+    $status = (int) $m[1];
+}
 http_response_code($status);
 // Drain the body so cURL sees a clean upload.
 file_get_contents('php://input');

@@ -117,36 +117,6 @@ $config = $config ?? array(); // phpcs:ignore WordPress.NamingConventions.Prefix
 			</table>
 		</div>
 
-		<?php if ( is_multisite() ) : ?>
-		<!-- ========================================================================
-			Multisite Settings - ALWAYS EDITABLE
-			======================================================================== -->
-		<div class="settings-section">
-			<h3><?php esc_html_e( 'Multisite Settings', 'diluxone-offload' ); ?></h3>
-			<p class="description">
-				<?php esc_html_e( 'Configure how this plugin behaves in a multisite environment.', 'diluxone-offload' ); ?>
-			</p>
-
-			<table class="form-table">
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Network Configuration', 'diluxone-offload' ); ?></th>
-					<td>
-						<label>
-							<input type="checkbox"
-									name="use_network_config"
-									value="1"
-									<?php checked( $config['use_network_config'] ); ?>>
-							<?php esc_html_e( 'Use network-wide configuration for this site', 'diluxone-offload' ); ?>
-						</label>
-						<p class="description">
-							<?php esc_html_e( 'When enabled, this site will use the configuration set in Network Admin.', 'diluxone-offload' ); ?>
-						</p>
-					</td>
-				</tr>
-			</table>
-		</div>
-		<?php endif; ?>
-
 		<!-- ========================================================================
 			Debug & Logging - ALWAYS EDITABLE
 			======================================================================== -->

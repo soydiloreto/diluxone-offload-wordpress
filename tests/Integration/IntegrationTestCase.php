@@ -41,6 +41,18 @@ class IntegrationTestCase extends TestCase {
         parent::setUp();
         $this->cleanDatabase();
         $this->cleanOptions();
+        self::resetWrapperClient();
+    }
+
+    /**
+     * CloudStreamWrapper memoises its cloud client for the request. A test
+     * run is one long request, so without this every test after the first
+     * would keep talking to the first test's (fake) client.
+     */
+    public static function resetWrapperClient(): void {
+        $prop = new \ReflectionProperty(\DiluxOneOffload\CloudStreamWrapper::class, 'cloud_client');
+        $prop->setAccessible(true);
+        $prop->setValue(null, null);
     }
 
     protected function tearDown(): void {

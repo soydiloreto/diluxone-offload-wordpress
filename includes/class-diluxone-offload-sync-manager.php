@@ -1438,7 +1438,7 @@ class SyncManager {
 				$relative_path = $file['file'];
 				$local_path    = $this->upload_dir['basedir'] . $relative_path;
 				$remote_path   = 'uploads/' . ltrim( $relative_path, '/' );
-				$size          = $file['size'];
+				$size          = (int) $file['size'];
 
 				// ⭐ Check mode: only skip if 'continue' mode AND file exists with same size
 				$reverse_mode = $sync_meta['reverse_mode'] ?? 'continue';

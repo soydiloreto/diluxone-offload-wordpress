@@ -757,16 +757,6 @@ class ConfigManager {
 	}
 
 	/**
-	 * Get the current offloading strategy
-	 *
-	 * @return string
-	 */
-	public static function get_offloading_strategy() {
-		// For now, we only have one strategy: stream wrapper
-		return 'stream_wrapper';
-	}
-
-	/**
 	 * Enable offloading (activate stream wrapper)
 	 * Only possible if synced
 	 *
