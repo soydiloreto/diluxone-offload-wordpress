@@ -9,13 +9,15 @@ jQuery(document).ready(function($) {
 
 	$('#refresh-stats-btn').on('click', function() {
 		var $button = $(this);
-		var $loading = $('#stats-loading');
-		var $content = $('#stats-content');
+		var $wrap = $('.diluxone-offload-stats-wrap');
 
 		$button.prop('disabled', true);
 		$button.find('.dashicons').addClass('spin');
-		$loading.show();
-		$content.hide();
+		// Blur the panel and show the overlay on top of it. Hiding the panel
+		// instead would collapse the card to the height of a spinner and make
+		// the whole page jump twice per refresh.
+		$wrap.addClass('diluxone-offload-loading').attr('aria-busy', 'true');
+		$('#stats-loading').show();
 
 		$.ajax({
 			url: ajaxurl,
@@ -132,9 +134,18 @@ jQuery(document).ready(function($) {
 			complete: function() {
 				$button.prop('disabled', false);
 				$button.find('.dashicons').removeClass('spin');
-				$loading.hide();
-				$content.show();
+				$('#stats-loading').hide();
+				$wrap.removeClass('diluxone-offload-loading').attr('aria-busy', 'false');
 			}
 		});
 	});
+
+	// Cold cache: the server rendered the panel blurred instead of blocking on a
+	// container listing, so ask for the numbers now that the page is on screen.
+	// This drives the Refresh button's own handler rather than repeating it —
+	// one implementation, so the pie chart and the conditional bandwidth row
+	// behave identically on first paint and on every refresh after it.
+	if ($('.diluxone-offload-loading').length) {
+		$('#refresh-stats-btn').trigger('click');
+	}
 });

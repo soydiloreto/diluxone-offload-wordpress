@@ -400,10 +400,7 @@ $date_to   = isset( $_GET['date_to'] ) ? sanitize_text_field( wp_unslash( $_GET[
 				<p><?php esc_html_e( 'No activity matches your current filters. Try adjusting your search criteria.', 'diluxone-offload' ); ?></p>
 			</div>
 		<?php endif; ?>
-	</div>
-</div>
-
-
+	</div><!-- end activity-log -->
 
 	</div> <!-- end activity-content -->
 	<?php endif; ?>

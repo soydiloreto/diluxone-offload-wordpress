@@ -291,7 +291,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 	</div>
 
 	<!-- Storage Overview (only if configured) -->
-	<?php if ( $is_configured && $cloud_stats ) : ?>
+	<?php if ( $is_configured ) : ?>
 		<div class="storage-overview-section">
 			<h3 style="display: flex; align-items: center; justify-content: space-between;">
 				<?php esc_html_e( 'Storage Overview', 'diluxone-offload' ); ?>
@@ -301,13 +301,58 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 				</button>
 			</h3>
 
-			<div id="stats-loading" style="display: none; text-align: center; padding: 20px;">
-				<span class="spinner is-active" style="float: none;"></span>
-				<p class="description"><?php esc_html_e( 'Loading storage statistics...', 'diluxone-offload' ); ?></p>
-			</div>
+			<?php
+			/*
+			 * #stats-loading is an overlay over #stats-content, not a replacement
+			 * for it: blurring the real panel keeps the layout stable, so nothing
+			 * jumps when the numbers land. Both the first paint on a cold cache
+			 * and the Refresh button go through this same state.
+			 */
+			$is_loading = ( $cloud_stats === null );
+			?>
+			<div class="diluxone-offload-stats-wrap<?php echo $is_loading ? ' diluxone-offload-loading' : ''; ?>"<?php echo $is_loading ? ' aria-busy="true"' : ''; ?>>
+				<div id="stats-loading" class="diluxone-offload-loading-overlay" role="status" aria-live="polite"<?php echo $is_loading ? '' : ' style="display: none;"'; ?>>
+					<span class="spinner is-active"></span>
+					<p><?php esc_html_e( 'Loading storage statistics…', 'diluxone-offload' ); ?></p>
+					<p class="diluxone-offload-loading-hint">
+						<?php esc_html_e( 'Reading your cloud container. On large libraries this can take a few seconds.', 'diluxone-offload' ); ?>
+					</p>
+				</div>
 
 			<div id="stats-content">
-				<?php if ( ! $cloud_stats['success'] ) : ?>
+				<?php if ( $cloud_stats === null ) : ?>
+					<?php
+					/*
+					 * Nothing cached yet, and fetching here would block the page
+					 * for as long as the container listing takes. Render a
+					 * placeholder layout instead and let admin-overview.js fill
+					 * in the real one.
+					 *
+					 * Only the row every provider has: bandwidth, plan and the
+					 * file-type breakdown are not known until the stats arrive
+					 * (Azure reports none of them), so the script renders those.
+					 */
+					?>
+					<div class="diluxone-offload-overview-bars">
+						<div class="diluxone-offload-bar-section">
+							<div class="diluxone-offload-bar-header">
+								<span class="diluxone-offload-bar-title"><?php esc_html_e( 'Storage', 'diluxone-offload' ); ?></span>
+								<span class="diluxone-offload-bar-value" id="stat-storage-detail">&mdash;</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="diluxone-offload-files-section">
+						<div class="diluxone-offload-files-grid">
+							<div class="diluxone-offload-files-count">
+								<span class="diluxone-offload-stat-label"><?php esc_html_e( 'Total Files', 'diluxone-offload' ); ?></span>
+								<div id="stat-file-count" class="diluxone-offload-stat-value">&mdash;</div>
+							</div>
+						</div>
+					</div>
+
+					<p id="stat-last-updated" class="description" style="margin-top: 10px; text-align: right; font-size: 12px;"></p>
+				<?php elseif ( ! $cloud_stats['success'] ) : ?>
 					<!-- Storage bar with ERROR -->
 					<div class="diluxone-offload-overview-bars">
 						<div class="diluxone-offload-bar-section">
@@ -513,7 +558,8 @@ endif;
 					</p>
 					<?php endif; ?>
 				<?php endif; ?>
-			</div>
+			</div><!-- /#stats-content -->
+			</div><!-- /.diluxone-offload-stats-wrap -->
 		</div>
 	<?php endif; ?>
 

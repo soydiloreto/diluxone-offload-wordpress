@@ -1,4 +1,4 @@
-=== DiluxOne Offload – Multi-Cloud Media Storage (Azure, AWS, GCP) ===
+=== DiluxOne Offload – Multi-Cloud Media Storage ===
 Contributors: pablodiloreto
 Tags: media, offload, azure, cloud storage, uploads
 Requires at least: 5.0
@@ -8,7 +8,7 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Move your media to Azure Blob Storage, Amazon S3, Google Cloud Storage or DiluxOne Cloud and serve it from there. Replaces /uploads/ transparently.
+Move your media to cloud object storage and serve it from there. Replaces /uploads/ transparently, with no URL rewriting.
 
 == Description ==
 

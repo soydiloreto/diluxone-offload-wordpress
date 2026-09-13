@@ -435,7 +435,7 @@ class Admin {
 			'diluxone-offload-admin',
 			DILUXONE_OFFLOAD_URL . 'assets/css/admin.css',
 			array(),
-			DILUXONE_OFFLOAD_VERSION
+			self::asset_version( 'assets/css/admin.css' )
 		);
 
 		// Enqueue JS
@@ -443,7 +443,7 @@ class Admin {
 			'diluxone-offload-admin',
 			DILUXONE_OFFLOAD_URL . 'assets/js/admin.js',
 			array( 'jquery' ),
-			DILUXONE_OFFLOAD_VERSION,
+			self::asset_version( 'assets/js/admin.js' ),
 			true
 		);
 
@@ -474,6 +474,37 @@ class Admin {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Cache-busting version for a plugin asset.
+	 *
+	 * In production the plugin version is right: assets only change when a new
+	 * version ships. Anywhere else it is actively misleading — the version
+	 * stays put across edits, so browsers keep serving the previous CSS and JS
+	 * and the change looks like it simply did not work. Off production, fall
+	 * back to the file's mtime.
+	 *
+	 * Keyed on the environment type rather than SCRIPT_DEBUG: a dev stack does
+	 * not necessarily set SCRIPT_DEBUG, and that is exactly where stale assets
+	 * cost the most time.
+	 *
+	 * @param string $relative Path under the plugin root, e.g. 'assets/js/admin.js'.
+	 * @return string Version string for wp_enqueue_*.
+	 */
+	private static function asset_version( string $relative ): string {
+		$path = DILUXONE_OFFLOAD_DIR . $relative;
+
+		$is_production = ! function_exists( 'wp_get_environment_type' ) || wp_get_environment_type() === 'production';
+
+		if ( ! $is_production && file_exists( $path ) ) {
+			$mtime = filemtime( $path );
+			if ( $mtime !== false ) {
+				return (string) $mtime;
+			}
+		}
+
+		return DILUXONE_OFFLOAD_VERSION;
 	}
 
 	/**
@@ -594,14 +625,15 @@ class Admin {
 			case 'overview':
 				$payload = array(
 					'i18n' => array(
-						'images'       => __( 'Images', 'diluxone-offload' ),
-						'videos'       => __( 'Videos', 'diluxone-offload' ),
-						'audio'        => __( 'Audio', 'diluxone-offload' ),
-						'other'        => __( 'Other', 'diluxone-offload' ),
-						'last_updated' => __( 'Last updated:', 'diluxone-offload' ),
-						'just_now'     => __( 'just now', 'diluxone-offload' ),
-						'storage'      => __( 'Storage', 'diluxone-offload' ),
-						'total_files'  => __( 'Total Files', 'diluxone-offload' ),
+						'not_available' => __( 'Not available', 'diluxone-offload' ),
+						'images'        => __( 'Images', 'diluxone-offload' ),
+						'videos'        => __( 'Videos', 'diluxone-offload' ),
+						'audio'         => __( 'Audio', 'diluxone-offload' ),
+						'other'         => __( 'Other', 'diluxone-offload' ),
+						'last_updated'  => __( 'Last updated:', 'diluxone-offload' ),
+						'just_now'      => __( 'just now', 'diluxone-offload' ),
+						'storage'       => __( 'Storage', 'diluxone-offload' ),
+						'total_files'   => __( 'Total Files', 'diluxone-offload' ),
 						'error_please_update_your_credentials' => __( 'ERROR: please update your credentials', 'diluxone-offload' ),
 						'request_timed_out_try_again_later' => __( 'Request timed out. Try again later.', 'diluxone-offload' ),
 					),
@@ -761,7 +793,7 @@ class Admin {
 				$handle,
 				DILUXONE_OFFLOAD_URL . 'assets/css/' . $base . '.css',
 				array( 'diluxone-offload-admin' ),
-				DILUXONE_OFFLOAD_VERSION
+				self::asset_version( 'assets/css/' . $base . '.css' )
 			);
 		}
 
@@ -770,7 +802,7 @@ class Admin {
 				$handle,
 				DILUXONE_OFFLOAD_URL . 'assets/js/' . $base . '.js',
 				array( 'jquery', 'diluxone-offload-admin' ),
-				DILUXONE_OFFLOAD_VERSION,
+				self::asset_version( 'assets/js/' . $base . '.js' ),
 				true
 			);
 
@@ -824,26 +856,13 @@ class Admin {
 				$config                  = ConfigManager::get_config();
 				$config['is_configured'] = ConfigManager::is_configured();
 
-				// Fetch cloud stats for overview display
+				// Cached stats only — never fetch here. See
+				// ConfigManager::get_cached_cloud_stats() for why. On a cold
+				// cache this is null and the template paints a skeleton that
+				// the tab's script fills in.
 				$current_state_ov = ConfigManager::get_state();
 				$is_configured_ov = ! in_array( $current_state_ov, array( 'not_configured', '' ), true );
-				$cloud_stats_ov   = null;
-
-				if ( $is_configured_ov ) {
-					try {
-						$client = ConfigManager::get_cloud_client();
-						if ( $client instanceof \DiluxOneOffload\Providers\DiluxOneCloudProvider ) {
-							$cloud_stats_ov = $client->get_stats();
-						} elseif ( $client instanceof \DiluxOneOffload\Providers\AzureProvider ) {
-							$cloud_stats_ov = $client->get_container_stats();
-						}
-					} catch ( \Exception $e ) {
-						$cloud_stats_ov = array(
-							'success' => false,
-							'message' => $e->getMessage(),
-						);
-					}
-				}
+				$cloud_stats_ov   = $is_configured_ov ? ConfigManager::get_cached_cloud_stats() : null;
 
 				$template_data = array(
 					'config'          => $config,
@@ -870,25 +889,9 @@ class Admin {
 				// Prepare cloud stats and DB data for template (no business logic in templates)
 				$current_state_cp   = ConfigManager::get_state();
 				$is_configured_cp   = ! in_array( $current_state_cp, array( 'not_configured', '' ), true );
-				$cloud_stats_cp     = null;
 				$has_files_in_db_cp = false;
 
 				if ( $is_configured_cp ) {
-					// Fetch cloud stats
-					try {
-						$client = ConfigManager::get_cloud_client();
-						if ( $client instanceof \DiluxOneOffload\Providers\DiluxOneCloudProvider ) {
-							$cloud_stats_cp = $client->get_stats();
-						} elseif ( $client instanceof \DiluxOneOffload\Providers\AzureProvider ) {
-							$cloud_stats_cp = $client->get_container_stats();
-						}
-					} catch ( \Exception $e ) {
-						$cloud_stats_cp = array(
-							'success' => false,
-							'message' => $e->getMessage(),
-						);
-					}
-
 					// Check files in DB (table name from trusted source, no user input)
 					require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 					global $wpdb;
@@ -901,7 +904,6 @@ class Admin {
 					'config'          => $config,
 					'current_state'   => $current_state_cp,
 					'is_configured'   => $is_configured_cp,
-					'cloud_stats'     => $cloud_stats_cp,
 					'has_files_in_db' => $has_files_in_db_cp,
 				);
 				break;

@@ -531,3 +531,69 @@
 .nav-tab-wrapper {
     margin-bottom: 20px;
 }
+/* ---------------------------------------------------------------------------
+ * Loading state for cloud-backed panels
+ *
+ * A panel whose numbers come from the cloud renders its normal markup with
+ * empty values, blurred, and puts a centred message on top. The layout is the
+ * final one from the first paint, so nothing jumps when the values land — and
+ * the message is unmissable, which a row of grey bars was not.
+ *
+ * Usage: add .diluxone-offload-loading to the panel and drop a
+ * .diluxone-offload-loading-overlay inside it as the first child.
+ * ------------------------------------------------------------------------ */
+.diluxone-offload-stats-wrap {
+	position: relative;
+}
+
+.diluxone-offload-loading {
+	position: relative;
+	min-height: 140px;
+}
+
+/* Everything except the overlay goes soft and non-interactive. */
+.diluxone-offload-loading > *:not( .diluxone-offload-loading-overlay ) {
+	filter: blur( 4px );
+	opacity: 0.45;
+	pointer-events: none;
+	user-select: none;
+}
+
+.diluxone-offload-loading-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	text-align: center;
+}
+
+.diluxone-offload-loading-overlay .spinner {
+	float: none;
+	margin: 0;
+}
+
+.diluxone-offload-loading-overlay p {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.diluxone-offload-loading-overlay .diluxone-offload-loading-hint {
+	font-weight: 400;
+	font-size: 12px;
+	color: #646970;
+	max-width: 320px;
+}
+
+/* The blur is decorative; without it the dimming still reads as "not ready". */
+@media ( prefers-reduced-motion: reduce ) {
+	.diluxone-offload-loading > *:not( .diluxone-offload-loading-overlay ) {
+		filter: none;
+		opacity: 0.35;
+	}
+}
