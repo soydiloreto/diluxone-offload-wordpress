@@ -60,6 +60,48 @@ The default `wp-env` setup is in [`.wp-env.json`](../.wp-env.json):
 
 To override any of these on your local machine without committing the changes, create a `.wp-env.override.json` file (it's already in `.gitignore`). See the [`@wordpress/env` docs](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) for the full schema.
 
+## The repository name is not the plugin slug
+
+The repository is **`diluxone-offload-wordpress`**. The plugin slug and text
+domain are **`diluxone-offload`**. Several tools guess one from the other, and
+they guess differently, so every place that needs to know is told explicitly.
+Before changing any of these, check which of the two names the tool actually
+wants — that single question explains all five.
+
+Where the **slug** has to be stated, because the tool would otherwise derive it
+from the repository name:
+
+| Where | What |
+|---|---|
+| `.github/workflows/pr-checks.yml` | `slug: diluxone-offload` on `wordpress/plugin-check-action`. Plugin Check reads the expected text domain off the folder it scans, which in CI is the checkout. |
+| `.github/workflows/deploy.yml` | `SLUG: diluxone-offload` in the `env:` block of `10up/action-wordpress-plugin-deploy`, or it targets a non-existent SVN path. |
+| `Makefile` (`deploy-test`) | Copies into `wp-content/plugins/diluxone-offload/`, and the `.mo` files into `wp-content/languages/plugins/`. |
+
+Where the **repository name** is correct and must be left alone, because
+`wp-env` mounts the plugin under the checkout's directory name:
+
+| Where | What |
+|---|---|
+| `tests-integration.yml`, `tests-e2e.yml` | `wp plugin activate diluxone-offload-wordpress` |
+| `Makefile` (`test-integration`, coverage) | The same name in the activate and in the phpunit paths. |
+
+### Why the bundled `.mo` files need copying
+
+The plugin does not call `load_plugin_textdomain()` — Plugin Check has
+discouraged it since WordPress 4.6 — and without that call WordPress reads
+plugin translations only from `wp-content/languages/plugins/`. See
+`get_paths_for_domain()` in `wp-includes/class-wp-textdomain-registry.php`.
+So `languages/*.mo` sitting inside the plugin folder is inert: the site renders
+in English with eight complete locales on disk. `make deploy-test` puts them
+where wordpress.org will install the language packs once the plugin is
+published.
+
+### Sibling repositories
+
+`diluxone-users-wordpress` and `diluxone-mail-wordpress` have the same
+repo-vs-slug split and solve it the same way. When something here looks wrong,
+compare against them before inventing a fix.
+
 ## Manual install (alternative)
 
 If you'd rather use your own WordPress setup instead of `wp-env`, clone this repo directly into `wp-content/plugins/diluxone-offload/` of your existing WordPress install. The plugin has no build step — it runs straight from source.
