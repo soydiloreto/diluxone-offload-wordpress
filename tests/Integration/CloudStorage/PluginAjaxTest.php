@@ -307,6 +307,38 @@ class PluginAjaxTest extends IntegrationTestCase {
         $this->assertSame(0, $this->getTableRowCount());
     }
 
+    public function test_discarding_the_last_failures_leaves_the_plugin_ready_to_offload(): void {
+        wp_set_current_user($this->admin_id);
+        $this->addTestFile('/2026/09/bad.jpg', 10);
+        foreach (['a', 'b', 'c'] as $e) {
+            \DiluxOneOffload\DiluxOneOffloadDB::increment_error('/2026/09/bad.jpg', $e);
+        }
+        // Those failures are what kept the plugin in SYNCING.
+        ConfigManager::set_state(PluginState::SYNCING);
+
+        $r = $this->call('diluxone_offload_discard_failed_files');
+        $this->assertTrue($r['json']['success'], print_r($r['json'], true));
+
+        // The "Clear Failed & Enable" flow calls activate right after the
+        // discard, and that only works from SYNCED.
+        $this->assertSame(PluginState::SYNCED, ConfigManager::get_state());
+        $this->assertTrue(PluginState::can_activate_offloading(ConfigManager::get_state()));
+    }
+
+    public function test_discarding_failures_while_idle_leaves_the_state_alone(): void {
+        wp_set_current_user($this->admin_id);
+        $this->addTestFile('/2026/09/bad.jpg', 10);
+        foreach (['a', 'b', 'c'] as $e) {
+            \DiluxOneOffload\DiluxOneOffloadDB::increment_error('/2026/09/bad.jpg', $e);
+        }
+        ConfigManager::set_state(PluginState::CONFIGURED);
+
+        $this->call('diluxone_offload_discard_failed_files');
+
+        // Only SYNCING is promoted; every other state is none of the discard's business.
+        $this->assertSame(PluginState::CONFIGURED, ConfigManager::get_state());
+    }
+
     // ── Stats endpoints answer JSON ─────────────────────────
 
     /** @dataProvider statsActions */

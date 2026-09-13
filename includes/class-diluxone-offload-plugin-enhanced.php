@@ -1031,6 +1031,20 @@ class Plugin {
 
 			if ( $result !== false ) {
 				Logger::info( '[DiluxOne Offload Plugin] Discarded ' . $result . ' failed files from database' );
+
+				// Every row left in the table now has `synced = 1` or `deleted = 1`,
+				// so nothing is blocking the sync any more. If we were sitting in
+				// SYNCING because of the rows just discarded, promote to SYNCED:
+				// PluginState::can_activate_offloading() accepts only SYNCED, so
+				// without this the `diluxone_offload_activate_offloading` call that
+				// the "Clear Failed & Enable" flow fires right after (assets/js/
+				// admin-sync.js) returns false and the user is told the files were
+				// discarded but offloading could not be enabled.
+				if ( PluginState::SYNCING === ConfigManager::get_state() ) {
+					ConfigManager::set_state( PluginState::SYNCED );
+					Logger::info( '[DiluxOne Offload Plugin] State transitioned SYNCING -> SYNCED after discarding all failed files' );
+				}
+
 				wp_send_json_success(
 					array(
 						'message'       => 'Failed files discarded',
