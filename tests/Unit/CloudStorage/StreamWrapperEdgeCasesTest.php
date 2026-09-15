@@ -28,6 +28,10 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 		$GLOBALS['_test_wp_http_log']   = array();
 		$GLOBALS['_test_wp_hooks']      = array();
 		unset( $GLOBALS['_test_wp_http'] );
+
+		// The default WordPress layout, stated rather than assumed: the code
+		// asks wp_upload_dir() where uploads are, so the test has to say.
+		$GLOBALS['_test_wp_upload_dir'] = WP_CONTENT_DIR . '/uploads';
 		$this->configure();
 		CloudStreamWrapper::clear_stat_cache();
 		CloudStreamWrapper::clear_file_cache();

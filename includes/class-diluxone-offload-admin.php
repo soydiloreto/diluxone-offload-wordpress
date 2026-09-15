@@ -87,12 +87,6 @@ class Admin {
 				'aliases' => array( 'status-tools' ),
 				'hidden'  => false,
 			),
-			'tools'           => array(
-				'label'   => \__( 'Tools', 'diluxone-offload' ),
-				'icon'    => 'dashicons-admin-tools',
-				'aliases' => array(),
-				'hidden'  => false,
-			),
 			'activity'        => array(
 				'label'   => \__( 'Activity', 'diluxone-offload' ),
 				'icon'    => 'dashicons-chart-line',
@@ -176,7 +170,6 @@ class Admin {
 		\add_action( 'wp_ajax_diluxone_offload_mark_sync_complete', array( __CLASS__, 'ajax_mark_sync_complete' ) );
 		\add_action( 'wp_ajax_diluxone_offload_clear_failed', array( __CLASS__, 'ajax_clear_failed' ) );
 		\add_action( 'wp_ajax_diluxone_offload_ajax_remove_provider', array( __CLASS__, 'ajax_remove_provider' ) );
-		\add_action( 'wp_ajax_diluxone_offload_import_config', array( __CLASS__, 'ajax_import_config' ) );
 		\add_action( 'wp_ajax_diluxone_offload_refresh_stats', array( __CLASS__, 'ajax_refresh_stats' ) );
 		Logger::debug( '[DiluxOne Offload] Admin hooks registered successfully' );
 	}
@@ -516,8 +509,7 @@ class Admin {
 			'cloud-provider'  => 'admin-cloud-provider',
 			'sync-offloading' => 'admin-sync',
 			'settings'        => 'admin-settings',
-			'status'          => 'admin-status-tools',
-			'tools'           => 'admin-status-tools',
+			'status'          => 'admin-status',
 			'activity'        => 'admin-activity',
 		);
 	}
@@ -563,30 +555,6 @@ class Admin {
 				);
 				$object  = 'DiluxOneOffloadActivity';
 				$handle  = 'diluxone-offload-admin-activity';
-				break;
-
-			case 'status':
-			case 'tools':
-				$payload = array(
-					'i18n' => array(
-						'exported'                        => __( 'Exported!', 'diluxone-offload' ),
-						'please_paste_configuration_json_first' => __( 'Please paste configuration JSON first.', 'diluxone-offload' ),
-						'invalid_json_format'             => __( 'Invalid JSON format:', 'diluxone-offload' ),
-						'warning_this_will_overwrite_your_current' => __( '⚠️ WARNING: This will overwrite your current configuration!\\n\\nAre you sure you want to continue?', 'diluxone-offload' ),
-						'importing'                       => __( 'Importing...', 'diluxone-offload' ),
-						'configuration_imported_successfully_reloading_page' => __( 'Configuration imported successfully! Reloading page...', 'diluxone-offload' ),
-						'import_failed'                   => __( 'Import failed.', 'diluxone-offload' ),
-						'request_failed_please_try_again' => __( 'Request failed. Please try again.', 'diluxone-offload' ),
-					),
-					'data' => array(
-						'config_data_json_pretty_print' => $template_data['config_data, JSON_PRETTY_PRINT'] ?? null,
-						'get_bloginfo_version'          => get_bloginfo( 'version' ),
-						'admin_get_plugin_version'      => self::get_plugin_version(),
-						'get_site_url'                  => get_site_url(),
-					),
-				);
-				$object  = 'DiluxOneOffloadStatus';
-				$handle  = 'diluxone-offload-admin-status-tools';
 				break;
 
 			case 'cloud-provider':
@@ -1023,19 +991,14 @@ class Admin {
 				break;
 
 			case 'status':
-			case 'tools':
 			case 'status-tools':  // legacy alias — keep for old bookmarked URLs
-				// Status and Tools share a single template that renders one
-				// section at a time, picked via $section. The legacy
-				// 'status-tools' URL falls back to 'status'.
-				$template_path           = 'admin-status-tools.php';
+				$template_path           = 'admin-status.php';
 				$config                  = ConfigManager::get_config();
 				$config['is_configured'] = ConfigManager::is_configured();
 				$template_data           = array(
 					'config'        => $config,
 					'health_status' => self::get_basic_health_status(),
 					'storage_stats' => self::get_basic_stats(),
-					'section'       => ( $current_tab === 'tools' ) ? 'tools' : 'status',
 				);
 				break;
 
@@ -1909,102 +1872,6 @@ class Admin {
 		}
 	}
 
-	/**
-	 * AJAX handler to import configuration from JSON
-	 */
-	public static function ajax_import_config(): void {
-		// Check nonce
-		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
-
-		// Check permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions', 'diluxone-offload' ) ) );
-		}
-
-		try {
-			// Get config JSON from request. The body is a JSON blob that
-			// we json_decode + structurally validate below; passing it through
-			// sanitize_text_field would corrupt the structure. Nonce was already
-			// verified at the top of this AJAX handler.
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload validated by json_decode below.
-			$config_json = isset( $_POST['config'] ) ? wp_unslash( (string) $_POST['config'] ) : '';
-
-			if ( empty( $config_json ) ) {
-				wp_send_json_error( __( 'No configuration data provided', 'diluxone-offload' ) );
-			}
-
-			// Decode JSON
-			$config_data = json_decode( $config_json, true );
-
-			if ( json_last_error() !== JSON_ERROR_NONE ) {
-				wp_send_json_error( __( 'Invalid JSON format: ', 'diluxone-offload' ) . json_last_error_msg() );
-			}
-
-			if ( empty( $config_data ) || ! is_array( $config_data ) ) {
-				wp_send_json_error( __( 'Invalid configuration data', 'diluxone-offload' ) );
-			}
-
-			Logger::info( '[DiluxOne Offload] Importing configuration with ' . count( $config_data ) . ' options' );
-
-			// Validate that we have diluxone_offload_ options
-			$diluxone_offload_options_count = 0;
-			foreach ( $config_data as $option_name => $option_value ) {
-				if ( strpos( $option_name, 'diluxone_offload_' ) === 0 ) {
-					++$diluxone_offload_options_count;
-				}
-			}
-
-			if ( $diluxone_offload_options_count === 0 ) {
-				wp_send_json_error( __( 'No valid DiluxOne Offload options found in import data', 'diluxone-offload' ) );
-			}
-
-			// Import each option
-			$imported_count = 0;
-			$errors         = array();
-
-			foreach ( $config_data as $option_name => $option_value ) {
-				// Only import diluxone_offload_ options
-				if ( strpos( $option_name, 'diluxone_offload_' ) !== 0 ) {
-					continue;
-				}
-
-				try {
-					// update_option() automatically serializes arrays/objects
-					// So we just pass the value directly - no manual serialization needed
-					update_option( $option_name, $option_value );
-					++$imported_count;
-
-					Logger::info( "[DiluxOne Offload] Imported option: {$option_name}" );
-
-				} catch ( \Exception $e ) {
-					$errors[] = "Error importing {$option_name}: " . $e->getMessage();
-					Logger::info( "[DiluxOne Offload] Error importing {$option_name}: " . $e->getMessage() );
-				}
-			}
-
-			if ( $imported_count > 0 ) {
-				$message = sprintf(
-					/* translators: %d: number of imported configuration options */
-					__( 'Successfully imported %d configuration options.', 'diluxone-offload' ),
-					$imported_count
-				);
-
-				if ( ! empty( $errors ) ) {
-					/* translators: %s: comma-separated list of error messages */
-					$message .= ' ' . sprintf( __( 'Errors: %s', 'diluxone-offload' ), implode( ', ', $errors ) );
-				}
-
-				Logger::info( "[DiluxOne Offload] Configuration import completed: {$imported_count} options imported" );
-
-				wp_send_json_success( $message );
-			} else {
-				wp_send_json_error( __( 'No options were imported', 'diluxone-offload' ) );
-			}
-		} catch ( \Exception $e ) {
-			Logger::info( '[DiluxOne Offload] AJAX: Error importing configuration: ' . $e->getMessage() );
-			wp_send_json_error( __( 'Error importing configuration: ', 'diluxone-offload' ) . $e->getMessage() );
-		}
-	}
 }
 
 // Initialize admin

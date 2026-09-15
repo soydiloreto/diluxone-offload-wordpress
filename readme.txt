@@ -24,7 +24,6 @@ The plugin uses a custom PHP stream wrapper to intercept every read and write to
 * **Offloading mode** — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working.
 * **Connection health monitoring** — automatic fallback to local storage when cloud is unreachable, with a persistent banner in the admin.
 * **Custom domain / CDN support** — serve media from your own domain or CDN edge.
-* **Import / export of configuration** — JSON-based for environment mirroring.
 * **Multisite aware** — per-site or network-level configuration.
 * **Debug logging toggle** — built-in verbose logging that respects WP_DEBUG and the admin Settings toggle.
 
@@ -131,7 +130,6 @@ First public release.
 * Every tab agrees on the same state: when the connection is paused, the Overview, Sync & Offloading and Status cards all say so with the same wording and the same reason, instead of some staying green while others report the failure.
 * "Force HTTPS for cloud storage URLs" option to keep media working on installs served over plain HTTP.
 * Custom domain / CDN support.
-* Import / export of plugin configuration as JSON for environment mirroring.
 * Multisite support — per-site or network-level configuration.
 * Verbose debug logging toggle in Settings (errors always log; info and debug respect the toggle).
 * Provider credentials encrypted at rest with AES-256-GCM using a key derived from the site's WordPress salts.

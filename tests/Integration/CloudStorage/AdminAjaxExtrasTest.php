@@ -145,12 +145,6 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
         $this->assertStringContainsString('not saved', $r['json']['data']['message']);
     }
 
-    public function test_import_rejects_an_empty_object(): void {
-        $r = $this->call('diluxone_offload_import_config', ['config' => '{}']);
-        $this->assertFalse($r['json']['success']);
-        $this->assertStringContainsString('Invalid configuration data', $r['json']['data']);
-    }
-
     public function test_mark_sync_complete_without_a_sync_manager_says_so(): void {
         $plugin = \DiluxOneOffload\Plugin::get_instance();
         $prop   = new \ReflectionProperty($plugin, 'sync_manager');

@@ -201,39 +201,6 @@ class AdminAjaxTest extends IntegrationTestCase {
         $this->assertFalse($r['json']['success']);
     }
 
-    // ── Import / export ─────────────────────────────────────
-
-    public function test_import_config_writes_plugin_options_only(): void {
-        $payload = json_encode([
-            'diluxone_offload_plugin_state' => PluginState::CONFIGURED,
-            'diluxone_offload_debug_enabled' => true,
-            'siteurl'                       => 'http://evil.example',
-        ]);
-
-        $r = $this->call('diluxone_offload_import_config', ['config' => $payload]);
-
-        $this->assertNotNull($r['json'], $r['raw']);
-        $this->assertTrue($r['json']['success'], $r['raw']);
-        $this->assertSame(PluginState::CONFIGURED, get_option('diluxone_offload_plugin_state'));
-        $this->assertNotSame('http://evil.example', get_option('siteurl'), 'an import must never touch options outside the plugin');
-    }
-
-    public function test_import_config_rejects_invalid_json(): void {
-        $r = $this->call('diluxone_offload_import_config', ['config' => '{not json']);
-        $this->assertFalse($r['json']['success'] ?? true, $r['raw']);
-        $this->assertStringContainsString('JSON', $r['raw']);
-    }
-
-    public function test_import_config_rejects_an_empty_payload(): void {
-        $r = $this->call('diluxone_offload_import_config', []);
-        $this->assertFalse($r['json']['success'] ?? true, $r['raw']);
-    }
-
-    public function test_import_config_with_nothing_relevant_is_an_error(): void {
-        $r = $this->call('diluxone_offload_import_config', ['config' => json_encode(['blogname' => 'x'])]);
-        $this->assertFalse($r['json']['success'] ?? true, $r['raw']);
-    }
-
     // ── Remove provider ─────────────────────────────────────
 
     public function test_remove_provider_wipes_config_state_and_table(): void {

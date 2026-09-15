@@ -25,7 +25,7 @@ class AdminRenderTest extends IntegrationTestCase {
     private ?FakeCloudClient $fake = null;
     private int $admin_id = 0;
 
-    private const TABS = ['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status', 'tools', 'activity'];
+    private const TABS = ['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status', 'activity'];
 
     public static function setUpBeforeClass(): void {
         parent::setUpBeforeClass();
@@ -166,9 +166,10 @@ class AdminRenderTest extends IntegrationTestCase {
 
     public function test_tabs_and_aliases(): void {
         $tabs = Admin::tabs();
-        foreach (['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status', 'tools', 'activity'] as $t) {
+        foreach (['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status', 'activity'] as $t) {
             $this->assertArrayHasKey($t, $tabs);
         }
+        $this->assertArrayNotHasKey('tools', $tabs, 'the Tools tab went out with import/export');
         $this->assertSame('sync-offloading', Admin::current_tab('sync'), 'legacy alias');
         $this->assertSame('status', Admin::current_tab('status-tools'), 'legacy alias');
         $this->assertSame('overview', Admin::current_tab('nope'), 'unknown falls back');
@@ -488,7 +489,7 @@ class AdminRenderTest extends IntegrationTestCase {
     public function test_each_tab_gets_its_own_script_and_localized_strings(): void {
         $this->configure(PluginState::SYNCED);
         $this->useFakeClient();
-        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'cloud-provider' => 'DiluxOneOffloadProvider', 'sync-offloading' => 'DiluxOneOffloadSync', 'status' => 'DiluxOneOffloadStatus', 'tools' => 'DiluxOneOffloadStatus', 'activity' => 'DiluxOneOffloadActivity'];
+        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'cloud-provider' => 'DiluxOneOffloadProvider', 'sync-offloading' => 'DiluxOneOffloadSync', 'activity' => 'DiluxOneOffloadActivity'];
         foreach ($with_js as $tab => $object) {
             $this->render($tab);
             $handles = array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0);
@@ -496,7 +497,9 @@ class AdminRenderTest extends IntegrationTestCase {
             $data = wp_scripts()->get_data(reset($handles), 'data');
             $this->assertStringContainsString($object, (string) $data, "tab $tab localizes $object");
         }
-        $this->render('settings');
-        $this->assertCount(0, array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0), 'settings has css only');
+        foreach (['settings', 'status'] as $css_only) {
+            $this->render($css_only);
+            $this->assertCount(0, array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0), "$css_only has css only");
+        }
     }
 }

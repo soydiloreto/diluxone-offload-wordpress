@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: Status & Tools tab template.
+ * Admin: Status tab template.
  *
  * Local variables ($current_state, $is_configured, $plugin_config, etc.) are
  * populated by Admin::render_tab_content() in the calling scope. Suppress the
@@ -19,21 +19,14 @@ use DiluxOneOffload\Admin;
 use DiluxOneOffload\ConfigManager;
 use DiluxOneOffload\Enums\PluginState;
 
-// Get all diluxone_offload_ options from database. The pattern is hardcoded to our
-// own option-name prefix; cache layers don't apply since this is a one-shot
-// admin diagnostic page.
+// Count the plugin's own option rows for the diagnostic panel below. The
+// pattern is hardcoded to our own option-name prefix; cache layers don't apply
+// since this is a one-shot admin diagnostic page.
 global $wpdb;
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Diagnostic-only read, hardcoded LIKE pattern, $wpdb->options is the WP-managed table name.
-$diluxone_offload_options = $wpdb->get_results(
-	"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE 'diluxone_offload_%'",
-	ARRAY_A
+$diluxone_offload_option_count = (int) $wpdb->get_var(
+	"SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE 'diluxone_offload_%'"
 );
-
-// Build config array for display; WordPress auto-serializes arrays/objects in options.
-$config_data = array();
-foreach ( $diluxone_offload_options as $option ) {
-	$config_data[ $option['option_name'] ] = maybe_unserialize( $option['option_value'] );
-}
 
 // Get current state
 $current_state = ConfigManager::get_state();
@@ -54,16 +47,9 @@ $is_paused   = $health['status'] === 'unhealthy';
 $pause_cause = (string) ( $health['error_code'] ?? '' );
 $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 
-// Section to render: 'status' (default) or 'tools'.
-// Set in class-diluxone-offload-admin.php based on the current tab.
-$section = $section ?? 'status';
 ?>
 
-<div class="diluxone-offload-status-tools">
-	<?php if ( $section === 'status' ) : ?>
-	<!-- =================================================================
-		SECTION 1: SYSTEM STATUS
-		================================================================= -->
+<div class="diluxone-offload-status">
 	<div class="status-section">
 		<!-- Header -->
 		<div class="section-header-main">
@@ -224,7 +210,7 @@ $section = $section ?? 'status';
 						<span class="status-indicator status-success"></span>
 						<?php
 						/* translators: %d: number of stored options */
-						echo esc_html( sprintf( __( '%d options stored', 'diluxone-offload' ), count( $diluxone_offload_options ) ) );
+						echo esc_html( sprintf( __( '%d options stored', 'diluxone-offload' ), $diluxone_offload_option_count ) );
 						?>
 					</p>
 				</div>
@@ -329,85 +315,4 @@ $section = $section ?? 'status';
 			</div>
 		</div>
 	</div>
-	<?php endif; // section === 'status' ?>
-
-	<?php if ( $section === 'tools' ) : ?>
-	<!-- =================================================================
-		SECTION 2: CONFIGURATION TOOLS
-		================================================================= -->
-	<div class="tools-section">
-		<!-- Header -->
-		<div class="section-header-main">
-			<h2><?php esc_html_e( 'Configuration Tools', 'diluxone-offload' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Export and import plugin configuration for backup, migration, or disaster recovery purposes.', 'diluxone-offload' ); ?>
-			</p>
-		</div>
-
-		<!-- Export/Import Grid -->
-		<div class="tools-grid">
-			<!-- Export Configuration -->
-			<div class="tool-card">
-				<div class="tool-header">
-					<span class="dashicons dashicons-download"></span>
-					<h3><?php esc_html_e( 'Export Configuration', 'diluxone-offload' ); ?></h3>
-				</div>
-				<p class="tool-description">
-					<?php esc_html_e( 'Download all plugin settings as a JSON file. Use this to backup your configuration or migrate to another site.', 'diluxone-offload' ); ?>
-				</p>
-				<div class="tool-info">
-					<p><strong><?php esc_html_e( 'Current configuration:', 'diluxone-offload' ); ?></strong></p>
-					<ul>
-						<li>
-						<?php
-							/* translators: %d: number of stored option rows */
-							echo esc_html( sprintf( __( 'Total options: %d', 'diluxone-offload' ), count( $diluxone_offload_options ) ) );
-						?>
-						</li>
-						<li><?php esc_html_e( 'Includes: Credentials, settings, state, and metadata', 'diluxone-offload' ); ?></li>
-						<li><?php esc_html_e( 'Format: JSON (readable and portable)', 'diluxone-offload' ); ?></li>
-					</ul>
-				</div>
-				<button type="button" id="export-config" class="button button-primary button-large">
-					<span class="dashicons dashicons-download"></span>
-					<?php esc_html_e( 'Export Configuration', 'diluxone-offload' ); ?>
-				</button>
-			</div>
-
-			<!-- Import Configuration -->
-			<div class="tool-card">
-				<div class="tool-header">
-					<span class="dashicons dashicons-upload"></span>
-					<h3><?php esc_html_e( 'Import Configuration', 'diluxone-offload' ); ?></h3>
-				</div>
-				<p class="tool-description">
-					<?php esc_html_e( 'Paste JSON configuration below to restore settings. This will overwrite current configuration.', 'diluxone-offload' ); ?>
-				</p>
-				<textarea id="import-config-data" class="import-textarea" placeholder='{"diluxone_offload_config": {...}, "diluxone_offload_plugin_state": "configured", ...}'></textarea>
-				<div class="tool-actions">
-					<button type="button" id="import-config" class="button button-primary button-large">
-						<span class="dashicons dashicons-upload"></span>
-						<?php esc_html_e( 'Import Configuration', 'diluxone-offload' ); ?>
-					</button>
-					<button type="button" id="clear-import" class="button button-secondary">
-						<?php esc_html_e( 'Clear', 'diluxone-offload' ); ?>
-					</button>
-				</div>
-				<div id="import-result" class="import-result" style="display: none;"></div>
-			</div>
-		</div>
-
-		<!-- Warning Box -->
-		<div class="tools-warning">
-			<span class="dashicons dashicons-warning"></span>
-			<div>
-				<strong><?php esc_html_e( 'Important:', 'diluxone-offload' ); ?></strong>
-				<p><?php esc_html_e( 'Importing configuration will completely overwrite all current settings including credentials, state, and metadata. Make sure to export your current configuration first as a backup before importing.', 'diluxone-offload' ); ?></p>
-			</div>
-		</div>
-	</div>
-	<?php endif; // section === 'tools' ?>
 </div>
-
-<?php if ( $section === 'tools' ) : ?>
-<?php endif; // section === 'tools' (script block) ?>

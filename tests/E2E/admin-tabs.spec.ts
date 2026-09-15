@@ -15,7 +15,6 @@ const TABS = [
 	{ slug: 'sync-offloading', heading: /Sync|Sincronizaci/ },
 	{ slug: 'settings', heading: /Settings|Configuraci/ },
 	{ slug: 'status', heading: /Status|Estado/ },
-	{ slug: 'tools', heading: /Tools|Herramientas/ },
 ] as const;
 
 const PLUGIN_PAGE = '/wp-admin/admin.php?page=diluxone-offload';

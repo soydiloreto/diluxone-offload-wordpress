@@ -37,6 +37,10 @@ class CloudStreamWrapperTest extends TestCase {
 		$GLOBALS['_test_wp_hooks']      = array();
 		unset( $GLOBALS['_test_wp_http'] );
 
+		// The default WordPress layout, stated rather than assumed: the code
+		// asks wp_upload_dir() where uploads are, so the test has to say.
+		$GLOBALS['_test_wp_upload_dir'] = WP_CONTENT_DIR . '/uploads';
+
 		// A configured Azure provider. The key is stored plain: Crypto treats an
 		// unprefixed value as plaintext, which keeps the test independent of salts.
 		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array(
@@ -240,6 +244,32 @@ class CloudStreamWrapperTest extends TestCase {
 		$this->assertSame( 'kept locally', file_get_contents( $local ) );
 		$this->assertCount( 1, $GLOBALS['_test_wp_transients']['diluxone_offload_fallback_uploads'] );
 		@unlink( $local );
+	}
+
+	/**
+	 * The plugin review caught this: the fallback used to build its path out of
+	 * WP_CONTENT_DIR, so any site that keeps its media elsewhere — UPLOADS, an
+	 * upload_path option, a multisite layout — got the file written where
+	 * nobody would ever look for it.
+	 */
+	public function test_the_local_fallback_follows_a_relocated_uploads_directory(): void {
+		$elsewhere                      = sys_get_temp_dir() . '/dlx-media-elsewhere';
+		$GLOBALS['_test_wp_upload_dir'] = $elsewhere;
+
+		$GLOBALS['_test_wp_options']['diluxone_offload_connection_health'] = array(
+			'status'               => 'unhealthy',
+			'consecutive_failures' => 3,
+			'error_code'           => '500',
+		);
+		$this->answer( fn() => self::reply( 500 ) );
+
+		file_put_contents( self::PROTOCOL . '://uploads/2026/03/moved.txt', 'follows the site' );
+
+		$this->assertFileExists( $elsewhere . '/2026/03/moved.txt' );
+		$this->assertSame( 'follows the site', file_get_contents( $elsewhere . '/2026/03/moved.txt' ) );
+		$this->assertFileDoesNotExist( WP_CONTENT_DIR . '/uploads/2026/03/moved.txt', 'nothing may land in the assumed place' );
+
+		@unlink( $elsewhere . '/2026/03/moved.txt' );
 	}
 
 	// ── upload_dir filter ───────────────────────────────────
