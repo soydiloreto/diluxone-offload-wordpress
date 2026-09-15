@@ -1113,13 +1113,15 @@ class Plugin {
 			wp_die( esc_html__( 'Unauthorized', 'diluxone-offload' ) );
 		}
 
-		// Get REAL upload path (not stream wrapper)
-		$upload_dir = wp_upload_dir();
-		$base_path  = $upload_dir['basedir'];
+		// Deleting the local copies means reaching the real files, so this asks
+		// for the uploads directory with the offloading filter stepped aside.
+		// wp_upload_dir() on its own answers with the cloud protocol while
+		// offloading is on, and hardcoding wp-content/uploads instead would
+		// miss every site that keeps its media somewhere else.
+		$base_path = CloudStreamWrapper::native_upload_basedir();
 
-		// If offloading is active, basedir might be diluxoneoffload://
-		if ( strpos( $base_path, 'diluxoneoffload://' ) === 0 ) {
-			$base_path = WP_CONTENT_DIR . '/uploads';
+		if ( '' === $base_path ) {
+			wp_send_json_error( array( 'message' => __( 'WordPress reports no uploads directory, so there is nothing to delete from.', 'diluxone-offload' ) ) );
 		}
 
 		global $wpdb;

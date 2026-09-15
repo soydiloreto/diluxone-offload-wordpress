@@ -287,25 +287,22 @@ class CloudStreamWrapper {
 		$original_path    = $upload_dir['path'];
 		$original_basedir = $upload_dir['basedir'];
 
-		// Convert local paths to cloud protocol
-		$upload_dir['path'] = str_replace(
-			WP_CONTENT_DIR . '/uploads',
-			self::PROTOCOL . '://uploads',
-			$original_path
-		);
+		// What arrives here is the native uploads directory, whatever this site
+		// decided that is. It is the only trustworthy answer: UPLOADS, an
+		// upload_path option, a multisite layout and any other plugin's
+		// upload_dir filter all end up in this value, and none of them has to
+		// live under wp-content.
+		$upload_dir['path'] = self::PROTOCOL . '://uploads' . self::below( $original_basedir, $original_path );
 
-		$upload_dir['basedir'] = str_replace(
-			WP_CONTENT_DIR . '/uploads',
-			self::PROTOCOL . '://uploads',
-			$original_basedir
-		);
+		$upload_dir['basedir'] = self::PROTOCOL . '://uploads';
 
 		// URLs should point to cloud storage
 		$cloud_client = self::get_cloud_client();
 		if ( $cloud_client ) {
 			try {
-				// Extract relative path from uploads directory, keeping 'uploads/' prefix
-				$relative_path     = str_replace( WP_CONTENT_DIR . '/', '', $original_path );
+				// The object key always reads uploads/YYYY/MM, however the site
+				// spells that directory on disk.
+				$relative_path     = 'uploads' . self::below( $original_basedir, $original_path );
 				$upload_dir['url'] = $cloud_client->get_file_url( $relative_path );
 
 				// For baseurl, use just 'uploads'
@@ -317,6 +314,57 @@ class CloudStreamWrapper {
 		}
 
 		return $upload_dir;
+	}
+
+	/**
+	 * The part of a path hanging below a directory, leading slash included.
+	 *
+	 * Empty when the path is the directory itself, so a caller can concatenate
+	 * it onto a prefix that carries no trailing slash.
+	 *
+	 * @param string $base The directory.
+	 * @param string $path A path inside it.
+	 * @return string
+	 */
+	private static function below( string $base, string $path ): string {
+		$base = rtrim( $base, '/' );
+
+		if ( $path === $base ) {
+			return '';
+		}
+
+		if ( 0 === strpos( $path, $base . '/' ) ) {
+			return substr( $path, strlen( $base ) );
+		}
+
+		// Not below the directory at all. Nothing sensible to strip.
+		return '';
+	}
+
+	/**
+	 * Where uploads really live on disk.
+	 *
+	 * wp_upload_dir() cannot answer this while offloading is on, because this
+	 * class is the filter rewriting its answer to the cloud protocol. So the
+	 * filter steps aside for the length of the call and steps back in at the
+	 * priority it held.
+	 *
+	 * @return string Absolute path without a trailing slash, empty if WordPress reports none.
+	 */
+	public static function native_upload_basedir(): string {
+		$priority = has_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ) );
+
+		if ( false !== $priority ) {
+			remove_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ), (int) $priority );
+		}
+
+		$upload_dir = wp_upload_dir( null, false );
+
+		if ( false !== $priority ) {
+			add_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ), (int) $priority );
+		}
+
+		return rtrim( (string) ( $upload_dir['basedir'] ?? '' ), '/' );
 	}
 
 	// ------------------------------------------------------------------
@@ -650,12 +698,22 @@ class CloudStreamWrapper {
 			if ( strpos( $relative_path, 'uploads/' ) === 0 ) {
 				$relative_path = substr( $relative_path, 8 );
 			}
-			$local_path = WP_CONTENT_DIR . '/uploads/' . $relative_path;
-			$local_dir  = dirname( $local_path );
-			if ( ! is_dir( $local_dir ) ) {
-				wp_mkdir_p( $local_dir );
+			// The attachment goes back to the exact place WordPress expects it,
+			// asked for at runtime. This is the user's own media file, not
+			// plugin data: a folder of our own would leave every URL in the
+			// media library pointing at something that is not there.
+			$basedir    = self::native_upload_basedir();
+			$local_path = '' === $basedir ? '' : $basedir . '/' . ltrim( $relative_path, '/' );
+			$written    = false;
+
+			if ( '' !== $local_path ) {
+				$local_dir = dirname( $local_path );
+				if ( ! is_dir( $local_dir ) ) {
+					wp_mkdir_p( $local_dir );
+				}
+				$written = @file_put_contents( $local_path, $this->content );
 			}
-			$written = @file_put_contents( $local_path, $this->content );
+
 			if ( $written !== false ) {
 				$this->saved_locally = true;
 				Logger::warning( '[DiluxOne Offload CloudStreamWrapper] FALLBACK: Saved locally due to unhealthy connection (' . $health['consecutive_failures'] . ' failures): ' . $this->path );
