@@ -1871,7 +1871,6 @@ class Admin {
 			);
 		}
 	}
-
 }
 
 // Initialize admin

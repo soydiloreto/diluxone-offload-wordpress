@@ -344,10 +344,10 @@ class CloudStreamWrapper {
 	/**
 	 * Where uploads really live on disk.
 	 *
-	 * wp_upload_dir() cannot answer this while offloading is on, because this
-	 * class is the filter rewriting its answer to the cloud protocol. So the
-	 * filter steps aside for the length of the call and steps back in at the
-	 * priority it held.
+	 * Asking wp_upload_dir() outright does not work while offloading is on,
+	 * because this class is the filter rewriting its answer to the cloud
+	 * protocol. So the filter steps aside for the length of the call and steps
+	 * back in at the priority it held.
 	 *
 	 * @return string Absolute path without a trailing slash, empty if WordPress reports none.
 	 */
@@ -364,7 +364,7 @@ class CloudStreamWrapper {
 			add_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ), (int) $priority );
 		}
 
-		return rtrim( (string) ( $upload_dir['basedir'] ?? '' ), '/' );
+		return rtrim( (string) $upload_dir['basedir'], '/' );
 	}
 
 	// ------------------------------------------------------------------
