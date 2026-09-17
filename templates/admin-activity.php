@@ -21,7 +21,6 @@ use DiluxOneOffload\ConfigManager;
 // Initialise defensively so static analysis sees a definite type and a stray
 // direct include cannot crash on undefined indexes.
 $activity_stats = $activity_stats ?? array();
-$chart_data     = $chart_data ?? array();
 
 // Read-only filter inputs for the activity-log table. The page is reachable
 // only by users with manage_options; these $_GET reads do not change state.
@@ -183,26 +182,11 @@ $date_to   = isset( $_GET['date_to'] ) ? sanitize_text_field( wp_unslash( $_GET[
 		</div>
 	</div>
 
-	<div class="activity-chart">
-		<h3><?php esc_html_e( 'Activity Chart (Last 30 Days)', 'diluxone-offload' ); ?></h3>
-		<canvas id="activity-chart" width="800" height="200"></canvas>
-	</div>
-
 	<div class="activity-actions">
 		<div class="bulk-actions">
 			<h3><?php esc_html_e( 'Activity Actions', 'diluxone-offload' ); ?></h3>
-			
+
 			<div class="action-buttons">
-				<button type="button" id="export-activity" class="button button-secondary">
-					<span class="dashicons dashicons-download"></span>
-					<?php esc_html_e( 'Export Activity Log', 'diluxone-offload' ); ?>
-				</button>
-				
-				<button type="button" id="clear-old-logs" class="button button-secondary">
-					<span class="dashicons dashicons-trash"></span>
-					<?php esc_html_e( 'Clear Old Logs', 'diluxone-offload' ); ?>
-				</button>
-				
 				<button type="button" id="refresh-activity" class="button button-secondary">
 					<span class="dashicons dashicons-update"></span>
 					<?php esc_html_e( 'Refresh', 'diluxone-offload' ); ?>
