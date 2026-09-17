@@ -25,7 +25,7 @@ class AdminRenderTest extends IntegrationTestCase {
     private ?FakeCloudClient $fake = null;
     private int $admin_id = 0;
 
-    private const TABS = ['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status', 'activity'];
+    private const TABS = ['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status'];
 
     public static function setUpBeforeClass(): void {
         parent::setUpBeforeClass();
@@ -166,10 +166,12 @@ class AdminRenderTest extends IntegrationTestCase {
 
     public function test_tabs_and_aliases(): void {
         $tabs = Admin::tabs();
-        foreach (['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status', 'activity'] as $t) {
+        foreach (['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status'] as $t) {
             $this->assertArrayHasKey($t, $tabs);
         }
         $this->assertArrayNotHasKey('tools', $tabs, 'the Tools tab went out with import/export');
+        $this->assertArrayNotHasKey('activity', $tabs, 'the Activity stub went out until it has data behind it');
+        $this->assertSame('overview', Admin::current_tab('activity'), 'the old Activity URL falls back');
         $this->assertSame('sync-offloading', Admin::current_tab('sync'), 'legacy alias');
         $this->assertSame('status', Admin::current_tab('status-tools'), 'legacy alias');
         $this->assertSame('overview', Admin::current_tab('nope'), 'unknown falls back');
@@ -489,7 +491,7 @@ class AdminRenderTest extends IntegrationTestCase {
     public function test_each_tab_gets_its_own_script_and_localized_strings(): void {
         $this->configure(PluginState::SYNCED);
         $this->useFakeClient();
-        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'cloud-provider' => 'DiluxOneOffloadProvider', 'sync-offloading' => 'DiluxOneOffloadSync', 'activity' => 'DiluxOneOffloadActivity'];
+        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'cloud-provider' => 'DiluxOneOffloadProvider', 'sync-offloading' => 'DiluxOneOffloadSync'];
         foreach ($with_js as $tab => $object) {
             $this->render($tab);
             $handles = array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0);

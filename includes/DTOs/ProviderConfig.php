@@ -79,11 +79,15 @@ class ProviderConfig {
 
 		switch ( $cloud_provider ) {
 			case 'azure':
+				// esc_url_raw() throws on an array under PHP 8; a crafted
+				// custom_domain[]= must not turn into a fatal.
+				$custom_domain = $post['custom_domain'] ?? '';
+
 				$provider_config = array(
 					'storage_account' => sanitize_text_field( wp_unslash( $post['account_name'] ?? '' ) ),
 					'access_key'      => sanitize_text_field( wp_unslash( $post['account_key'] ?? '' ) ),
 					'container_name'  => sanitize_text_field( wp_unslash( $post['container_name'] ?? '' ) ),
-					'custom_domain'   => esc_url_raw( wp_unslash( $post['custom_domain'] ?? '' ) ),
+					'custom_domain'   => is_string( $custom_domain ) ? esc_url_raw( wp_unslash( $custom_domain ) ) : '',
 					// NOTE: use_https removed - HTTPS is always enforced in provider
 				);
 

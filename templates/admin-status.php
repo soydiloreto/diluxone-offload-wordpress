@@ -154,7 +154,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 							<?php esc_html_e( 'Stored credentials cannot be decrypted. See banner above.', 'diluxone-offload' ); ?>
 						</p>
 						<p class="state-details">
-							<a href="?page=diluxone-offload&tab=cloud-provider" class="button button-primary button-small">
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
 								<?php esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
 							</a>
 						</p>
