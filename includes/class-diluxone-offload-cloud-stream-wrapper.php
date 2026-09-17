@@ -48,6 +48,9 @@ class CloudStreamWrapper {
 	/** @var resource|false|null Current file handle (null before stream_open, false on fopen failure, resource otherwise) */
 	private $handle = null;
 
+	/** @var string|null Temp file backing $handle in read mode; removed on close. */
+	private $temp_file = null;
+
 	/** @var string Current file path */
 	private $path = '';
 
@@ -550,7 +553,8 @@ class CloudStreamWrapper {
 				// Write cached content to temp file
 				$temp_file = wp_tempnam( $this->path );
 				file_put_contents( $temp_file, $cached_content );
-				$this->handle = fopen( $temp_file, $mode );
+				$this->temp_file = $temp_file;
+				$this->handle    = fopen( $temp_file, $mode );
 				return $this->handle !== false;
 			}
 
@@ -576,10 +580,12 @@ class CloudStreamWrapper {
 					$this->cache_set( $this->path, $content );
 				}
 
-				$this->handle = fopen( $temp_file, $mode );
+				$this->temp_file = $temp_file;
+				$this->handle    = fopen( $temp_file, $mode );
 				return $this->handle !== false;
 			}
 
+			wp_delete_file( $temp_file );
 			return false;
 		} elseif ( strpos( $mode, 'w' ) !== false || strpos( $mode, 'a' ) !== false ) {
 			// Write/Append mode - prepare for writing
@@ -594,12 +600,13 @@ class CloudStreamWrapper {
 						if ( $buffer !== false ) {
 							$this->content = $buffer;
 						}
-						unlink( $temp_file );
 					}
 				} catch ( \Exception $e ) {
 					Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_open append exception: ' . $this->path . ' - ' . $e->getMessage() );
-					wp_delete_file( $temp_file );
 				}
+				// The temp file has served its purpose on every path — success,
+				// a failed download without an exception, or an exception.
+				wp_delete_file( $temp_file );
 				// On failure $this->content stays empty, i.e. a new file.
 			}
 			return true;
@@ -685,8 +692,9 @@ class CloudStreamWrapper {
 			return fflush( $this->handle );
 		}
 
-		// If content buffer is empty, nothing to flush
-		if ( empty( $this->content ) ) {
+		// If content buffer is empty, nothing to flush. Compared as a string:
+		// a file whose whole content is "0" is still a file.
+		if ( '' === $this->content ) {
 			return true;
 		}
 
@@ -840,12 +848,20 @@ class CloudStreamWrapper {
 			$this->handle = null;
 		}
 
+		// The temp file only exists to back a read handle; once that's closed
+		// nothing refers to it again, and leaving it behind on every
+		// getimagesize()/copy() fills the temp dir.
+		if ( null !== $this->temp_file ) {
+			wp_delete_file( $this->temp_file );
+			$this->temp_file = null;
+		}
+
 		// ⚠️ IMPORTANT: Don't upload here if already flushed
 		// file_put_contents() calls fflush() before fclose()
 		// So content is already uploaded by stream_flush()
 		// Only upload if flush was never called (direct fclose() without fflush())
 		if ( ! $this->saved_locally && ( strpos( $this->mode, 'w' ) !== false || strpos( $this->mode, 'a' ) !== false || strpos( $this->mode, '+' ) !== false ) ) {
-			if ( ! empty( $this->content ) ) {
+			if ( '' !== $this->content ) {
 				// Check if file is already in cache (uploaded by flush)
 				$cached_content = $this->cache_get( $this->path );
 				if ( $cached_content !== $this->content ) {
