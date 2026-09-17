@@ -1,7 +1,7 @@
 === DiluxOne Offload – Media Storage ===
 Contributors: pablodiloreto
 Tags: media, offload, azure, cloud storage, uploads
-Requires at least: 5.0
+Requires at least: 5.1
 Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.0
@@ -25,7 +25,7 @@ The plugin uses a custom PHP stream wrapper to intercept every read and write to
 * **Connection health monitoring** — automatic fallback to local storage when cloud is unreachable, with a persistent banner in the admin.
 * **Custom domain / CDN support** — serve media from your own domain or CDN edge.
 * **Multisite aware** — per-site or network-level configuration.
-* **Debug logging toggle** — built-in verbose logging that respects WP_DEBUG and the admin Settings toggle.
+* **Debug logging toggle** — errors always go to the PHP error log; info and debug lines only when you turn on the Settings toggle.
 
 = Why a stream wrapper instead of URL rewriting =
 
@@ -42,7 +42,7 @@ Most offload plugins rewrite media URLs in post content, which breaks when you s
 
 = Requirements =
 
-* WordPress 5.0 or higher.
+* WordPress 5.1 or higher.
 * PHP 7.4 or higher.
 * `ext-curl` and `ext-openssl` enabled.
 * Writable `wp-content/uploads/` directory during sync (needed for temporary files).
@@ -59,9 +59,9 @@ When Azure is selected as the active provider, the plugin sends your media files
 * During the initial sync — to upload existing files from `/wp-content/uploads/` to your container.
 * On every new media upload — to write the file to the cloud transparently via the stream wrapper.
 * On read or delete — when WordPress (or any plugin using filesystem APIs against `/uploads/`) reads or deletes a file.
-* Periodic connection-health checks (lightweight HEAD requests).
+* A connection-health check — a small GET request for your container's properties — when you open one of the plugin's admin pages, at most once every 5 minutes. Nothing runs on the front end or via cron.
 
-This is **your own Azure account**. DiluxOne Offload is not involved and has no access to your data.
+This is **your own Azure account**. DiluxOne Offload is not involved and has no access to your data. The plugin sends no telemetry or usage data to the author or anyone else.
 
 * Service: [Azure Blob Storage](https://azure.microsoft.com/services/storage/blobs/)
 * Terms of Service: [Microsoft Online Services Terms](https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure)
@@ -88,6 +88,14 @@ Yes. Because the stream wrapper operates at the filesystem layer, any plugin tha
 = Does the plugin delete my local files automatically? =
 
 Only if you explicitly opt in. After a successful sync you can click **Delete local files** in the Sync & Offloading tab. Until you do that, files are kept in both locations.
+
+= If I delete a file from the Media Library, is it deleted from the cloud too? =
+
+Yes, while offloading is active: the stream wrapper turns the deletion into a delete on your container, thumbnails included. If you have synced but not yet enabled offloading, WordPress deletes only the local copy; the copy already in your container is not removed automatically.
+
+= What happens when I uninstall the plugin? =
+
+Version 1.0.0 leaves its data in place: the tracking table (`diluxone_offload_files`, with your table prefix) and the plugin's options (all prefixed `diluxone_offload_`) stay in your database, and your files stay wherever they are, so nothing is lost if you reinstall. Your media in the cloud is never touched by uninstalling. Automatic cleanup on uninstall is planned for the next release; until then you can drop the table and options manually if you want a clean database.
 
 = How do I enable verbose debug logging? =
 
