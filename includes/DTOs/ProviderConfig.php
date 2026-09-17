@@ -68,7 +68,7 @@ class ProviderConfig {
 	 * @throws \InvalidArgumentException When required POST fields are missing or invalid.
 	 */
 	public static function fromPost( array $post ): self {
-		$cloud_provider = sanitize_text_field( $post['cloud_provider'] ?? '' );
+		$cloud_provider = sanitize_text_field( wp_unslash( $post['cloud_provider'] ?? '' ) );
 
 		if ( empty( $cloud_provider ) ) {
 			throw new \InvalidArgumentException( 'Cloud provider is required' );
@@ -80,10 +80,10 @@ class ProviderConfig {
 		switch ( $cloud_provider ) {
 			case 'azure':
 				$provider_config = array(
-					'storage_account' => sanitize_text_field( $post['account_name'] ?? '' ),
-					'access_key'      => sanitize_text_field( $post['account_key'] ?? '' ),
-					'container_name'  => sanitize_text_field( $post['container_name'] ?? '' ),
-					'custom_domain'   => sanitize_text_field( $post['custom_domain'] ?? '' ),
+					'storage_account' => sanitize_text_field( wp_unslash( $post['account_name'] ?? '' ) ),
+					'access_key'      => sanitize_text_field( wp_unslash( $post['account_key'] ?? '' ) ),
+					'container_name'  => sanitize_text_field( wp_unslash( $post['container_name'] ?? '' ) ),
+					'custom_domain'   => sanitize_text_field( wp_unslash( $post['custom_domain'] ?? '' ) ),
 					// NOTE: use_https removed - HTTPS is always enforced in provider
 				);
 

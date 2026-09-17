@@ -108,7 +108,7 @@ class PluginSettings {
 			isset( $post['force_https_on_cloud'] ),
 			intval( $post['timeout'] ?? 60 ),
 			intval( $post['max_file_size'] ?? 20 ) * 1048576, // Convert MB to bytes
-			sanitize_text_field( $post['allowed_file_types'] ?? '*' )
+			sanitize_text_field( wp_unslash( $post['allowed_file_types'] ?? '*' ) )
 		);
 	}
 
