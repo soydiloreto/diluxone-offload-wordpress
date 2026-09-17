@@ -193,7 +193,21 @@ class ProviderErrorPathsTest extends TestCase {
 		$this->assertFalse( $r['success'] );
 		$this->assertStringContainsString( 'block 0', $r['error'] );
 		$this->assertStringContainsString( 'HTTP 500', $r['error'] );
-		$this->assertStringContainsString( 'nope', $r['error'], 'the body is quoted back' );
+		$this->assertStringNotContainsString( 'nope', $r['error'], 'a body that is not an Azure error document is not quoted back' );
+		unlink( $file );
+	}
+
+	public function test_azure_chunked_upload_quotes_the_error_code_but_never_the_signature(): void {
+		$body = '<?xml version="1.0" encoding="utf-8"?><Error><Code>AuthenticationFailed</Code>'
+			. '<Message>Server failed to authenticate the request.</Message>'
+			. '<AuthenticationErrorDetail>The MAC signature found in the HTTP request \'SECRETMAC==\' is not the same.</AuthenticationErrorDetail></Error>';
+		$GLOBALS['_test_wp_http'] = fn() => self::raw( 403, $body );
+		$file = $this->tmp( 10 );
+		$r    = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/small.bin', 'size' => 10 ) );
+		$this->assertFalse( $r['success'] );
+		$this->assertStringContainsString( 'AuthenticationFailed', $r['error'] );
+		$this->assertStringContainsString( 'Server failed to authenticate', $r['error'] );
+		$this->assertStringNotContainsString( 'SECRETMAC', $r['error'], 'the request signature never reaches a log line, the table or the screen' );
 		unlink( $file );
 	}
 
