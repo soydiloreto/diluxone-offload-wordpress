@@ -101,10 +101,15 @@ class PluginSettings {
 	 * @return self
 	 */
 	public static function fromPost( array $post ): self {
+		// A bool parameter fed an array is a TypeError under PHP 8; a crafted
+		// keep_local_files[]= must not turn into a fatal.
+		$keep_local    = $post['keep_local_files'] ?? true;
+		$auto_activate = $post['auto_activate_offloading'] ?? true;
+
 		return new self(
 			isset( $post['enable_debug_logging'] ),
-			$post['keep_local_files'] ?? true,
-			$post['auto_activate_offloading'] ?? true,
+			is_scalar( $keep_local ) ? (bool) $keep_local : true,
+			is_scalar( $auto_activate ) ? (bool) $auto_activate : true,
 			isset( $post['force_https_on_cloud'] ),
 			intval( $post['timeout'] ?? 60 ),
 			intval( $post['max_file_size'] ?? 20 ) * 1048576, // Convert MB to bytes

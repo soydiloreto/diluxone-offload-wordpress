@@ -107,8 +107,8 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 						<th scope="row"><label for="account_key"><?php esc_html_e( 'Account Key', 'diluxone-offload' ); ?></label></th>
 						<td>
 							<input type="password" id="account_key" name="account_key"
-									value="<?php echo esc_attr( $config['provider_config']['access_key'] ?? $config['account_key'] ?? '' ); ?>"
-									class="large-text" required>
+									value=""
+									class="large-text" required autocomplete="off">
 							<p class="description"><?php esc_html_e( 'Primary or secondary access key from your storage account.', 'diluxone-offload' ); ?></p>
 						</td>
 					</tr>
@@ -171,7 +171,7 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 				<p style="margin: 0 0 10px 0;">
 					<?php esc_html_e( 'Your cloud provider is configured. Start syncing your media files to the cloud.', 'diluxone-offload' ); ?>
 				</p>
-				<a href="?page=diluxone-offload&tab=sync-offloading&auto-start=1" class="button button-primary">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=sync-offloading&auto-start=1' ) ); ?>" class="button button-primary">
 					<span class="dashicons dashicons-cloud-upload" style="vertical-align: middle;"></span>
 					<?php esc_html_e( 'Sync Files to Cloud', 'diluxone-offload' ); ?>
 				</a>

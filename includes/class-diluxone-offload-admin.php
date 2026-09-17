@@ -87,12 +87,6 @@ class Admin {
 				'aliases' => array( 'status-tools' ),
 				'hidden'  => false,
 			),
-			'activity'        => array(
-				'label'   => \__( 'Activity', 'diluxone-offload' ),
-				'icon'    => 'dashicons-chart-line',
-				'aliases' => array(),
-				'hidden'  => true,
-			),
 		);
 	}
 
@@ -446,18 +440,6 @@ class Admin {
 				'offloadingNonce' => wp_create_nonce( 'diluxone_offload_admin_nonce' ),
 				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
 				'autoRefresh'     => true,
-				'strings'         => array(
-					'testing_connection'   => __( 'Testing connection...', 'diluxone-offload' ),
-					'connection_success'   => __( 'Connection successful!', 'diluxone-offload' ),
-					'connection_failed'    => __( 'Connection failed:', 'diluxone-offload' ),
-					'scanning_media'       => __( 'Scanning media library...', 'diluxone-offload' ),
-					'migrating_files'      => __( 'Migrating files to cloud...', 'diluxone-offload' ),
-					'deleting_local'       => __( 'Deleting local files...', 'diluxone-offload' ),
-					'downloading_files'    => __( 'Downloading files from cloud...', 'diluxone-offload' ),
-					'confirm_migrate'      => __( 'Are you sure you want to migrate all files to cloud storage? This cannot be undone without using the rollback feature.', 'diluxone-offload' ),
-					'confirm_delete_local' => __( 'Are you sure you want to delete all local files? Make sure your migration was successful first.', 'diluxone-offload' ),
-					'confirm_rollback'     => __( 'Are you sure you want to download all files from cloud and revert URLs? This may take a long time.', 'diluxone-offload' ),
-				),
 			)
 		);
 	}
@@ -510,7 +492,6 @@ class Admin {
 			'sync-offloading' => 'admin-sync',
 			'settings'        => 'admin-settings',
 			'status'          => 'admin-status',
-			'activity'        => 'admin-activity',
 		);
 	}
 
@@ -531,26 +512,6 @@ class Admin {
 		$handle  = '';
 
 		switch ( $tab ) {
-			case 'activity':
-				$payload = array(
-					'i18n' => array(
-						'hide_details' => __( 'Hide details', 'diluxone-offload' ),
-						'show_details' => __( 'Show details', 'diluxone-offload' ),
-						'hide'         => __( 'Hide', 'diluxone-offload' ),
-						'view'         => __( 'View', 'diluxone-offload' ),
-						'full_path'    => __( 'Full path', 'diluxone-offload' ),
-						'short_name'   => __( 'Short name', 'diluxone-offload' ),
-					),
-					'data' => array(
-						'activity_type' => $template_data['activity_type'] ?? null,
-						'date_from'     => $template_data['date_from'] ?? null,
-						'date_to'       => $template_data['date_to'] ?? null,
-					),
-				);
-				$object  = 'DiluxOneOffloadActivity';
-				$handle  = 'diluxone-offload-admin-activity';
-				break;
-
 			case 'cloud-provider':
 				$payload = array(
 					'i18n' => array(
@@ -826,7 +787,6 @@ class Admin {
 					'config'          => $config,
 					'cloud_stats'     => $cloud_stats_ov,
 					'stats'           => self::get_basic_stats(),
-					'recent_activity' => array(),
 				);
 				break;
 
@@ -901,10 +861,10 @@ class Admin {
 					<div class="wrap">
 						<div class="notice notice-warning is-dismissible">
 							<h3><?php esc_html_e( 'Sync & Offloading Not Available', 'diluxone-offload' ); ?></h3>
-							<p><?php esc_html_e( 'Please configure a cloud provider in the Settings tab first.', 'diluxone-offload' ); ?></p>
+							<p><?php esc_html_e( 'Please configure a cloud provider in the Cloud Provider tab first.', 'diluxone-offload' ); ?></p>
 							<p>
-								<a href="?page=diluxone-offload&tab=settings" class="button button-primary">
-									<?php esc_html_e( 'Go to Settings', 'diluxone-offload' ); ?>
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary">
+									<?php esc_html_e( 'Go to Cloud Provider', 'diluxone-offload' ); ?>
 								</a>
 							</p>
 						</div>
@@ -912,7 +872,7 @@ class Admin {
 						<div class="card" style="max-width: 600px; margin-top: 20px;">
 							<h2><?php esc_html_e( 'Steps to Enable Sync', 'diluxone-offload' ); ?></h2>
 							<ol>
-								<li><?php esc_html_e( 'Go to the Settings tab', 'diluxone-offload' ); ?></li>
+								<li><?php esc_html_e( 'Go to the Cloud Provider tab', 'diluxone-offload' ); ?></li>
 								<li><?php esc_html_e( 'Configure your cloud storage provider', 'diluxone-offload' ); ?></li>
 								<li><?php esc_html_e( 'Test the connection', 'diluxone-offload' ); ?></li>
 								<li><?php esc_html_e( 'Save your configuration', 'diluxone-offload' ); ?></li>
@@ -971,14 +931,6 @@ class Admin {
 				);
 				break;
 
-			case 'activity':
-				$template_path = 'admin-activity.php';
-				$template_data = array(
-					'activity_log'   => array(),
-					'activity_stats' => self::get_basic_activity_stats(),
-				);
-				break;
-
 			case 'status':
 			case 'status-tools':  // legacy alias — keep for old bookmarked URLs
 				$template_path           = 'admin-status.php';
@@ -998,7 +950,6 @@ class Admin {
 				$template_data           = array(
 					'config'          => $config,
 					'stats'           => self::get_basic_stats(),
-					'recent_activity' => array(),
 				);
 		}
 
@@ -1214,25 +1165,6 @@ class Admin {
 	}
 
 	/**
-	 * Get basic activity stats for templates
-	 *
-	 * @return array<string, mixed>
-	 */
-	private static function get_basic_activity_stats(): array {
-		return array(
-			'total_today'    => 0,
-			'total_week'     => 0,
-			'total_month'    => 0,
-			'errors_count'   => 0,
-			'trend_today'    => 0,
-			'week_uploads'   => 0,
-			'week_deletions' => 0,
-			'month_size'     => 0,
-			'total_entries'  => 0,
-		);
-	}
-
-	/**
 	 * Get basic health status for templates
 	 *
 	 * @return array<string, mixed>
@@ -1420,6 +1352,19 @@ class Admin {
 			if ( empty( $account_name ) || empty( $account_key ) || empty( $container_name ) ) {
 				wp_send_json_error( array( 'message' => esc_html__( 'Missing required fields', 'diluxone-offload' ) ) );
 			}
+
+			// Same rules as saving: the account name becomes the hostname the
+			// signed request goes to, so it's checked before any request is built.
+			if ( 'azure' === $provider ) {
+				\DiluxOneOffload\DTOs\ProviderConfig::validate_azure_config(
+					array(
+						'storage_account' => $account_name,
+						'access_key'      => $account_key,
+						'container_name'  => $container_name,
+					)
+				);
+			}
+
 			$client = \DiluxOneOffload\Factories\CloudStorageFactory::create(
 				$provider,
 				array(
@@ -1687,7 +1632,7 @@ class Admin {
 					'validation_failed' => true,
 					'reason'            => $validation['reason'],
 					'details'           => $validation['details'],
-					'message'           => __( 'Cannot cancel sync: Another tab is currently syncing', 'diluxone-offload' ),
+					'message'           => esc_html__( 'Cannot cancel sync: Another tab is currently syncing', 'diluxone-offload' ),
 				)
 			);
 		}
@@ -1703,7 +1648,7 @@ class Admin {
 				// Sync was active and got cancelled
 				wp_send_json_success(
 					array(
-						'message' => __( 'Sync cancelled successfully', 'diluxone-offload' ),
+						'message' => esc_html__( 'Sync cancelled successfully', 'diluxone-offload' ),
 					)
 				);
 			} else {
@@ -1725,7 +1670,7 @@ class Admin {
 
 				wp_send_json_success(
 					array(
-						'message' => __( 'Plugin reset to configured state successfully', 'diluxone-offload' ),
+						'message' => esc_html__( 'Plugin reset to configured state successfully', 'diluxone-offload' ),
 					)
 				);
 			}

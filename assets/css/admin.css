@@ -37,7 +37,6 @@
 .diluxone-offload-settings,
 .diluxone-offload-overview,
 .diluxone-offload-migration,
-.diluxone-offload-activity,
 .diluxone-offload-status {
     margin-top: 20px;
 }
@@ -164,84 +163,6 @@
     font-size: 0.8em;
     color: #646970;
     margin-top: 2px;
-}
-
-/* Activity Log */
-.activity-filters {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    padding: 15px;
-    margin: 20px 0;
-}
-
-.filter-row {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.filter-row:last-child {
-    margin-bottom: 0;
-}
-
-.filter-row label {
-    white-space: nowrap;
-    font-weight: 600;
-}
-
-.activity-table {
-    margin-top: 20px;
-}
-
-.activity-table table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.activity-table th,
-.activity-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #dcdcde;
-}
-
-.activity-table th {
-    background: #f6f7f7;
-    font-weight: 600;
-}
-
-.activity-type {
-    padding: 3px 8px;
-    border-radius: 3px;
-    font-size: 0.85em;
-    font-weight: 600;
-}
-
-.activity-type.upload {
-    background: #d1e7dd;
-    color: #0f5132;
-}
-
-.activity-type.delete {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.activity-type.migration {
-    background: #cff4fc;
-    color: #055160;
-}
-
-.activity-type.config {
-    background: #e2e3e5;
-    color: #41464b;
-}
-
-.activity-type.error {
-    background: #f8d7da;
-    color: #721c24;
 }
 
 /* Status Health */
