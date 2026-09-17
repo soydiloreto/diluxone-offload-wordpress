@@ -137,7 +137,7 @@ class DiluxOneOffload_Image_Editor_GD extends \WP_Image_Editor_GD {
 		$save = parent::_save( $image, $temp_filename, $mime_type );
 
 		if ( is_wp_error( $save ) ) {
-			@unlink( $temp_filename );
+			wp_delete_file( $temp_filename );
 			return $save;
 		}
 
@@ -145,8 +145,8 @@ class DiluxOneOffload_Image_Editor_GD extends \WP_Image_Editor_GD {
 		$copy_result = copy( $save['path'], $filename );
 
 		// Clean up temp files
-		@unlink( $save['path'] );
-		@unlink( $temp_filename );
+		wp_delete_file( $save['path'] );
+		wp_delete_file( $temp_filename );
 
 		if ( ! $copy_result ) {
 			return new \WP_Error(
@@ -171,7 +171,7 @@ class DiluxOneOffload_Image_Editor_GD extends \WP_Image_Editor_GD {
 		// Clean up all temp files
 		foreach ( $this->temp_files_to_cleanup as $temp_file ) {
 			if ( file_exists( $temp_file ) ) {
-				@unlink( $temp_file );
+				wp_delete_file( $temp_file );
 			}
 		}
 

@@ -522,11 +522,11 @@ class CloudStreamWrapper {
 					$result = $cloud_client->download_file( $this->path, $temp_file );
 				} catch ( \Exception $e ) {
 					Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_open read/write exception: ' . $this->path . ' - ' . $e->getMessage() );
-					@unlink( $temp_file );
+					wp_delete_file( $temp_file );
 					return false;
 				}
 				if ( ! $result['success'] ) {
-					@unlink( $temp_file );
+					wp_delete_file( $temp_file );
 					return false;
 				}
 				$cached_content = (string) file_get_contents( $temp_file );
@@ -565,7 +565,7 @@ class CloudStreamWrapper {
 				$result = $cloud_client->download_file( $this->path, $temp_file );
 			} catch ( \Exception $e ) {
 				Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_open read exception: ' . $this->path . ' - ' . $e->getMessage() );
-				@unlink( $temp_file );
+				wp_delete_file( $temp_file );
 				return false;
 			}
 
@@ -598,7 +598,7 @@ class CloudStreamWrapper {
 					}
 				} catch ( \Exception $e ) {
 					Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_open append exception: ' . $this->path . ' - ' . $e->getMessage() );
-					@unlink( $temp_file );
+					wp_delete_file( $temp_file );
 				}
 				// On failure $this->content stays empty, i.e. a new file.
 			}
@@ -711,7 +711,7 @@ class CloudStreamWrapper {
 				if ( ! is_dir( $local_dir ) ) {
 					wp_mkdir_p( $local_dir );
 				}
-				$written = @file_put_contents( $local_path, $this->content );
+				$written = file_put_contents( $local_path, $this->content );
 			}
 
 			if ( $written !== false ) {
@@ -756,7 +756,7 @@ class CloudStreamWrapper {
 		} catch ( \Exception $e ) {
 			Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_flush exception: ' . $this->path . ' - ' . $e->getMessage() );
 			\DiluxOneOffload\ConfigManager::record_connection_failure( 'exception', $e->getMessage(), 'upload' );
-			@unlink( $temp_file );
+			wp_delete_file( $temp_file );
 			return false;
 		}
 
@@ -1346,7 +1346,7 @@ class CloudStreamWrapper {
 			$result = $cloud_client->upload_file( $temp_file, $this->path, array( 'mime_type_from_path' => $this->path ) );
 		} catch ( \Exception $e ) {
 			Logger::error( '[DiluxOne Offload CloudStreamWrapper] upload_content_to_cloud exception: ' . $this->path . ' - ' . $e->getMessage() );
-			@unlink( $temp_file );
+			wp_delete_file( $temp_file );
 			return false;
 		}
 
