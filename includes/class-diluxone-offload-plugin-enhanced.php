@@ -357,7 +357,7 @@ class Plugin {
 				)
 			);
 		} else {
-			wp_send_json_error( $result['message'] );
+			wp_send_json_error( esc_html( $result['message'] ) );
 		}
 	}
 
@@ -417,7 +417,7 @@ class Plugin {
 		if ( $result['success'] ) {
 			wp_send_json_success( $result );
 		} else {
-			wp_send_json_error( $result['message'] );
+			wp_send_json_error( esc_html( $result['message'] ) );
 		}
 	}
 
@@ -468,7 +468,7 @@ class Plugin {
 		if ( $result['success'] ) {
 			wp_send_json_success( $result );
 		} else {
-			wp_send_json_error( $result['message'] );
+			wp_send_json_error( esc_html( $result['message'] ) );
 		}
 	}
 
@@ -1161,7 +1161,12 @@ class Plugin {
 			foreach ( $to_delete as $file_data ) {
 				$file_path = $base_path . $file_data['file'];
 
-				if ( file_exists( $file_path ) ) {
+				// The delete target must stay inside uploads/: reject anything
+				// that would resolve outside it before it ever reaches the filesystem.
+				if ( strpos( str_replace( '\\', '/', $file_data['file'] ), '..' ) !== false ) {
+					Logger::error( '[DiluxOne Offload Delete] Rejected path outside uploads/: ' . $file_data['file'] );
+					++$failed_total;
+				} elseif ( file_exists( $file_path ) ) {
 					// wp_delete_file() returns void; we re-check existence to detect success.
 					wp_delete_file( $file_path );
 					clearstatcache( true, $file_path );
