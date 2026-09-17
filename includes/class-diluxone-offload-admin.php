@@ -1264,6 +1264,8 @@ class Admin {
 		if ( $is_from_settings_tab ) {
 			// Settings-only save: Use PluginSettings::fromPost()
 			try {
+				// Every field read from $_POST is wp_unslash()ed, sanitized for its
+				// type and validated inside fromPost(); nothing is used raw.
 				$settings = \DiluxOneOffload\DTOs\PluginSettings::fromPost( $_POST );
 
 				if ( ! ConfigManager::save_plugin_settings( $settings ) ) {
@@ -1287,6 +1289,8 @@ class Admin {
 			if ( $has_provider_credentials ) {
 				// Full provider save: credentials + custom domain
 				try {
+					// Every field read from $_POST is wp_unslash()ed, sanitized and
+					// validated (format regexes) inside fromPost(); nothing is used raw.
 					$provider = \DiluxOneOffload\DTOs\ProviderConfig::fromPost( $_POST );
 
 					if ( ! ConfigManager::save_provider_config( $provider ) ) {
