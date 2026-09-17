@@ -115,7 +115,7 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 6. Syncing finished and ready to enable offloading.
 7. Offloading enabled.
 8. Plugin settings.
-9. Plugin status & tools.
+9. Plugin status.
 
 == Changelog ==
 
