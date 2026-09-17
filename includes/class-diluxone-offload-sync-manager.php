@@ -1093,19 +1093,24 @@ class SyncManager {
 			}
 
 			// A timeout mid-body still reports HTTP 200: the status line arrived
-			// before cURL gave up. Only a transfer with no error and the expected
-			// byte count is a download; anything else is a partial file that must
-			// not be marked as present locally.
-			$expected_size = (int) ( $files[ $i ]['size'] ?? 0 );
+			// before cURL gave up. Only a transfer with no error, and with as many
+			// bytes on disk as the response itself declared, is a download;
+			// anything else is a partial file that must not be marked as present
+			// locally. The comparison is against this response's Content-Length,
+			// not the size in the tracking table: that one was recorded when the
+			// file was first seen, and a blob rewritten since (a regenerated
+			// stylesheet, a log that grew) is a different size now.
+			$declared_size = (float) curl_getinfo( $ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD );
 			$local_path    = (string) ( $files[ $i ]['local_path'] ?? '' );
 			clearstatcache( true, $local_path );
 			$actual_size = ( '' !== $local_path && file_exists( $local_path ) ) ? (int) filesize( $local_path ) : -1;
+			$size_ok     = $declared_size < 0 || $actual_size === (int) $declared_size;
 
-			if ( $response_code === 200 && '' === $error && ( $expected_size <= 0 || $actual_size === $expected_size ) ) {
+			if ( $response_code === 200 && '' === $error && $size_ok ) {
 				$results[ $i ] = array( 'success' => true );
 			} else {
 				if ( '' === $error && $response_code === 200 ) {
-					$error = 'Incomplete download: expected ' . $expected_size . ' bytes, got ' . $actual_size;
+					$error = 'Incomplete download: expected ' . (int) $declared_size . ' bytes, got ' . $actual_size;
 				}
 				$results[ $i ] = array(
 					'success' => false,
