@@ -534,20 +534,14 @@ class Admin {
 			case 'activity':
 				$payload = array(
 					'i18n' => array(
-						'uploads'                  => __( 'Uploads', 'diluxone-offload' ),
-						'deletions'                => __( 'Deletions', 'diluxone-offload' ),
-						'hide_details'             => __( 'Hide details', 'diluxone-offload' ),
-						'show_details'             => __( 'Show details', 'diluxone-offload' ),
-						'hide'                     => __( 'Hide', 'diluxone-offload' ),
-						'view'                     => __( 'View', 'diluxone-offload' ),
-						'full_path'                => __( 'Full path', 'diluxone-offload' ),
-						'short_name'               => __( 'Short name', 'diluxone-offload' ),
-						'export_failed'            => __( 'Export failed:', 'diluxone-offload' ),
-						'are_you_sure_you_want_to' => __( 'Are you sure you want to delete activity logs older than 30 days? This action cannot be undone.', 'diluxone-offload' ),
-						'clear_failed'             => __( 'Clear failed:', 'diluxone-offload' ),
+						'hide_details' => __( 'Hide details', 'diluxone-offload' ),
+						'show_details' => __( 'Show details', 'diluxone-offload' ),
+						'hide'         => __( 'Hide', 'diluxone-offload' ),
+						'view'         => __( 'View', 'diluxone-offload' ),
+						'full_path'    => __( 'Full path', 'diluxone-offload' ),
+						'short_name'   => __( 'Short name', 'diluxone-offload' ),
 					),
 					'data' => array(
-						'chart_data'    => $template_data['chart_data'] ?? null,
 						'activity_type' => $template_data['activity_type'] ?? null,
 						'date_from'     => $template_data['date_from'] ?? null,
 						'date_to'       => $template_data['date_to'] ?? null,
@@ -982,11 +976,6 @@ class Admin {
 				$template_data = array(
 					'activity_log'   => array(),
 					'activity_stats' => self::get_basic_activity_stats(),
-					'chart_data'     => array(
-						'labels'    => array(),
-						'uploads'   => array(),
-						'deletions' => array(),
-					),
 				);
 				break;
 

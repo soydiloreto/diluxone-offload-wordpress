@@ -112,18 +112,6 @@
 	font-weight: 600;
 }
 
-.activity-chart {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 20px;
-	margin-bottom: 20px;
-}
-
-#activity-chart {
-	max-height: 200px;
-}
-
 .activity-actions {
 	background: #fff;
 	border: 1px solid #ddd;
