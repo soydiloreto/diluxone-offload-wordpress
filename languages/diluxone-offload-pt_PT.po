@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DiluxOne Offload 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/diluxone-offload\n"
-"POT-Creation-Date: 2026-09-17T17:42:39+00:00\n"
+"POT-Creation-Date: 2026-09-17T18:43:34+00:00\n"
 "PO-Revision-Date: 2026-04-22 19:31+0000\n"
 "Last-Translator: Pablo Ariel Di Loreto <pablodiloreto@gmail.com>\n"
 "Language-Team: none\n"
@@ -983,6 +983,12 @@ msgstr "Erro ao concluir a sincronização: %s"
 #, php-format
 msgid "Error clearing failed files: %s"
 msgstr "Erro ao limpar os arquivos com falha: %s"
+
+#. translators: %s: the error returned by the cloud provider or the network.
+#: includes/class-diluxone-offload-cloud-stream-wrapper.php:326
+#, php-format
+msgid "The file could not be uploaded to cloud storage: %s"
+msgstr "Não foi possível carregar o ficheiro para o armazenamento na nuvem: %s"
 
 #. translators: %s: provider config field name (e.g. access_key)
 #: includes/class-diluxone-offload-config-manager.php:233

@@ -23,7 +23,7 @@ The plugin uses a custom PHP stream wrapper to intercept every read and write to
 * **Sync with resumable state machine** — start, cancel, resume after an interruption, retry failed files, resync from scratch.
 * **Offloading mode** — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working.
 * **Connection health monitoring** — when the cloud is unreachable, new uploads are refused with a clear error instead of landing somewhere else, and a banner on the plugin's admin pages says why until it recovers.
-* **No files written by the plugin** — the plugin keeps no data on disk. The one time it writes to the uploads directory is when you disconnect, to copy your own media back to where WordPress expects it.
+* **No plugin data on disk** — no cache, log or data files anywhere on the server. The one time the plugin writes to the uploads directory is when you disconnect, to copy your own media back to where WordPress expects it.
 * **Custom domain / CDN support** — serve media from your own domain or CDN edge.
 * **Multisite aware** — network activation supported; each site keeps its own configuration and file tracking.
 * **Debug logging toggle** — errors always go to the PHP error log; info and debug lines only when you turn on the Settings toggle.
@@ -46,7 +46,7 @@ Most offload plugins rewrite media URLs in post content, which breaks when you s
 * WordPress 5.1 or higher.
 * PHP 7.4 or higher.
 * `ext-curl` and `ext-openssl` enabled.
-* Writable `wp-content/uploads/` directory during sync (needed for temporary files).
+* A writable uploads directory only for **Disconnect from Cloud**, when your media is copied back. Transfers use the PHP temporary directory for their scratch files, never `uploads/`.
 * An Azure Blob Storage account and its access key.
 
 == External Services ==
@@ -80,9 +80,9 @@ The plugin monitors connection health. While the cloud is unreachable, a new upl
 
 = Does the plugin write any files to my server? =
 
-Not for itself: it has no cache, log or data files on disk; everything it needs lives in the WordPress options table and its own database table. Your media is written by WordPress core through the plugin's stream wrapper straight to the cloud.
+Not for itself: it has no cache, log or data files on disk; everything it needs lives in the WordPress options table and its own database table. Your media is written by WordPress core through the plugin's stream wrapper to the cloud, passing through a temporary file in the PHP temp directory that is deleted right after the upload.
 
-The one operation that writes to the server is **Sync & Offloading → Disconnect from Cloud**. It copies your media back from the container to the exact uploads-directory paths WordPress has on record (resolved at runtime with `wp_upload_dir()`), so the Media Library works again without the plugin. It only restores files the plugin itself tracked from your uploads directory, never a script or executable file name (PHP, JavaScript, HTML, shell or Windows executables) whatever put it in the container, and it runs only when you click it.
+The one operation that writes to the server is **Sync & Offloading → Disconnect from Cloud**. It copies your media back from the container to the exact uploads-directory paths WordPress has on record (resolved at runtime with `wp_upload_dir()`), so the Media Library works again without the plugin. It restores only what sits under the `uploads/` prefix of your own container, never a script or executable file name (PHP, JavaScript, HTML, shell or Windows executables) whatever put it there, and it runs only when you click it.
 
 = Can I switch providers later? =
 

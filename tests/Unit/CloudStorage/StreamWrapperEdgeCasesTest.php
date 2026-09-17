@@ -8,8 +8,8 @@ use DiluxOneOffload\Enums\PluginState;
 
 /**
  * The stream wrapper when things go wrong: no provider configured, the
- * provider throwing, downloads failing, the health fallback that cannot
- * write, stat() on missing blobs, oversized cache entries.
+ * provider throwing, downloads failing, writes refused while the connection
+ * is down, stat() on missing blobs, oversized cache entries.
  */
 class StreamWrapperEdgeCasesTest extends TestCase {
 
@@ -173,7 +173,7 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 	}
 
 	public function test_a_successful_upload_heals_an_unhealthy_connection(): void {
-		$this->unhealthy( 1 ); // below the fallback threshold
+		$this->unhealthy( 1 ); // below the refusal threshold: still tries the cloud
 		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
 		$fh = fopen( self::P . '://uploads/ok.txt', 'w' );
 		fwrite( $fh, 'x' );
@@ -202,6 +202,38 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 		$methods = array_column( $GLOBALS['_test_wp_http_log'], 'method' );
 		$this->assertContains( 'GET', $methods, 'one probe' );
 		$this->assertContains( 'PUT', $methods, 'then the upload' );
+	}
+
+	public function test_the_third_failed_upload_closes_the_gate_and_the_next_open_does_not_probe_again(): void {
+		$this->unhealthy( 2 ); // two failures: writes still go to the cloud
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 500 );
+		$fh = fopen( self::P . '://uploads/third.txt', 'w' );
+		$this->assertNotFalse( $fh, 'two failures do not refuse a write' );
+		fwrite( $fh, 'x' );
+		$this->assertFalse( @fflush( $fh ) );
+		fclose( $fh );
+		$this->assertSame( 3, ConfigManager::get_connection_health()['consecutive_failures'] );
+
+		$GLOBALS['_test_wp_http_log'] = array();
+		$this->assertFalse( @fopen( self::P . '://uploads/fourth.txt', 'w' ), 'the third failure closes the gate' );
+		$this->assertSame( array(), $GLOBALS['_test_wp_http_log'], 'checked just now: no probe, no upload' );
+	}
+
+	public function test_a_failed_upload_is_reported_back_to_wordpress_as_a_failed_upload(): void {
+		$this->unhealthy( 1 );
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 500 );
+		// PHP ignores the return of stream_flush()/stream_close(), so from
+		// file_put_contents()'s point of view this "worked".
+		$this->assertNotFalse( @file_put_contents( self::P . '://uploads/2026/09/lost.txt', 'x' ) );
+
+		$upload = array( 'file' => self::P . '://uploads/2026/09/lost.txt', 'url' => 'https://x/lost.txt', 'type' => 'text/plain' );
+		$result = CloudStreamWrapper::fail_upload_if_write_failed( $upload, 'upload' );
+		$this->assertArrayHasKey( 'error', $result, 'the wp_handle_upload filter turns it into the error it should have been' );
+		$this->assertStringContainsString( '500', $result['error'] );
+
+		$this->assertSame( $upload, CloudStreamWrapper::fail_upload_if_write_failed( $upload, 'upload' ), 'consumed: reported once' );
+		$local = array( 'file' => '/var/www/html/wp-content/uploads/local.txt' ) + $upload;
+		$this->assertSame( $local, CloudStreamWrapper::fail_upload_if_write_failed( $local, 'upload' ), 'a file outside the wrapper is left alone' );
 	}
 
 	// ── stat ────────────────────────────────────────────────
