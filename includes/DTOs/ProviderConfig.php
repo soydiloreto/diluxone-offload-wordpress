@@ -105,7 +105,7 @@ class ProviderConfig {
 	/**
 	 * Validate an Azure provider_config array fresh off a request.
 	 *
-	 * fromPost() runs this itself. fromArray() deliberately does not — it also
+	 * Called by fromPost(). fromArray() deliberately does not run it — it also
 	 * reconstructs config read back from the database (ConfigManager::get_config()),
 	 * and rejecting a stored config the moment its shape drifts from today's
 	 * rules would silently blank out a working site's credentials on every page

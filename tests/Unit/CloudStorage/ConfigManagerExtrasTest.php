@@ -3,13 +3,12 @@ namespace Tests\Unit\CloudStorage;
 
 use PHPUnit\Framework\TestCase;
 use DiluxOneOffload\ConfigManager;
-use DiluxOneOffload\Cleanup;
 use DiluxOneOffload\Enums\PluginState;
 use DiluxOneOffload\Enums\SyncStatus;
 
 /**
- * ConfigManager's connection-health probe and small accessors, the two enums
- * and the Cleanup tool — all pure enough to run on the option stubs.
+ * ConfigManager's connection-health probe and small accessors, and the two
+ * enums — all pure enough to run on the option stubs.
  */
 class ConfigManagerExtrasTest extends TestCase {
 
@@ -187,39 +186,5 @@ class ConfigManagerExtrasTest extends TestCase {
 		$this->assertTrue( SyncStatus::isFinished( SyncStatus::COMPLETED ) );
 		$this->assertTrue( SyncStatus::isFinished( SyncStatus::CANCELLED ) );
 		$this->assertFalse( SyncStatus::isFinished( SyncStatus::STARTED ) );
-	}
-
-	// ── Cleanup tool ────────────────────────────────────────
-
-	public function test_cleanup_reports_a_clean_config(): void {
-		$this->configure();
-		$this->assertFalse( Cleanup::has_compression_options() );
-		$r = Cleanup::remove_compression_options();
-		$this->assertTrue( $r['success'] );
-		$this->assertSame( array(), $r['removed'] );
-	}
-
-	public function test_cleanup_removes_the_deprecated_keys(): void {
-		$this->configure();
-		$GLOBALS['_test_wp_options']['diluxone_offload_config']['compression_enabled'] = true;
-		$GLOBALS['_test_wp_options']['diluxone_offload_config']['compression_quality'] = 80;
-		$this->assertTrue( Cleanup::has_compression_options() );
-		$r = Cleanup::remove_compression_options();
-		$this->assertTrue( $r['success'] );
-		$this->assertSame( array( 'compression_enabled', 'compression_quality' ), $r['removed'] );
-		$this->assertArrayNotHasKey( 'compression_quality', $GLOBALS['_test_wp_options']['diluxone_offload_config'] );
-	}
-
-	public function test_cleanup_copes_with_a_serialized_or_corrupt_option(): void {
-		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = serialize( array( 'compression_enabled' => 1 ) );
-		$this->assertTrue( Cleanup::has_compression_options() );
-		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = 'garbage';
-		$this->assertFalse( Cleanup::has_compression_options() );
-		$this->assertIsArray( Cleanup::get_config_summary() );
-	}
-
-	public function test_cleanup_summary_is_an_array(): void {
-		$this->configure();
-		$this->assertIsArray( Cleanup::get_config_summary() );
 	}
 }

@@ -188,7 +188,7 @@ class Admin {
 	}
 
 	/**
-	 * Render the admin page (called dynamically by DiluxOne Core)
+	 * Render the admin page.
 	 */
 	public static function render_admin_page(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter, no state change.
@@ -355,12 +355,11 @@ class Admin {
 	 * contract and hardens anything submitted directly through it.
 	 *
 	 * Sanitization is per field, not blanket. Running sanitize_text_field()
-	 * over everything would corrupt the values that carry credentials:
-	 * Azure account keys and DiluxOne API keys arrive base64-encoded (or
-	 * already wrapped by Crypto), and a GCP service-account key is a JSON
-	 * blob. sanitize_text_field() strips percent-encoded octets and collapses
-	 * whitespace and newlines, so it silently mangles all three and the
-	 * provider then fails to authenticate with no visible cause.
+	 * over everything would corrupt the values that carry credentials: an
+	 * Azure account key arrives base64-encoded (or already wrapped by
+	 * Crypto). sanitize_text_field() strips percent-encoded octets and
+	 * collapses whitespace, so it silently mangles the key and the provider
+	 * then fails to authenticate with no visible cause.
 	 *
 	 * @param mixed $value
 	 * @return array<string, mixed>
@@ -440,7 +439,7 @@ class Admin {
 			switch ( $key ) {
 				case 'custom_domain':
 				case 'cdn_base_url':
-					$clean[ $key ] = \esc_url_raw( (string) $v );
+					$clean[ $key ] = is_scalar( $v ) ? \esc_url_raw( (string) $v ) : '';
 					break;
 
 				default:
@@ -854,9 +853,9 @@ class Admin {
 				$cloud_stats_ov   = $is_configured_ov ? ConfigManager::get_cached_cloud_stats() : null;
 
 				$template_data = array(
-					'config'          => $config,
-					'cloud_stats'     => $cloud_stats_ov,
-					'stats'           => self::get_basic_stats(),
+					'config'      => $config,
+					'cloud_stats' => $cloud_stats_ov,
+					'stats'       => self::get_basic_stats(),
 				);
 				break;
 
@@ -1008,7 +1007,6 @@ class Admin {
 				$config['is_configured'] = ConfigManager::is_configured();
 				$template_data           = array(
 					'config'        => $config,
-					'health_status' => self::get_basic_health_status(),
 					'storage_stats' => self::get_basic_stats(),
 				);
 				break;
@@ -1018,8 +1016,8 @@ class Admin {
 				$config                  = ConfigManager::get_config();
 				$config['is_configured'] = ConfigManager::is_configured();
 				$template_data           = array(
-					'config'          => $config,
-					'stats'           => self::get_basic_stats(),
+					'config' => $config,
+					'stats'  => self::get_basic_stats(),
 				);
 		}
 
@@ -1235,20 +1233,6 @@ class Admin {
 	}
 
 	/**
-	 * Get basic health status for templates
-	 *
-	 * @return array<string, mixed>
-	 */
-	private static function get_basic_health_status(): array {
-		return array(
-			'overall'         => 50,
-			'checks_passed'   => 3,
-			'warnings'        => 2,
-			'critical_issues' => 1,
-		);
-	}
-
-	/**
 	 * Handle configuration save
 	 *
 	 * @throws \Exception When PluginSettings/ProviderConfig validation fails inside
@@ -1424,6 +1408,14 @@ class Admin {
 					)
 				);
 			}
+		} catch ( \InvalidArgumentException $e ) {
+			// A field that fails validation is not a connection problem; say
+			// which field, without the "Connection error" prefix.
+			\wp_send_json_error(
+				array(
+					'message' => esc_html( $e->getMessage() ),
+				)
+			);
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload] Connection error: ' . $e->getMessage() );
 			\wp_send_json_error(
@@ -1437,9 +1429,9 @@ class Admin {
 	/**
 	 * AJAX handler for refreshing cloud storage statistics
 	 *
-	 * Calls provider-specific stats method with force_refresh=true.
-	 * Uses instanceof to detect which method to call (get_stats for DiluxOne,
-	 * get_container_stats for Azure) since these methods are not in the interface.
+	 * Calls the provider's stats method with force_refresh=true. Uses
+	 * instanceof because get_container_stats() is Azure-specific and not
+	 * part of the client interface.
 	 */
 	public static function ajax_refresh_stats(): void {
 		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
