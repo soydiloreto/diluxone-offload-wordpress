@@ -147,7 +147,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 		?>
 		<div class="status-card <?php echo esc_attr( $sync_card_mode ); ?>">
 			<div class="status-icon">
-				<span class="dashicons <?php echo $is_synced ? 'dashicons-cloud-saved' : 'dashicons-cloud-upload'; ?>"></span>
+				<span class="dashicons <?php echo esc_attr( $is_synced ? 'dashicons-cloud-saved' : 'dashicons-cloud-upload' ); ?>"></span>
 			</div>
 			<div class="status-content">
 				<h3><?php esc_html_e( 'Synchronization', 'diluxone-offload' ); ?></h3>
@@ -195,7 +195,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 		?>
 		<div class="status-card <?php echo esc_attr( $off_card_mode ); ?>">
 			<div class="status-icon">
-				<span class="dashicons <?php echo $is_offloading ? 'dashicons-superhero' : 'dashicons-database'; ?>"></span>
+				<span class="dashicons <?php echo esc_attr( $is_offloading ? 'dashicons-superhero' : 'dashicons-database' ); ?>"></span>
 			</div>
 			<div class="status-content">
 				<h3><?php esc_html_e( 'Offloading', 'diluxone-offload' ); ?></h3>

@@ -138,7 +138,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			if ( ! empty( $response_body ) ) {
 				$xml = self::parse_xml( $response_body );
 				if ( $xml && isset( $xml->Message ) ) {
-					$error_message .= ' - ' . (string) $xml->Message;
+					$error_message .= ' - ' . sanitize_text_field( (string) $xml->Message );
 				}
 			}
 
