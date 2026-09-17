@@ -95,7 +95,9 @@ Yes, while offloading is active: the stream wrapper turns the deletion into a de
 
 = What happens when I uninstall the plugin? =
 
-Version 1.0.0 leaves its data in place: the tracking table (`diluxone_offload_files`, with your table prefix) and the plugin's options (all prefixed `diluxone_offload_`) stay in your database, and your files stay wherever they are, so nothing is lost if you reinstall. Your media in the cloud is never touched by uninstalling. Automatic cleanup on uninstall is planned for the next release; until then you can drop the table and options manually if you want a clean database.
+Deleting the plugin from the Plugins screen removes everything it created in your database: its options (all prefixed `diluxone_offload_`), its transients and its file-tracking table (`diluxone_offload_files`, with your table prefix) — on every site of a network. Deactivating alone keeps all of that, so you can deactivate and reactivate without losing your configuration.
+
+Your media files are never touched by uninstalling: whatever is in `/wp-content/uploads/` stays there, and whatever is in your container stays in your container. If offloading was active and local copies had been deleted, download them first with **Sync & Offloading → Disconnect from Cloud**, otherwise WordPress will be pointing at files that are no longer on the server.
 
 = How do I enable verbose debug logging? =
 
@@ -141,6 +143,7 @@ First public release.
 * Multisite support — per-site or network-level configuration.
 * Verbose debug logging toggle in Settings (errors always log; info and debug respect the toggle).
 * Provider credentials encrypted at rest with AES-256-GCM using a key derived from the site's WordPress salts.
+* Uninstalling removes the plugin's options, transients and tracking table on every site; media files are never touched.
 * Translations included for es_AR, es_ES, es_MX, pt_BR, pt_PT, fr_FR, de_DE and it_IT.
 
 == Upgrade Notice ==
