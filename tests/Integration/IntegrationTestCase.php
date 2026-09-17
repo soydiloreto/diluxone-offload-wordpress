@@ -26,8 +26,24 @@ class IntegrationTestCase extends TestCase {
         'diluxone_offload_config',
         'diluxone_offload_plugin_state',
         'diluxone_offload_sync_meta',
+        'diluxone_offload_sync_progress',
         'diluxone_offload_failed_files',
         'diluxone_offload_connection_health',
+    ];
+
+    /**
+     * Transients the plugin caches across requests. A test run is one long
+     * request, so a scan cached by one test would otherwise be the file list
+     * the next test syncs.
+     *
+     * @var array<int, string>
+     */
+    protected static array $plugin_transients = [
+        'diluxone_offload_full_file_list',
+        'diluxone_offload_azure_stats',
+        'diluxone_offload_stats',
+        'diluxone_offload_sas_token',
+        'diluxone_offload_fallback_uploads',
     ];
 
     /**
@@ -42,6 +58,10 @@ class IntegrationTestCase extends TestCase {
         $this->cleanDatabase();
         $this->cleanOptions();
         self::resetWrapperClient();
+        // A test that enabled offloading leaves the wrapper's upload_dir filter
+        // behind; the next SyncManager would then scan diluxoneoffload://
+        // instead of the fixtures on disk.
+        \DiluxOneOffload\CloudStreamWrapper::tear_down();
     }
 
     /**
@@ -56,6 +76,7 @@ class IntegrationTestCase extends TestCase {
     }
 
     protected function tearDown(): void {
+        \DiluxOneOffload\CloudStreamWrapper::tear_down();
         $this->cleanDatabase();
         $this->cleanOptions();
         parent::tearDown();
@@ -79,6 +100,10 @@ class IntegrationTestCase extends TestCase {
         foreach (self::$plugin_options as $option) {
             delete_option($option);
         }
+        foreach (self::$plugin_transients as $transient) {
+            delete_transient($transient);
+        }
+        delete_transient('diluxone_offload_notice_' . get_current_user_id());
     }
 
     /**
