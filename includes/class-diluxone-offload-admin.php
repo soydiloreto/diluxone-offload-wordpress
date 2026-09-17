@@ -234,7 +234,7 @@ class Admin {
 					);
 					?>
 								"
-						class="nav-tab <?php echo $current_tab === $slug ? 'nav-tab-active' : ''; ?>">
+						class="nav-tab <?php echo esc_attr( $current_tab === $slug ? 'nav-tab-active' : '' ); ?>">
 						<span class="dashicons <?php echo \esc_attr( $meta['icon'] ); ?>"></span>
 						<?php echo \esc_html( $meta['label'] ); ?>
 					</a>
@@ -1466,7 +1466,7 @@ class Admin {
 
 				\wp_send_json_success(
 					array(
-						'message'     => $result['message'] ?? 'Connection successful! You can now save.',
+						'message'     => esc_html( $result['message'] ?? 'Connection successful! You can now save.' ),
 						'test_passed' => true,
 					)
 				);
@@ -1474,7 +1474,7 @@ class Admin {
 				Logger::info( '[DiluxOne Offload] Connection failed: ' . $result['message'] );
 				\wp_send_json_error(
 					array(
-						'message' => $result['message'] ?? 'Connection failed',
+						'message' => esc_html( $result['message'] ?? 'Connection failed' ),
 					)
 				);
 			}
@@ -1482,7 +1482,7 @@ class Admin {
 			Logger::info( '[DiluxOne Offload] Connection error: ' . $e->getMessage() );
 			\wp_send_json_error(
 				array(
-					'message' => 'Connection error: ' . $e->getMessage(),
+					'message' => 'Connection error: ' . esc_html( $e->getMessage() ),
 				)
 			);
 		}
@@ -1519,10 +1519,10 @@ class Admin {
 				ConfigManager::record_connection_success();
 				wp_send_json_success( $stats['data'] ?? array() );
 			} else {
-				wp_send_json_error( array( 'message' => $stats['message'] ?? 'Failed to fetch stats' ) );
+				wp_send_json_error( array( 'message' => esc_html( $stats['message'] ?? 'Failed to fetch stats' ) ) );
 			}
 		} catch ( \Exception $e ) {
-			wp_send_json_error( array( 'message' => $e->getMessage() ) );
+			wp_send_json_error( array( 'message' => esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1592,7 +1592,7 @@ class Admin {
 		} catch ( \Exception $e ) {
 			wp_send_json_error(
 				array(
-					'message' => 'Error saving: ' . $e->getMessage(),
+					'message' => 'Error saving: ' . esc_html( $e->getMessage() ),
 				)
 			);
 		}
@@ -1736,7 +1736,7 @@ class Admin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload] Error in cancel_sync: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1790,7 +1790,7 @@ class Admin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Admin] Error completing sync: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error completing sync: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error completing sync: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1813,7 +1813,7 @@ class Admin {
 
 		} catch ( \Exception $e ) {
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error clearing failed files: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error clearing failed files: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1866,7 +1866,7 @@ class Admin {
 			Logger::info( '[DiluxOne Offload] AJAX: Error removing provider: ' . $e->getMessage() );
 			wp_send_json_error(
 				array(
-					'message' => 'Error deleting configuration: ' . $e->getMessage(),
+					'message' => 'Error deleting configuration: ' . esc_html( $e->getMessage() ),
 				)
 			);
 		}

@@ -90,7 +90,7 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 			</div>
 
 			<!-- Azure Config -->
-			<div class="settings-section provider-config" id="azure-config" style="<?php echo ( $config['cloud_provider'] ?? '' ) === 'azure' ? '' : 'display: none;'; ?>">
+			<div class="settings-section provider-config" id="azure-config" style="<?php echo esc_attr( ( $config['cloud_provider'] ?? '' ) === 'azure' ? '' : 'display: none;' ); ?>">
 				<h3><?php esc_html_e( 'Azure Blob Storage', 'diluxone-offload' ); ?></h3>
 				<p class="description"><?php esc_html_e( 'Enter your Azure Storage credentials.', 'diluxone-offload' ); ?></p>
 				<table class="form-table">

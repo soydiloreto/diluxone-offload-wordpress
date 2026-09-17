@@ -623,7 +623,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Plugin] Remote scan error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error scanning remote files: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error scanning remote files: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -704,7 +704,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Plugin] Calculate download error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error calculating download: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error calculating download: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -814,7 +814,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Plugin] Calculate sync error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error calculating sync: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error calculating sync: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -890,7 +890,7 @@ class Plugin {
 				sprintf(
 				/* translators: %1$s is current state, %2$s is expected state. */
 					esc_html__( 'Invalid state: %1$s. Expected: %2$s', 'diluxone-offload' ),
-					$current_state,
+					esc_html( $current_state ),
 					'configured'
 				)
 			);
@@ -935,7 +935,7 @@ class Plugin {
 				sprintf(
 				/* translators: %1$s is current state, %2$s is expected state. */
 					esc_html__( 'Invalid state: %1$s. Expected: %2$s', 'diluxone-offload' ),
-					$current_state,
+					esc_html( $current_state ),
 					'offloading_active'
 				)
 			);
@@ -1001,7 +1001,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Plugin] Resync All prepare error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Failed to prepare resync: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Failed to prepare resync: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1058,7 +1058,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Plugin] Discard failed files error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error discarding failed files: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error discarding failed files: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1284,7 +1284,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Multi-Tab] Take control error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error taking control: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error taking control: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1426,7 +1426,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Multi-Tab] Get sync state error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error getting sync state: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error getting sync state: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
@@ -1459,7 +1459,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload Plugin] Get failed files count error: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( esc_html__( 'Error getting failed files count: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( esc_html__( 'Error getting failed files count: %s', 'diluxone-offload' ), esc_html( $e->getMessage() ) ) );
 		}
 	}
 
