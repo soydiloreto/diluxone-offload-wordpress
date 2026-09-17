@@ -214,8 +214,8 @@ jQuery(document).ready(function($) {
 			data: data,
 			success: function(response) {
 				if (response.success) {
-					var successMsg = encodeURIComponent(response.data.message || 'Credentials updated successfully');
-					window.location.href = window.location.pathname + '?page=diluxone-offload&tab=cloud-provider&success=' + successMsg;
+					// The server queued the confirmation notice; the reload shows it.
+					window.location.href = window.location.pathname + '?page=diluxone-offload&tab=cloud-provider';
 				} else {
 					alert('Error: ' + (response.data.message || 'Unknown error'));
 					$button.prop('disabled', false);

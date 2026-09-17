@@ -238,6 +238,8 @@ class Admin {
 			<!-- Tab Content -->
 			<div class="tab-content" style="margin-top: 20px;">
 				<?php
+				self::render_flash_notice();
+
 				// Connection health check (5-min TTL)
 				$health = ConfigManager::check_connection_health();
 				if ( $health['status'] === 'unhealthy' ) {
@@ -248,6 +250,74 @@ class Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Queue a one-time notice for the current user, shown on their next
+	 * plugin admin page.
+	 *
+	 * Handlers that redirect used to put the text in the URL; anyone could
+	 * then craft a link that showed an admin an arbitrary "success" message.
+	 * The text now travels in a short-lived, per-user transient instead, so
+	 * a plugin page only ever shows what this plugin's own code queued.
+	 *
+	 * @param string $type    'success' or 'error'.
+	 * @param string $message Plain text; escaped on output.
+	 */
+	public static function flash_notice( string $type, string $message ): void {
+		set_transient(
+			self::flash_notice_key(),
+			array(
+				'type'    => 'error' === $type ? 'error' : 'success',
+				'message' => $message,
+			),
+			MINUTE_IN_SECONDS
+		);
+	}
+
+	/**
+	 * Print and discard the queued notice, if any.
+	 */
+	public static function render_flash_notice(): void {
+		$key    = self::flash_notice_key();
+		$notice = get_transient( $key );
+
+		if ( ! is_array( $notice ) || empty( $notice['message'] ) ) {
+			return;
+		}
+
+		delete_transient( $key );
+
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+			esc_attr( (string) $notice['type'] ),
+			esc_html( (string) $notice['message'] )
+		);
+	}
+
+	/**
+	 * @return string Transient name for the current user's queued notice.
+	 */
+	private static function flash_notice_key(): string {
+		return 'diluxone_offload_notice_' . get_current_user_id();
+	}
+
+	/**
+	 * Redirect back to a plugin tab after an admin_post handler.
+	 *
+	 * @param string $tab Tab slug.
+	 */
+	private static function redirect_to_tab( string $tab ): void {
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page' => self::MENU,
+					'tab'  => $tab,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
 	}
 
 	/**
@@ -1212,33 +1282,16 @@ class Admin {
 			try {
 				$settings = \DiluxOneOffload\DTOs\PluginSettings::fromPost( $_POST );
 
-				$result = ConfigManager::save_plugin_settings( $settings );
-
-				if ( $result ) {
-					$redirect_url = add_query_arg(
-						array(
-							'page'    => 'diluxone-offload',
-							'tab'     => $redirect_tab,
-							'success' => rawurlencode( 'Settings saved successfully!' ),
-						),
-						admin_url( 'admin.php' )
-					);
-				} else {
+				if ( ! ConfigManager::save_plugin_settings( $settings ) ) {
 					throw new \Exception( 'Failed to save settings to database' );
 				}
+
+				self::flash_notice( 'success', 'Settings saved successfully!' );
 			} catch ( \Exception $e ) {
-				$redirect_url = add_query_arg(
-					array(
-						'page'  => 'diluxone-offload',
-						'tab'   => $redirect_tab,
-						'error' => rawurlencode( 'Failed to save settings: ' . $e->getMessage() ),
-					),
-					admin_url( 'admin.php' )
-				);
+				self::flash_notice( 'error', 'Failed to save settings: ' . $e->getMessage() );
 			}
 
-			wp_safe_redirect( $redirect_url );
-			exit;
+			self::redirect_to_tab( $redirect_tab );
 
 		} elseif ( $is_from_cloud_provider_tab ) {
 			// Cloud Provider tab: Could be full provider save OR custom domain only
@@ -1252,67 +1305,26 @@ class Admin {
 				try {
 					$provider = \DiluxOneOffload\DTOs\ProviderConfig::fromPost( $_POST );
 
-					$result = ConfigManager::save_provider_config( $provider );
-
-					if ( $result ) {
-						$redirect_url = add_query_arg(
-							array(
-								'page'    => 'diluxone-offload',
-								'tab'     => $redirect_tab,
-								'success' => rawurlencode( 'Provider configuration saved successfully!' ),
-							),
-							admin_url( 'admin.php' )
-						);
-					} else {
+					if ( ! ConfigManager::save_provider_config( $provider ) ) {
 						throw new \Exception( 'Failed to save provider configuration to database' );
 					}
+
+					self::flash_notice( 'success', 'Provider configuration saved successfully!' );
 				} catch ( \InvalidArgumentException $e ) {
 					// Validation error from ProviderConfig::fromPost()
-					$redirect_url = add_query_arg(
-						array(
-							'page'  => 'diluxone-offload',
-							'tab'   => $redirect_tab,
-							'error' => rawurlencode( $e->getMessage() ),
-						),
-						admin_url( 'admin.php' )
-					);
+					self::flash_notice( 'error', $e->getMessage() );
 				} catch ( \Exception $e ) {
-					$redirect_url = add_query_arg(
-						array(
-							'page'  => 'diluxone-offload',
-							'tab'   => $redirect_tab,
-							'error' => rawurlencode( 'Failed to save configuration: ' . $e->getMessage() ),
-						),
-						admin_url( 'admin.php' )
-					);
+					self::flash_notice( 'error', 'Failed to save configuration: ' . $e->getMessage() );
 				}
-			} else {
-				// No credentials sent (fields were disabled) — nothing to save
-				$redirect_url = add_query_arg(
-					array(
-						'page' => 'diluxone-offload',
-						'tab'  => $redirect_tab,
-					),
-					admin_url( 'admin.php' )
-				);
 			}
+			// No credentials sent (fields were disabled) — nothing to save.
 
-			wp_safe_redirect( $redirect_url );
-			exit;
+			self::redirect_to_tab( $redirect_tab );
 
 		} else {
 			// Unknown tab - shouldn't happen
-			$redirect_url = add_query_arg(
-				array(
-					'page'  => 'diluxone-offload',
-					'tab'   => 'overview',
-					'error' => rawurlencode( 'Invalid save request' ),
-				),
-				admin_url( 'admin.php' )
-			);
-
-			wp_safe_redirect( $redirect_url );
-			exit;
+			self::flash_notice( 'error', 'Invalid save request' );
+			self::redirect_to_tab( 'overview' );
 		}
 	}
 
@@ -1525,6 +1537,9 @@ class Admin {
 			// Log for audit
 			Logger::info( '[DiluxOne Offload] Credentials updated by user ID: ' . get_current_user_id() );
 
+			// The page reloads after this; the notice waits for it there.
+			self::flash_notice( 'success', 'Credentials updated successfully' );
+
 			wp_send_json_success(
 				array(
 					'message' => 'Credentials updated successfully',
@@ -1570,36 +1585,22 @@ class Admin {
 
 			Logger::info( '[DiluxOne Offload] Provider configuration removed successfully - all credentials, state, and tracking data deleted' );
 
-			$redirect_url = add_query_arg(
-				array(
-					'page'    => 'diluxone-offload',
-					'tab'     => 'settings',
-					'success' => rawurlencode( __( 'Cloud storage configuration removed successfully. The plugin has been reset.', 'diluxone-offload' ) ),
-				),
-				admin_url( 'admin.php' )
-			);
+			self::flash_notice( 'success', __( 'Cloud storage configuration removed successfully. The plugin has been reset.', 'diluxone-offload' ) );
 
 		} catch ( \Exception $e ) {
 			Logger::info( '[DiluxOne Offload] Error removing provider configuration: ' . $e->getMessage() );
 
-			$redirect_url = add_query_arg(
-				array(
-					'page'  => 'diluxone-offload',
-					'tab'   => 'settings',
-					'error' => rawurlencode(
-						sprintf(
-						/* translators: %s is the error message. */
-							__( 'Failed to remove configuration: %s', 'diluxone-offload' ),
-							$e->getMessage()
-						)
-					),
-				),
-				admin_url( 'admin.php' )
+			self::flash_notice(
+				'error',
+				sprintf(
+					/* translators: %s is the error message. */
+					__( 'Failed to remove configuration: %s', 'diluxone-offload' ),
+					$e->getMessage()
+				)
 			);
 		}
 
-		wp_safe_redirect( $redirect_url );
-		exit;
+		self::redirect_to_tab( 'settings' );
 	}
 
 	/**
