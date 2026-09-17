@@ -1181,7 +1181,7 @@ class Admin {
 					<?php endif; ?>
 					<?php if ( $is_offloading ) : ?>
 					<p style="margin: 8px 0 0; color: #721c24; font-weight: 600;">
-						<?php \esc_html_e( 'File uploads are falling back to local storage.', 'diluxone-offload' ); ?>
+						<?php \esc_html_e( 'New uploads are refused until the connection recovers.', 'diluxone-offload' ); ?>
 					</p>
 					<?php endif; ?>
 					<p style="margin: 8px 0 0; font-size: 13px;">

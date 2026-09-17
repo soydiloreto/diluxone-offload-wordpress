@@ -314,7 +314,7 @@ class AdminRenderTest extends IntegrationTestCase {
         } else {
             $this->assertStringContainsString($expect, $html);
         }
-        $this->assertStringContainsString('falling back to local storage', $html, 'offloading is on: uploads fall back');
+        $this->assertStringContainsString('New uploads are refused until the connection recovers', $html, 'offloading is on: uploads are refused, never written elsewhere');
     }
 
     /** @return array<string, array{int,string}> */
@@ -448,7 +448,7 @@ class AdminRenderTest extends IntegrationTestCase {
     public function pausedStates(): array {
         return [
             'synced'     => [PluginState::SYNCED, 'is-paused'],
-            'offloading' => [PluginState::OFFLOADING_ACTIVE, 'Falling back to local storage'],
+            'offloading' => [PluginState::OFFLOADING_ACTIVE, 'New uploads are refused until the connection recovers'],
         ];
     }
 

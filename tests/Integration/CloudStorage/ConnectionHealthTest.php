@@ -108,20 +108,17 @@ class ConnectionHealthTest extends IntegrationTestCase {
         $this->assertIsString($health['status']);
     }
 
-    public function test_consecutive_failures_can_cross_stream_wrapper_fallback_threshold(): void {
-        // Stream wrapper falls back to local storage when consecutive_failures
-        // crosses the >= 3 threshold (see CloudStreamWrapper, the branch
-        // that compares ($health['consecutive_failures'] ?? 0) >= 3 inside
-        // its hot-path read/write methods). This test documents the
-        // threshold contract — if it ever changes, this test fails and the
-        // change is caught in review. Line numbers intentionally not
-        // referenced because they drift.
+    public function test_consecutive_failures_can_cross_the_stream_wrapper_refusal_threshold(): void {
+        // The stream wrapper refuses new writes once consecutive_failures
+        // reaches 3 (CloudStreamWrapper::stream_open(), write modes). This test
+        // documents that threshold contract — if it ever changes, this test
+        // fails and the change is caught in review.
         for ($i = 0; $i < 4; $i++) {
             ConfigManager::record_connection_failure('500', 'Server Error #' . $i, 'azure');
         }
 
         $health = ConfigManager::get_connection_health();
-        $this->assertGreaterThanOrEqual(3, $health['consecutive_failures'], 'Stream wrapper expects >= 3 to trigger local fallback.');
+        $this->assertGreaterThanOrEqual(3, $health['consecutive_failures'], 'Stream wrapper refuses writes at >= 3.');
     }
 
     public function test_error_code_changes_are_reflected_in_subsequent_failures(): void {

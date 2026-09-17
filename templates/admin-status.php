@@ -193,7 +193,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					</p>
 					<?php if ( $is_offloading && $is_paused ) : ?>
 					<p class="state-details" style="margin-top:6px; color:#856404; font-size:12px;">
-						<?php esc_html_e( 'Falling back to local storage for new uploads.', 'diluxone-offload' ); ?>
+						<?php esc_html_e( 'New uploads are refused until the connection recovers.', 'diluxone-offload' ); ?>
 					</p>
 					<?php endif; ?>
 				</div>

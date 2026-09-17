@@ -79,16 +79,6 @@ class CloudStreamWrapper {
 	/** @var int Maximum file size to cache (32MB like Infinite Uploads) */
 	const CACHE_MAX_BYTES = 33554432; // 32 * 1024 * 1024
 
-	/**
-	 * Set when stream_flush() wrote the content to local disk instead of the
-	 * cloud because the connection is unhealthy. stream_close() checks it so
-	 * the same content is not then pushed to the cloud anyway, which would
-	 * defeat the fallback and add one more failure to the health counter.
-	 *
-	 * @var bool
-	 */
-	private bool $saved_locally = false;
-
 	/** @var string|null Per-request memo of the cloud_host (host where assets are
 	 *  served from). Empty string when the plugin is not configured. */
 	private static ?string $cloud_host_cache = null;
@@ -500,11 +490,10 @@ class CloudStreamWrapper {
 	 * @return bool
 	 */
 	public function stream_open( $path, $mode, $options, &$opened_path ) {
-		$this->path          = $this->parse_path( $path );
-		$this->mode          = $mode;
-		$this->position      = 0;
-		$this->content       = '';
-		$this->saved_locally = false;
+		$this->path     = $this->parse_path( $path );
+		$this->mode     = $mode;
+		$this->position = 0;
+		$this->content  = '';
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			Logger::debug( '[DiluxOne Offload CloudStreamWrapper] Opening: ' . $this->path . ' (mode: ' . $mode . ')' );
@@ -588,6 +577,22 @@ class CloudStreamWrapper {
 			wp_delete_file( $temp_file );
 			return false;
 		} elseif ( strpos( $mode, 'w' ) !== false || strpos( $mode, 'a' ) !== false ) {
+			// After three consecutive failures the connection is treated as
+			// down and a write is refused up front, so the caller
+			// (wp_handle_upload(), copy(), a plugin) gets a failed open and
+			// reports it, instead of a file that appears to save and is
+			// nowhere. Nothing is written anywhere else. check_connection_health()
+			// re-probes at most every five minutes, so writes reopen on their
+			// own once the cloud is back; a single blip still just retries.
+			$health = \DiluxOneOffload\ConfigManager::get_connection_health();
+			if ( ( $health['consecutive_failures'] ?? 0 ) >= 3 ) {
+				$health = \DiluxOneOffload\ConfigManager::check_connection_health();
+			}
+			if ( ( $health['consecutive_failures'] ?? 0 ) >= 3 ) {
+				Logger::error( '[DiluxOne Offload CloudStreamWrapper] Write refused, cloud connection unavailable (' . ( $health['error_code'] ?? '' ) . '): ' . $this->path );
+				return false;
+			}
+
 			// Write/Append mode - prepare for writing
 			if ( strpos( $mode, 'a' ) !== false ) {
 				// Append: try to download first; a 404 simply means a new file.
@@ -698,57 +703,11 @@ class CloudStreamWrapper {
 			return true;
 		}
 
-		// Pre-upload health check: if 3+ consecutive failures, fallback to local
-		$health = \DiluxOneOffload\ConfigManager::get_connection_health();
-		if ( ( $health['consecutive_failures'] ?? 0 ) >= 3 ) {
-			$relative_path = $this->path;
-			// Strip 'uploads/' prefix if present to get relative path within uploads dir
-			if ( strpos( $relative_path, 'uploads/' ) === 0 ) {
-				$relative_path = substr( $relative_path, 8 );
-			}
-			// The attachment goes back to the exact place WordPress expects it,
-			// asked for at runtime. This is the user's own media file, not
-			// plugin data: a folder of our own would leave every URL in the
-			// media library pointing at something that is not there.
-			$basedir    = self::native_upload_basedir();
-			$local_path = '' === $basedir ? '' : $basedir . '/' . ltrim( $relative_path, '/' );
-			$written    = false;
-
-			// The fallback write must stay inside uploads/: reject anything
-			// that would resolve outside it before it ever reaches the filesystem.
-			if ( strpos( str_replace( '\\', '/', $relative_path ), '..' ) !== false ) {
-				Logger::error( '[DiluxOne Offload CloudStreamWrapper] Rejected fallback path outside uploads/: ' . $relative_path );
-				$local_path = '';
-			}
-
-			if ( '' !== $local_path ) {
-				$local_dir = dirname( $local_path );
-				if ( ! is_dir( $local_dir ) ) {
-					wp_mkdir_p( $local_dir );
-				}
-				$written = file_put_contents( $local_path, $this->content );
-			}
-
-			if ( $written !== false ) {
-				$this->saved_locally = true;
-				Logger::warning( '[DiluxOne Offload CloudStreamWrapper] FALLBACK: Saved locally due to unhealthy connection (' . $health['consecutive_failures'] . ' failures): ' . $this->path );
-				// Track fallback for admin notification
-				$fallbacks = get_transient( 'diluxone_offload_fallback_uploads' );
-				if ( ! is_array( $fallbacks ) ) {
-					$fallbacks = array();
-				}
-				$fallbacks[] = array(
-					'path' => $this->path,
-					'time' => time(),
-				);
-				if ( count( $fallbacks ) > 100 ) {
-					$fallbacks = array_slice( $fallbacks, -100 );
-				}
-				set_transient( 'diluxone_offload_fallback_uploads', $fallbacks, DAY_IN_SECONDS );
-				return true;
-			}
-			Logger::error( '[DiluxOne Offload CloudStreamWrapper] FALLBACK FAILED: Could not write to local path: ' . $local_path );
-		}
+		// The buffer goes to the cloud or nowhere. There is no local fallback:
+		// the plugin never writes a file to the server on its own. When the
+		// upload fails, this returns false, the failure is recorded for the
+		// health banner, and stream_open() refuses further writes until the
+		// connection is seen working again.
 
 		// Upload content to cloud
 		$cloud_client = self::get_cloud_client();
@@ -860,7 +819,7 @@ class CloudStreamWrapper {
 		// file_put_contents() calls fflush() before fclose()
 		// So content is already uploaded by stream_flush()
 		// Only upload if flush was never called (direct fclose() without fflush())
-		if ( ! $this->saved_locally && ( strpos( $this->mode, 'w' ) !== false || strpos( $this->mode, 'a' ) !== false || strpos( $this->mode, '+' ) !== false ) ) {
+		if ( strpos( $this->mode, 'w' ) !== false || strpos( $this->mode, 'a' ) !== false || strpos( $this->mode, '+' ) !== false ) {
 			if ( '' !== $this->content ) {
 				// Check if file is already in cache (uploaded by flush)
 				$cached_content = $this->cache_get( $this->path );

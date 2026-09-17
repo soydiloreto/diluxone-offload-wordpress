@@ -22,7 +22,8 @@ The plugin uses a custom PHP stream wrapper to intercept every read and write to
 * **Transparent stream wrapper** — no URL rewriting, no regex on post content, no database migration required for URLs.
 * **Sync with resumable state machine** — start, cancel, resume after an interruption, retry failed files, resync from scratch.
 * **Offloading mode** — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working.
-* **Connection health monitoring** — automatic fallback to local storage when cloud is unreachable, with a banner on the plugin's admin pages until it recovers.
+* **Connection health monitoring** — when the cloud is unreachable, new uploads are refused with a clear error instead of landing somewhere else, and a banner on the plugin's admin pages says why until it recovers.
+* **No files written by the plugin** — the plugin keeps no data on disk. The one time it writes to the uploads directory is when you disconnect, to copy your own media back to where WordPress expects it.
 * **Custom domain / CDN support** — serve media from your own domain or CDN edge.
 * **Multisite aware** — network activation supported; each site keeps its own configuration and file tracking.
 * **Debug logging toggle** — errors always go to the PHP error log; info and debug lines only when you turn on the Settings toggle.
@@ -75,7 +76,13 @@ No. The stream wrapper intercepts filesystem calls transparently — your post c
 
 = What happens if the cloud is temporarily unreachable? =
 
-The plugin monitors connection health. When the cloud is marked unhealthy, new uploads automatically fall back to local storage and an admin banner warns you. When the connection recovers, you can run a sync to push the fallback files up.
+The plugin monitors connection health. While the cloud is unreachable, a new upload fails with WordPress's own "could not be moved" error and nothing is saved anywhere, so you never end up with a file that looks uploaded but isn't. A banner on the plugin's admin pages explains the failure. Files already in the cloud keep being served from your custom domain or the storage account URL. The plugin re-checks the connection at most every five minutes and uploads resume on their own once it is back.
+
+= Does the plugin write any files to my server? =
+
+Not for itself: it has no cache, log or data files on disk; everything it needs lives in the WordPress options table and its own database table. Your media is written by WordPress core through the plugin's stream wrapper straight to the cloud.
+
+The one operation that writes to the server is **Sync & Offloading → Disconnect from Cloud**. It copies your media back from the container to the exact uploads-directory paths WordPress has on record (resolved at runtime with `wp_upload_dir()`), so the Media Library works again without the plugin. It only restores files the plugin itself tracked from your uploads directory, never a script or executable file name (PHP, JavaScript, HTML, shell or Windows executables) whatever put it in the container, and it runs only when you click it.
 
 = Can I switch providers later? =
 
@@ -136,7 +143,7 @@ First public release.
 * Transparent stream wrapper with read/write interception — no URL rewriting, no regex on post content, no database migration required for URLs.
 * Sync state machine with cancel, resume after an interruption and retry of failed files.
 * Offloading mode with optional local file deletion after a successful sync.
-* Connection health monitoring with automatic local fallback when the cloud is unreachable, and an admin banner tailored to each failure mode (unreadable credentials, `401`/`403`, `404`, network exception) with its own explanation and call to action.
+* Connection health monitoring: while the cloud is unreachable new uploads are refused with an explicit error rather than written anywhere else, and an admin banner tailored to each failure mode (unreadable credentials, `401`/`403`, `404`, network exception) explains it with its own call to action.
 * Every tab agrees on the same state: when the connection is paused, the Overview, Sync & Offloading and Status cards all say so with the same wording and the same reason, instead of some staying green while others report the failure.
 * "Force HTTPS for cloud storage URLs" option to keep media working on installs served over plain HTTP.
 * Custom domain / CDN support.

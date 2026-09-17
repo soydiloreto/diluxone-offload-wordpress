@@ -181,31 +181,27 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 		$this->assertSame( 'healthy', ConfigManager::get_connection_health()['status'] );
 	}
 
-	public function test_fallback_keeps_only_the_last_hundred_entries(): void {
-		$this->unhealthy();
-		$GLOBALS['_test_wp_transients']['diluxone_offload_fallback_uploads'] = array_fill( 0, 100, array( 'path' => 'old', 'time' => 1 ) );
-		$fh = fopen( self::P . '://uploads/fb/new.txt', 'w' );
-		fwrite( $fh, 'x' );
-		fclose( $fh );
-		$list = $GLOBALS['_test_wp_transients']['diluxone_offload_fallback_uploads'];
-		$this->assertCount( 100, $list );
-		$this->assertSame( 'uploads/fb/new.txt', end( $list )['path'] );
+	public function test_a_write_is_refused_at_open_while_the_connection_is_down(): void {
+		$this->unhealthy(); // 3 failures, checked just now: no re-probe yet
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+		$this->assertFalse( @fopen( self::P . '://uploads/fb/new.txt', 'w' ) );
 		$this->assertSame( array(), $GLOBALS['_test_wp_http_log'], 'nothing went to the cloud' );
-		@unlink( WP_CONTENT_DIR . '/uploads/fb/new.txt' );
+		$this->assertFileDoesNotExist( WP_CONTENT_DIR . '/uploads/fb/new.txt', 'and nothing landed on disk' );
 	}
 
-	public function test_fallback_that_cannot_write_locally_still_tries_the_cloud(): void {
-		$this->unhealthy();
-		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
-		$blocker = WP_CONTENT_DIR . '/uploads/blocked';
-		@mkdir( dirname( $blocker ), 0777, true );
-		file_put_contents( $blocker, 'I am a file, not a directory' );
-		$fh = fopen( self::P . '://uploads/blocked/x.txt', 'w' );
+	public function test_writes_reopen_once_a_fresh_health_check_passes(): void {
+		$this->unhealthy(); // 3 failures...
+		$GLOBALS['_test_wp_options']['diluxone_offload_connection_health']['last_check'] = time() - 400; // ...but last checked long enough ago to re-probe
+		$GLOBALS['_test_wp_http'] = fn( string $method ) => 'GET' === $method ? self::reply( 200 ) : self::reply( 201 );
+		$fh = fopen( self::P . '://uploads/back/x.txt', 'w' );
+		$this->assertNotFalse( $fh, 'the probe passed, so the write is allowed' );
 		fwrite( $fh, 'x' );
 		$this->assertTrue( @fflush( $fh ) );
 		fclose( $fh );
-		$this->assertCount( 1, $GLOBALS['_test_wp_http_log'] );
-		unlink( $blocker );
+		$this->assertSame( 'healthy', ConfigManager::get_connection_health()['status'] );
+		$methods = array_column( $GLOBALS['_test_wp_http_log'], 'method' );
+		$this->assertContains( 'GET', $methods, 'one probe' );
+		$this->assertContains( 'PUT', $methods, 'then the upload' );
 	}
 
 	// ── stat ────────────────────────────────────────────────

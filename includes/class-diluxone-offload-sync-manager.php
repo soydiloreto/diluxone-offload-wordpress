@@ -1415,9 +1415,81 @@ class SyncManager {
 	}
 
 	/**
-	 * ⭐ NEW: Process reverse sync batch (Cloud → Local)
-	 * Downloads files from Azure with size comparison (no MD5 for speed)
-	 * ⭐ OPTIMIZED: Uses dynamic batch_size like normal sync
+	 * Whether a file may be written back to uploads/ by the reverse sync.
+	 *
+	 * Media and the files plugins keep there (stylesheets, JSON, logs) may;
+	 * anything the web server or a browser could execute may not, regardless
+	 * of how it got into the container: PHP in every spelling, other
+	 * server-side scripts, shell and Windows executables, HTML, JavaScript,
+	 * and Apache control files. A double extension such as shell.php.jpg is
+	 * caught by looking at every extension in the name, not only the last.
+	 *
+	 * @param string $relative_path Path relative to the uploads directory.
+	 * @return bool
+	 */
+	private static function is_restorable_file( string $relative_path ): bool {
+		$name = strtolower( basename( str_replace( '\\', '/', $relative_path ) ) );
+
+		if ( '' === $name || '.htaccess' === $name || '.htpasswd' === $name || '.user.ini' === $name ) {
+			return false;
+		}
+
+		$blocked = array(
+			'php',
+			'php3',
+			'php4',
+			'php5',
+			'php7',
+			'php8',
+			'phps',
+			'phtml',
+			'phar',
+			'pht',
+			'shtml',
+			'shtm',
+			'cgi',
+			'pl',
+			'py',
+			'rb',
+			'sh',
+			'bash',
+			'exe',
+			'bat',
+			'cmd',
+			'com',
+			'js',
+			'mjs',
+			'html',
+			'htm',
+			'xhtml',
+		);
+
+		$parts = explode( '.', $name );
+		array_shift( $parts ); // the base name is not an extension
+		foreach ( $parts as $ext ) {
+			if ( in_array( $ext, $blocked, true ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Process one batch of the reverse sync (cloud → local).
+	 *
+	 * This is "Disconnect from Cloud": the site's own attachments are copied
+	 * back from the container to the uploads-directory paths WordPress has on
+	 * record, resolved at runtime with wp_upload_dir(), so the Media Library
+	 * keeps working without the plugin. Nothing here is plugin data and no
+	 * other location is possible: any other folder would leave every URL in
+	 * wp_posts pointing at a file that is not there. It runs only when the
+	 * user starts it, restores only rows this plugin tracked (files that were
+	 * in the site's own uploads directory), and never a script or executable
+	 * file name — see is_restorable_file().
+	 *
+	 * Downloads run in parallel with a size comparison (no MD5, for speed) and
+	 * use the same dynamic batch_size as the forward sync.
 	 *
 	 * @param float $time_limit Time limit in seconds (default 8s for responsive UI)
 	 * @return array<string, mixed> Progress information
@@ -1469,6 +1541,16 @@ class SyncManager {
 				if ( strpos( str_replace( '\\', '/', $relative_path ), '..' ) !== false ) {
 					Logger::error( '[DiluxOne Offload SyncManager] Rejected reverse-sync path outside uploads/: ' . $relative_path );
 					DiluxOneOffloadDB::increment_error( $relative_path, 'Path traversal rejected' );
+					continue;
+				}
+
+				// What comes back is the site's own media and the files plugins
+				// keep under uploads/ (stylesheets, JSON, logs). A blob the
+				// container holds under a script or server-executable name is
+				// never written to disk, whatever put it there.
+				if ( ! self::is_restorable_file( $relative_path ) ) {
+					Logger::error( '[DiluxOne Offload SyncManager] Reverse-sync refused a script or executable file name: ' . $relative_path );
+					DiluxOneOffloadDB::increment_error( $relative_path, 'Executable or script file refused' );
 					continue;
 				}
 

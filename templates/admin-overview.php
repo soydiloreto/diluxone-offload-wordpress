@@ -215,7 +215,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						?>
 					</p>
 					<p class="status-details">
-						<?php esc_html_e( 'Falling back to local storage for new uploads.', 'diluxone-offload' ); ?>
+						<?php esc_html_e( 'New uploads are refused until the connection recovers.', 'diluxone-offload' ); ?>
 					</p>
 				<?php else : ?>
 					<p class="status-label status-inactive"><?php esc_html_e( 'Inactive', 'diluxone-offload' ); ?></p>
