@@ -7,6 +7,24 @@ jQuery(document).ready(function($) {
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 	}
 
+	// Replace the numbers with an error state that says what actually failed.
+	// A 503 or a timeout is not a credentials problem; the health banner is
+	// the one place that diagnoses the connection, this only reports it.
+	function showStatsError(message) {
+		var i18n = DiluxOneOffloadOverview.i18n;
+		var $bars = $('<div class="diluxone-offload-overview-bars"><div class="diluxone-offload-bar-section"><div class="diluxone-offload-bar-header"><span class="diluxone-offload-bar-title"></span><span class="diluxone-offload-bar-value" style="color: #d63638; font-weight: 600;"></span></div></div></div>');
+		$bars.find('.diluxone-offload-bar-title').text(i18n.storage);
+		$bars.find('.diluxone-offload-bar-value').text(i18n.not_available);
+
+		var $files = $('<div class="diluxone-offload-files-section"><div class="diluxone-offload-files-grid"><div class="diluxone-offload-files-count"><span class="diluxone-offload-stat-label"></span><div class="diluxone-offload-stat-value" style="color: #d63638; font-size: 16px;"></div></div></div></div>');
+		$files.find('.diluxone-offload-stat-label').text(i18n.total_files);
+		$files.find('.diluxone-offload-stat-value').text(i18n.not_available);
+
+		var $why = $('<p class="description" style="color: #d63638; margin-top: 10px;"></p>').text(message);
+
+		$('#stats-content').empty().append($bars, $files, $why);
+	}
+
 	$('#refresh-stats-btn').on('click', function() {
 		var $button = $(this);
 		var $wrap = $('.diluxone-offload-stats-wrap');
@@ -116,20 +134,11 @@ jQuery(document).ready(function($) {
 
 					$('#stat-last-updated').text(DiluxOneOffloadOverview.i18n.last_updated + ' ' + DiluxOneOffloadOverview.i18n.just_now);
 				} else {
-					// Remove stale pie chart and show ERROR state
-					$('#stat-pie-section').remove();
-					var errorHtml = '<div class="diluxone-offload-overview-bars"><div class="diluxone-offload-bar-section"><div class="diluxone-offload-bar-header"><span class="diluxone-offload-bar-title">' + DiluxOneOffloadOverview.i18n.storage + '</span><span class="diluxone-offload-bar-value" id="stat-storage-detail" style="color: #d63638; font-weight: 600;">ERROR</span></div></div></div>';
-					errorHtml += '<div class="diluxone-offload-files-section"><div class="diluxone-offload-files-grid"><div class="diluxone-offload-files-count"><span class="diluxone-offload-stat-label">' + DiluxOneOffloadOverview.i18n.total_files + '</span><div id="stat-file-count" class="diluxone-offload-stat-value" style="color: #d63638; font-size: 16px;">' + DiluxOneOffloadOverview.i18n.error_please_update_your_credentials + '</div></div></div></div>';
-					errorHtml += '<p class="description" style="color: #d63638; margin-top: 10px;">' + (response.data.message || 'Unknown error') + '</p>';
-					$('#stats-content').html(errorHtml);
+					showStatsError((response.data && response.data.message) || 'Unknown error');
 				}
 			},
 			error: function(xhr, status, error) {
-				var msg = status === 'timeout' ? DiluxOneOffloadOverview.i18n.request_timed_out_try_again_later : 'Network error: ' + error;
-				var errorHtml = '<div class="diluxone-offload-overview-bars"><div class="diluxone-offload-bar-section"><div class="diluxone-offload-bar-header"><span class="diluxone-offload-bar-title">' + DiluxOneOffloadOverview.i18n.storage + '</span><span class="diluxone-offload-bar-value" style="color: #d63638; font-weight: 600;">ERROR</span></div></div></div>';
-				errorHtml += '<div class="diluxone-offload-files-section"><div class="diluxone-offload-files-grid"><div class="diluxone-offload-files-count"><span class="diluxone-offload-stat-label">' + DiluxOneOffloadOverview.i18n.total_files + '</span><div class="diluxone-offload-stat-value" style="color: #d63638; font-size: 16px;">' + DiluxOneOffloadOverview.i18n.error_please_update_your_credentials + '</div></div></div></div>';
-				errorHtml += '<p class="description" style="color: #d63638; margin-top: 10px;">' + msg + '</p>';
-				$('#stats-content').html(errorHtml);
+				showStatsError(status === 'timeout' ? DiluxOneOffloadOverview.i18n.request_timed_out_try_again_later : 'Network error: ' + error);
 			},
 			complete: function() {
 				$button.prop('disabled', false);
