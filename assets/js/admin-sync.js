@@ -1,15 +1,11 @@
 jQuery(document).ready(function($) {
-	console.log('[DiluxOne Offload] jQuery ready - admin-sync.php loaded');
-	console.log('[DiluxOne Offload] Enable offloading button exists:', $('#enable-offloading-btn').length);
 
 	// ⭐ FIX: Use event delegation for Cancel button to work with dynamically created content
 	$(document).on('click', '#sync-modal-cancel', function() {
-		console.log('[DiluxOne Offload Sync] Cancel button clicked');
 
 		if ($('#sync-modal-progress').is(':visible')) {
 			// Cancel ongoing sync
 			isSyncCancelled = true;
-			console.log('[DiluxOne Offload Sync] Canceled by user');
 
 			// Show cancelling message
 			$('#sync-modal-progress-label').text(DiluxOneOffloadSync.i18n.cancelling_sync);
@@ -18,7 +14,6 @@ jQuery(document).ready(function($) {
 			// ⭐ IMPORTANT: Only reset state to configured if NOT in download mode
 			// In download mode (disconnect), we should stay in "synced" state
 			if (currentSyncMode === 'download') {
-				console.log('[DiluxOne Offload Sync] Download cancelled - staying in synced state');
 				// Just reload without changing state
 				setTimeout(function() {
 					location.reload();
@@ -33,7 +28,6 @@ jQuery(document).ready(function($) {
 						nonce: diluxOneOffloadAdmin.nonce
 					},
 					success: function(response) {
-						console.log('[DiluxOne Offload Sync] State reset to configured');
 						// Reload page to show correct UI
 						location.reload();
 					},
@@ -99,14 +93,12 @@ jQuery(document).ready(function($) {
 	let stateCheckInterval = null;
 	let activePollingInterval = null;
 
-	console.log('[DiluxOne Offload Multi-Tab] Tab session ID:', tabSessionId);
 
 	// ⭐ Pass PHP state to JavaScript
 	const pluginState = DiluxOneOffloadSync.data.current_state;
 
 	// ⭐ NEW: Check on page load if there's an active sync in another tab
 	function checkInitialSyncState() {
-		console.log('[DiluxOne Offload Multi-Tab] Checking for existing sync on page load...');
 
 		// Track if we opened the modal (so we can close it later)
 		let initialCheckOpenedModal = false;
@@ -130,11 +122,9 @@ jQuery(document).ready(function($) {
 					const data = response.data;
 					const state = data.state;
 
-					console.log('[DiluxOne Offload Multi-Tab] Initial state check:', state);
 
 					if (state === 'active') {
 						// ⭐ FIX: This tab is active (could be after refresh with sessionStorage)
-						console.log('[DiluxOne Offload Multi-Tab] This tab is ACTIVE - resuming sync...');
 						currentSyncState = 'active';
 
 						// ⭐ FIX: Request current progress FIRST, keep loading spinner until received
@@ -150,13 +140,11 @@ jQuery(document).ready(function($) {
 						});
 					} else if (state === 'inactive') {
 						// Another tab is running the sync
-						console.log('[DiluxOne Offload Multi-Tab] Detected sync in another tab');
 						currentSyncState = 'inactive';
 						showInactiveTabUI(data.sync_meta);
 						startStateMonitoring();
 					} else if (state === 'terminated') {
 						// Sync just finished
-						console.log('[DiluxOne Offload Multi-Tab] Detected terminated sync');
 						currentSyncState = 'terminated';
 						// Only hide modal if WE opened it
 						if (initialCheckOpenedModal) {
@@ -165,7 +153,6 @@ jQuery(document).ready(function($) {
 						// Could show completion screen
 					} else {
 						// No sync active
-						console.log('[DiluxOne Offload Multi-Tab] No active sync detected');
 						currentSyncState = 'no_sync';
 						// Only hide modal if WE opened it
 						if (initialCheckOpenedModal) {
@@ -241,7 +228,6 @@ jQuery(document).ready(function($) {
 	function startSyncProcess(fromScratch, retryFailed) {
 		retryFailed = retryFailed || false;
 
-		console.log('[DiluxOne Offload Sync] START PROCESS - fromScratch:', fromScratch, 'retryFailed:', retryFailed);
 
 		// Show loading state with unified look & feel
 		showLoadingState('Validating Action', 'Calculating files to sync...');
@@ -258,7 +244,6 @@ jQuery(document).ready(function($) {
 				retry_failed: retryFailed ? 1 : 0
 			},
 			success: function(response) {
-				console.log('[DiluxOne Offload Sync] Pre-check AJAX response:', response);
 
 				if (!response.success) {
 					$('#sync-modal').hide();
@@ -275,8 +260,6 @@ jQuery(document).ready(function($) {
 
 				// Check 2: does it need confirmation?
 				if (response.data.requires_confirmation) {
-					console.log('[DiluxOne Offload Sync] Pre-check PASSED, showing options modal');
-					console.log('[DiluxOne Offload Sync] Data received:', response.data.data);
 					// Show the options modal (Continue / From Scratch).
 					showSyncOptionsModal(response.data.data, fromScratch, retryFailed);
 					return;
@@ -297,12 +280,10 @@ jQuery(document).ready(function($) {
 
 	// ⭐ NEW: Show sync options modal (Continue/From Scratch)
 	function showSyncOptionsModal(data, fromScratch, retryFailed) {
-		console.log('[DiluxOne Offload Sync] showSyncOptionsModal called with data:', data);
 
 		// Nothing pending and something synced: skip the modal and go straight
 		// to the Enable Offloading screen — there is nothing left to upload.
 		if (data.pending_files === 0 && data.synced_files > 0) {
-			console.log('[DiluxOne Offload Sync] All files already synced (pending=0). Skipping to completion screen with Enable Offloading.');
 
 			// Prepare the modal to show the result.
 			$('#sync-modal').show();
@@ -404,7 +385,6 @@ jQuery(document).ready(function($) {
 		$('#sync-modal-config').hide();
 		$('#sync-modal-progress').hide();
 
-		console.log('[DiluxOne Offload Sync] Modal content set, modal should be visible now');
 
 		// Attach handlers
 		$('#continue-upload-btn').off('click').on('click', function() {
@@ -425,7 +405,6 @@ jQuery(document).ready(function($) {
 	function executeSyncConfirmed(fromScratch, retryFailed) {
 		const concurrency = parseInt($('#upload-concurrency-select').val()) || 5;
 
-		console.log('[DiluxOne Offload Sync] User confirmed - fromScratch:', fromScratch, 'concurrency:', concurrency);
 
 		// Show progress modal
 		$('#sync-modal-content').show();
@@ -478,7 +457,6 @@ jQuery(document).ready(function($) {
 
 				// The action ran.
 				if (response.data.action_executed) {
-					console.log('[DiluxOne Offload Sync] Sync started successfully, processing batches...');
 					processSyncBatch();
 				} else {
 					console.error('[DiluxOne Offload Sync] Unexpected response:', response);
@@ -496,11 +474,9 @@ jQuery(document).ready(function($) {
 
 	// ⭐ NEW: Unified validation error handler
 	function handleValidationError(reason, details) {
-		console.log('[DiluxOne Offload Validation] Handling error:', reason);
 
 		switch(reason) {
 			case 'sync_active_in_another_tab':
-				console.log('[DiluxOne Offload Validation] Another tab is active, showing Continue Here modal');
 				showInactiveTabUI(details.sync_meta);
 				startStateMonitoring();
 				break;
@@ -559,13 +535,11 @@ jQuery(document).ready(function($) {
 	// ⭐ RECURSION: Process batch and immediately call next
 	function processSyncBatch() {
 		if (isSyncCancelled) {
-			console.log('[DiluxOne Offload Sync] Cancelled by user');
 			return;
 		}
 
 		// ⭐ Check if this tab still owns the sync before processing
 		if (currentSyncState !== 'active') {
-			console.log('[DiluxOne Offload Multi-Tab] Not active, stopping process_batch recursion');
 			return;
 		}
 
@@ -585,7 +559,6 @@ jQuery(document).ready(function($) {
 
 					// ⭐ NEW: Check if session was lost
 					if (data.status === 'session_lost') {
-						console.log('[DiluxOne Offload Multi-Tab] Lost control of sync to another tab');
 						currentSyncState = 'inactive';
 
 						// Start monitoring state instead of processing
@@ -640,7 +613,6 @@ jQuery(document).ready(function($) {
 
 	// ⭐ NEW: Multi-tab state monitoring
 	function startStateMonitoring() {
-		console.log('[DiluxOne Offload Multi-Tab] Starting state monitoring (polling every 5 seconds)');
 
 		// Clear any existing interval
 		if (stateCheckInterval) {
@@ -675,7 +647,6 @@ jQuery(document).ready(function($) {
 					const data = response.data;
 					const state = data.state;
 
-					console.log('[DiluxOne Offload Multi-Tab] State check:', state);
 
 					if (state === 'no_sync') {
 						// No sync active anymore (cancelled or error)
@@ -684,7 +655,6 @@ jQuery(document).ready(function($) {
 						$('#sync-modal').hide();
 
 						// ⭐ FIX: Reload page to show updated state (CONFIGURED)
-						console.log('[DiluxOne Offload Multi-Tab] Sync cancelled/stopped, reloading page...');
 						setTimeout(function() {
 							location.reload();
 						}, 1000);
@@ -695,7 +665,6 @@ jQuery(document).ready(function($) {
 						$('#sync-modal').hide();
 
 						showNotice('Sync session expired due to inactivity. The page will reload...', 'warning');
-						console.log('[DiluxOne Offload Multi-Tab] Session expired, reloading page...');
 
 						// Reload page after 2 seconds
 						setTimeout(function() {
@@ -764,7 +733,6 @@ jQuery(document).ready(function($) {
 	}
 
 	function takeControl() {
-		console.log('[DiluxOne Offload Multi-Tab] Taking control of sync...');
 
 		// ⭐ FIX: Show "Transferring control..." loading state
 		const transferringHtml = '<div style="padding: 40px; text-align: center;">' +
@@ -786,7 +754,6 @@ jQuery(document).ready(function($) {
 			},
 			success: function(response) {
 				if (response.success) {
-					console.log('[DiluxOne Offload Multi-Tab] Control taken successfully');
 
 					// Set this tab as active
 					currentSyncState = 'active';
@@ -841,7 +808,6 @@ jQuery(document).ready(function($) {
 						successful_uploads: syncMeta.successful_uploads || 0,
 						failed_uploads: syncMeta.failed_uploads || 0
 					});
-					console.log('[DiluxOne Offload Multi-Tab] Progress updated from server');
 				}
 				// Call callback when done (success or no data)
 				if (callback) callback();
@@ -892,7 +858,6 @@ jQuery(document).ready(function($) {
 		}
 
 		// Log progress for debugging
-		console.log('[DiluxOne Offload Sync] Progress: ' + processed + '/' + total + ' (' + percentage.toFixed(1) + '%)');
 	}
 	
 	function onSyncComplete(data) {
@@ -910,8 +875,6 @@ jQuery(document).ready(function($) {
 		const failed = data.failed_uploads || 0;
 
 		// ⭐ DEBUG: Log data to understand what's happening
-		console.log('[DiluxOne Offload Sync Complete] Data received:', data);
-		console.log('[DiluxOne Offload Sync Complete] Status:', data.status, 'Total:', total, 'Successful:', successful, 'Failed:', failed);
 
 		// Build completion summary
 		let summaryHtml = '<div class="sync-summary" style="text-align: center; padding: 20px;">';
@@ -1108,7 +1071,6 @@ jQuery(document).ready(function($) {
 		// ⭐ HIDE WARNING BANNER
 		$('#sync-warning-banner').slideUp(300);
 
-		console.log('[DiluxOne Offload Sync] Cancelling sync...');
 		showNotification(DiluxOneOffloadSync.i18n.cancelling_sync_please_wait, 'warning');
 
 		// ⭐ FIXED: Call server to properly cancel and reset state
@@ -1120,7 +1082,6 @@ jQuery(document).ready(function($) {
 				nonce: diluxOneOffloadAdmin.nonce
 			},
 			success: function(response) {
-				console.log('[DiluxOne Offload Sync] Cancel response:', response);
 				showNotification(DiluxOneOffloadSync.i18n.sync_cancelled_refreshing, 'info');
 				setTimeout(() => window.location.reload(), 1000);
 			},
@@ -1356,11 +1317,9 @@ jQuery(document).ready(function($) {
 	});
 
 	// ⭐ "Clear Failed & Enable" button - Open modal
-	console.log('[DiluxOne Offload] Registering click handler for #discard-and-enable-static-btn');
 	$(document).on('click', '#discard-and-enable-static-btn', function(e) {
 		e.preventDefault();
 		e.stopPropagation();
-		console.log('[DiluxOne Offload] Clear and Enable button clicked - opening modal');
 		$('#clear-and-enable-modal').show();
 	});
 
@@ -1376,7 +1335,6 @@ jQuery(document).ready(function($) {
 
 	// Confirm Clear & Enable action - ALL IN MODAL
 	$('#confirm-clear-and-enable').on('click', function() {
-		console.log('[DiluxOne Offload] User confirmed clear and enable');
 
 		// Switch to processing view (stay in modal)
 		$('#clear-enable-confirm-view').hide();
@@ -1392,7 +1350,6 @@ jQuery(document).ready(function($) {
 			},
 			success: function(response) {
 				if (response.success) {
-					console.log('[DiluxOne Offload] Failed files discarded: ' + response.data.deleted_count);
 
 					// Then enable offloading
 					$.ajax({
@@ -1443,11 +1400,9 @@ jQuery(document).ready(function($) {
 	});
 
 	// ⭐ "Cancel Sync & Reset" button - Open modal
-	console.log('[DiluxOne Offload] Registering click handler for #cancel-all-sync-btn');
 	$(document).on('click', '#cancel-all-sync-btn', function(e) {
 		e.preventDefault();
 		e.stopPropagation();
-		console.log('[DiluxOne Offload] Cancel Sync & Reset button clicked - checking if this tab has control...');
 
 		// ⭐ Show loading state immediately for better UX
 		showLoadingState('Validating Action', 'Checking sync status...');
@@ -1469,14 +1424,12 @@ jQuery(document).ready(function($) {
 
 					if (state === 'inactive') {
 						// Another tab has control - show inactive tab UI instead
-						console.log('[DiluxOne Offload] Cannot cancel from inactive tab - showing "Continue Here" modal');
 						showInactiveTabUI(response.data.sync_meta);
 						startStateMonitoring();
 						return;
 					}
 
 					// This tab has control or no sync active - safe to show cancel modal
-					console.log('[DiluxOne Offload] Tab has control, showing cancel modal...');
 					$('#cancel-sync-modal').show();
 				} else {
 					console.error('[DiluxOne Offload] Error checking sync state:', response);
@@ -1499,7 +1452,6 @@ jQuery(document).ready(function($) {
 
 	// Confirm Cancel Sync action
 	$('#confirm-cancel-sync').on('click', function() {
-		console.log('[DiluxOne Offload] User confirmed cancel sync');
 
 		// ⭐ Show "Resetting..." state inside the modal (better UX)
 		showLoadingState('Resetting Sync', 'Clearing sync data and resetting state...');
@@ -1534,7 +1486,6 @@ jQuery(document).ready(function($) {
 				}
 
 				if (response.success) {
-					console.log('[DiluxOne Offload] Sync cancelled successfully');
 
 					// Show success message in the main modal
 					const successHtml = '<div style="text-align: center; padding: 60px 20px;">' +
@@ -1665,14 +1616,12 @@ jQuery(document).ready(function($) {
 		$('#delete-modal-stats-successful').text('0');
 		$('#delete-modal-stats-failed').text('0');
 
-		console.log('[DiluxOne Offload Delete] Starting deletion of ' + totalFilesToDelete + ' files');
 		processDeleteBatch();
 	});
 
 	// Process delete batch (recursion)
 	function processDeleteBatch() {
 		if (isDeleteCancelled) {
-			console.log('[DiluxOne Offload Delete] Cancelled by user');
 			return;
 		}
 
@@ -1707,11 +1656,9 @@ jQuery(document).ready(function($) {
 				$('#delete-modal-stats-successful').text(deletedFilesCount.toLocaleString());
 				$('#delete-modal-stats-failed').text(failedFilesCount.toLocaleString());
 
-				console.log('[DiluxOne Offload Delete] Batch processed: +' + data.deleted_this_batch + ' deleted, ' + data.pending_files + ' remaining');
 
 				if (data.status === 'completed') {
 					// Done! Show summary
-					console.log('[DiluxOne Offload Delete] Completed! Total deleted: ' + deletedFilesCount);
 					onDeleteComplete(deletedFilesCount, failedFilesCount);
 				} else {
 					// ⚡ Continue immediately (backend handles timing)
@@ -1826,7 +1773,6 @@ jQuery(document).ready(function($) {
 			},
 			success: function(scanResponse) {
 				if (scanResponse.success) {
-					console.log('[DiluxOne Offload] Remote scan complete:', scanResponse.data);
 
 					// ⭐ STEP 2: Calculate download requirements from DB
 					$.ajax({
@@ -1842,7 +1788,6 @@ jQuery(document).ready(function($) {
 
 								// ⭐ Skip directly to deactivate if nothing to download
 								if (data.pending === 0) {
-									console.log('[DiluxOne Offload Disconnect] All files already local (pending=0). Deactivating offloading...');
 
 									// Update scanning view to show deactivation message
 									$('#disconnect-scanning-view h3').text(DiluxOneOffloadSync.i18n.deactivating_offloading);
@@ -1858,7 +1803,6 @@ jQuery(document).ready(function($) {
 											nonce: diluxOneOffloadAdmin.offloadingNonce
 										},
 										success: function(response) {
-											console.log('[DiluxOne Offload Disconnect] Offloading disabled (pending=0 case)');
 
 											// Hide scanning view and show success view
 											$('#disconnect-scanning-view').hide();
@@ -1981,8 +1925,6 @@ jQuery(document).ready(function($) {
 		const concurrency = parseInt($('#download-concurrency-select').val()) || 5;
 		const data = $(this).data('downloadData');
 
-		console.log('[DiluxOne Offload Download] Starting reverse sync with concurrency:', concurrency);
-		console.log('[DiluxOne Offload Download] Files to download:', data.pending);
 
 		// Switch to progress view
 		$('#disconnect-options-view').hide();
@@ -2000,7 +1942,6 @@ jQuery(document).ready(function($) {
 			},
 			success: function(response) {
 				if (response.success) {
-					console.log('[DiluxOne Offload Download] Reverse sync started:', response.data);
 					// Start processing batches
 					processReverseBatch();
 				} else {
@@ -2048,20 +1989,16 @@ jQuery(document).ready(function($) {
 					$('#disconnect-stats-successful').text(downloaded.toLocaleString());
 					$('#disconnect-stats-remaining').text(remaining.toLocaleString());
 
-					console.log('[DiluxOne Offload Download] Progress:', downloaded, '/', totalFiles, '(', percent, '%)');
 
 					// ⭐ FIX: Improved validation - ONLY complete if status === 'completed'
 					// Don't rely solely on remaining === 0 to prevent premature completion
 					if (data.status === 'completed') {
-						console.log('[DiluxOne Offload Download] Download completed');
 						onDisconnectComplete(downloaded, data.failed || 0, data.skipped || 0);
 					} else if (data.status !== 'processing' && remaining === 0) {
 						// Fallback: If status is not 'processing' and no files remaining, also complete
-						console.log('[DiluxOne Offload Download] Download completed (fallback)');
 						onDisconnectComplete(downloaded, data.failed || 0, data.skipped || 0);
 					} else {
 						// Continue with next batch
-						console.log('[DiluxOne Offload Download] Remaining:', remaining, 'files - continuing...');
 						setTimeout(processReverseBatch, 100);
 					}
 				} else {
@@ -2080,7 +2017,6 @@ jQuery(document).ready(function($) {
 
 	// Cancel Download button (same behaviour as the sync modal: no alert).
 	$('#cancel-disconnect').on('click', function() {
-		console.log('[DiluxOne Offload Download] Cancel button clicked');
 
 		// Change button state to "Cancelling..."
 		$('#disconnect-progress-label').text(DiluxOneOffloadSync.i18n.cancelling_download);
@@ -2133,7 +2069,6 @@ jQuery(document).ready(function($) {
 			$('.diluxone-offload-modal-content', '#disconnect-modal').html(summaryHtml);
 		} else {
 			// ✅ All successful - disconnect offloading and show success
-			console.log('[DiluxOne Offload Disconnect] All files downloaded successfully. Disconnecting offloading...');
 
 			// Call disable offloading endpoint
 			$.ajax({
@@ -2144,7 +2079,6 @@ jQuery(document).ready(function($) {
 					nonce: diluxOneOffloadAdmin.offloadingNonce
 				},
 				success: function(response) {
-					console.log('[DiluxOne Offload Disconnect] Offloading disabled');
 
 					// Show success view
 					$('#disconnect-success-view').show();
@@ -2277,7 +2211,6 @@ jQuery(document).ready(function($) {
 		// Get concurrency from selector (not hardcoded)
 		const concurrency = parseInt($('#download-concurrency-select').val()) || 5;
 
-		console.log('[DiluxOne Offload Download] Using concurrency level: ' + concurrency);
 
 		// Hide disconnect container and show progress
 		$('#disconnect-container').hide();
@@ -2295,7 +2228,6 @@ jQuery(document).ready(function($) {
 		$('#sync-modal-stats-successful').text('0');
 		$('#sync-modal-stats-failed').text('0');
 
-		console.log('[DiluxOne Offload Download] Starting download in mode: ' + mode);
 
 		// Start reverse sync with mode
 		$.ajax({
@@ -2309,7 +2241,6 @@ jQuery(document).ready(function($) {
 			},
 			success: function(response) {
 				if (response.success) {
-					console.log('[DiluxOne Offload Download] Started with ' + response.data.total_files + ' files (mode: ' + mode + ')');
 					processReverseSyncBatch();
 				} else {
 					alert('Error: ' + (response.data?.message || 'Unknown error'));
@@ -2360,7 +2291,6 @@ jQuery(document).ready(function($) {
 				},
 				success: function(response) {
 					if (response.success) {
-						console.log('[DiluxOne Offload Sync] Initialized with ' + response.data.total_files + ' files');
 						$('#sync-modal-total-files').text(response.data.total_files.toLocaleString());
 						processSyncBatch();
 					} else {
@@ -2385,7 +2315,6 @@ jQuery(document).ready(function($) {
 				},
 				success: function(response) {
 					if (response.success) {
-						console.log('[DiluxOne Offload Reverse Sync] Started with ' + response.data.total_files + ' files');
 						$('#sync-modal-total-files').text(response.data.total_files.toLocaleString());
 						processReverseSyncBatch();
 					} else {
@@ -2403,14 +2332,11 @@ jQuery(document).ready(function($) {
 
 	// ⭐ Process reverse sync batch (recursion)
 	function processReverseSyncBatch() {
-		console.log('[DiluxOne Offload Reverse Sync] processReverseSyncBatch() called, isSyncCancelled:', isSyncCancelled);
 
 		if (isSyncCancelled) {
-			console.log('[DiluxOne Offload Reverse Sync] Cancelled by user');
 			return;
 		}
 
-		console.log('[DiluxOne Offload Reverse Sync] Starting AJAX call to process_reverse_batch...');
 
 		$.ajax({
 			url: ajaxurl,
@@ -2420,7 +2346,6 @@ jQuery(document).ready(function($) {
 				nonce: diluxOneOffloadAdmin.nonce
 			},
 			success: function(response) {
-				console.log('[DiluxOne Offload Reverse Sync] Batch response:', response);
 				retryCount = 0; // Reset retry count on success
 
 				if (response.success) {
@@ -2443,11 +2368,9 @@ jQuery(document).ready(function($) {
 					$('#sync-modal-stats-successful').text(successful.toLocaleString());
 					$('#sync-modal-stats-failed').text(failed.toLocaleString());
 
-					console.log('[DiluxOne Offload Reverse Sync] Progress: ' + processed + '/' + total + ' (' + percentage + '%)');
 
 					// Check if completed
 					if (data.status === 'completed') {
-						console.log('[DiluxOne Offload Reverse Sync] Completed!');
 
 						// ⭐ Update ALL progress to final values BEFORE hiding (important for small batches)
 						const finalProcessed = data.processed_files || data.total_files || 0;
@@ -2505,7 +2428,6 @@ jQuery(document).ready(function($) {
 
 				// Exponential backoff
 				const backoff = Math.pow(retryCount, 2.5) * 1000;
-				console.log('[DiluxOne Offload Reverse Sync] Retrying in ' + (backoff/1000).toFixed(1) + 's...');
 
 				setTimeout(function() {
 					processReverseSyncBatch();
