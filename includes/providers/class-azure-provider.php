@@ -734,10 +734,10 @@ class AzureProvider implements CloudStorageClientInterface {
 					}
 
 					// Parse XML response
-					$xml = simplexml_load_string( $body );
+					$xml = self::parse_xml( $body );
 
 					// Unparseable XML is an error too.
-					if ( $xml === false ) {
+					if ( null === $xml ) {
 						Logger::error( '[DiluxOne Offload AzureProvider] Failed to parse XML on page ' . $page_number . ', attempt ' . $attempt );
 						throw new \Exception( 'Invalid XML response from Azure on page ' . $page_number );
 					}
@@ -1073,8 +1073,15 @@ class AzureProvider implements CloudStorageClientInterface {
 					if ( ! empty( $transport_error ) ) {
 						$error_msg .= " - {$transport_error}";
 					}
-					if ( ! empty( $response ) ) {
-						$error_msg .= ' - Azure Response: ' . substr( (string) $response, 0, 500 );
+					// Only the error code and message: on a 403 the full body also
+					// carries the request's MAC signature, which has no place in
+					// a log line, the tracking table or the admin screen.
+					$xml = self::parse_xml( (string) $response );
+					if ( $xml && isset( $xml->Code ) ) {
+						$error_msg .= ' - Azure ' . sanitize_text_field( (string) $xml->Code );
+						if ( isset( $xml->Message ) ) {
+							$error_msg .= ': ' . sanitize_text_field( (string) $xml->Message );
+						}
 					}
 					Logger::info( '[DiluxOne Offload AzureProvider] Chunked upload error: ' . $error_msg );
 					return array(

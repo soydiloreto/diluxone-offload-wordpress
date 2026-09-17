@@ -96,7 +96,7 @@ class DiluxOneOffloadDB {
 		global $wpdb;
 		$table_name = self::get_table_name();
 
-		$query = $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name );
+		$query = $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table_name ) );
 		return $wpdb->get_var( $query ) === $table_name;
 	}
 

@@ -511,7 +511,17 @@ class SyncManager {
 			$batch_to_upload = array();
 			foreach ( $files as $file ) {
 				$relative_path = $file['file'];
-				$local_path    = $this->upload_dir['basedir'] . $relative_path;
+
+				// The file to upload must live inside uploads/: rows can carry a
+				// name the storage account reported, so reject anything that
+				// would resolve outside it before it ever reaches fopen().
+				if ( strpos( str_replace( '\\', '/', $relative_path ), '..' ) !== false ) {
+					Logger::error( '[DiluxOne Offload SyncManager] Rejected sync path outside uploads/: ' . $relative_path );
+					DiluxOneOffloadDB::increment_error( $relative_path, 'Path traversal rejected' );
+					continue;
+				}
+
+				$local_path = $this->upload_dir['basedir'] . $relative_path;
 
 				// Build remote path (uploads/ + relative path without leading slash)
 				$remote_path = 'uploads/' . ltrim( $relative_path, '/' );
@@ -1076,19 +1086,31 @@ class SyncManager {
 			$response_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 			$error         = curl_error( $ch );
 
-			if ( $response_code === 200 ) {
+			curl_multi_remove_handle( $mh, $ch );
+			// Close file handle before measuring what actually landed on disk.
+			if ( isset( $file_handles[ $i ] ) && is_resource( $file_handles[ $i ] ) ) {
+				fclose( $file_handles[ $i ] );
+			}
+
+			// A timeout mid-body still reports HTTP 200: the status line arrived
+			// before cURL gave up. Only a transfer with no error and the expected
+			// byte count is a download; anything else is a partial file that must
+			// not be marked as present locally.
+			$expected_size = (int) ( $files[ $i ]['size'] ?? 0 );
+			$local_path    = (string) ( $files[ $i ]['local_path'] ?? '' );
+			clearstatcache( true, $local_path );
+			$actual_size = ( '' !== $local_path && file_exists( $local_path ) ) ? (int) filesize( $local_path ) : -1;
+
+			if ( $response_code === 200 && '' === $error && ( $expected_size <= 0 || $actual_size === $expected_size ) ) {
 				$results[ $i ] = array( 'success' => true );
 			} else {
+				if ( '' === $error && $response_code === 200 ) {
+					$error = 'Incomplete download: expected ' . $expected_size . ' bytes, got ' . $actual_size;
+				}
 				$results[ $i ] = array(
 					'success' => false,
 					'error'   => $error ? $error : 'HTTP ' . $response_code,
 				);
-			}
-
-			curl_multi_remove_handle( $mh, $ch );
-			// Close file handle
-			if ( isset( $file_handles[ $i ] ) && is_resource( $file_handles[ $i ] ) ) {
-				fclose( $file_handles[ $i ] );
 			}
 		}
 
