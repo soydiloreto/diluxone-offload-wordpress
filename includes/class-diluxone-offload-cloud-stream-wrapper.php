@@ -706,6 +706,13 @@ class CloudStreamWrapper {
 			$local_path = '' === $basedir ? '' : $basedir . '/' . ltrim( $relative_path, '/' );
 			$written    = false;
 
+			// The fallback write must stay inside uploads/: reject anything
+			// that would resolve outside it before it ever reaches the filesystem.
+			if ( strpos( str_replace( '\\', '/', $relative_path ), '..' ) !== false ) {
+				Logger::error( '[DiluxOne Offload CloudStreamWrapper] Rejected fallback path outside uploads/: ' . $relative_path );
+				$local_path = '';
+			}
+
 			if ( '' !== $local_path ) {
 				$local_dir = dirname( $local_path );
 				if ( ! is_dir( $local_dir ) ) {
