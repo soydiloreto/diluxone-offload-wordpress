@@ -87,24 +87,7 @@ class ProviderConfig {
 					// NOTE: use_https removed - HTTPS is always enforced in provider
 				);
 
-				// Validate required fields
-				if ( empty( $provider_config['storage_account'] ) ) {
-					throw new \InvalidArgumentException( 'Storage Account Name is required' );
-				}
-				if ( empty( $provider_config['access_key'] ) ) {
-					throw new \InvalidArgumentException( 'Access Key is required' );
-				}
-				if ( empty( $provider_config['container_name'] ) ) {
-					throw new \InvalidArgumentException( 'Container Name is required' );
-				}
-
-				// Validate formats
-				if ( ! preg_match( '/^[a-z0-9]{3,24}$/', $provider_config['storage_account'] ) ) {
-					throw new \InvalidArgumentException( 'Storage Account Name must be 3-24 lowercase letters and numbers only' );
-				}
-				if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9]|[-](?![.])){1,61}[a-z0-9]$/', $provider_config['container_name'] ) ) {
-					throw new \InvalidArgumentException( 'Container Name must be lowercase letters, numbers, and hyphens only (3-63 characters)' );
-				}
+				self::validate_azure_config( $provider_config );
 				break;
 
 			// Future providers: aws, gcp
@@ -113,6 +96,40 @@ class ProviderConfig {
 		}
 
 		return new self( $cloud_provider, $provider_config );
+	}
+
+	/**
+	 * Validate an Azure provider_config array fresh off a request.
+	 *
+	 * fromPost() runs this itself. fromArray() deliberately does not — it also
+	 * reconstructs config read back from the database (ConfigManager::get_config()),
+	 * and rejecting a stored config the moment its shape drifts from today's
+	 * rules would silently blank out a working site's credentials on every page
+	 * load. Any other call site building a provider_config from a fresh request
+	 * (not from storage) must call this itself before handing the array to
+	 * fromArray() — a storage account name isn't just cosmetic here: it becomes
+	 * the hostname the plugin sends the access key's signature to.
+	 *
+	 * @param array<string, mixed> $provider_config
+	 * @throws \InvalidArgumentException When a required field is missing or malformed.
+	 */
+	public static function validate_azure_config( array $provider_config ): void {
+		if ( empty( $provider_config['storage_account'] ) ) {
+			throw new \InvalidArgumentException( 'Storage Account Name is required' );
+		}
+		if ( empty( $provider_config['access_key'] ) ) {
+			throw new \InvalidArgumentException( 'Access Key is required' );
+		}
+		if ( empty( $provider_config['container_name'] ) ) {
+			throw new \InvalidArgumentException( 'Container Name is required' );
+		}
+
+		if ( ! preg_match( '/^[a-z0-9]{3,24}$/', (string) $provider_config['storage_account'] ) ) {
+			throw new \InvalidArgumentException( 'Storage Account Name must be 3-24 lowercase letters and numbers only' );
+		}
+		if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9]|[-](?![.])){1,61}[a-z0-9]$/', (string) $provider_config['container_name'] ) ) {
+			throw new \InvalidArgumentException( 'Container Name must be lowercase letters, numbers, and hyphens only (3-63 characters)' );
+		}
 	}
 
 	/**

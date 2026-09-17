@@ -1562,6 +1562,13 @@ class Admin {
 		}
 
 		try {
+			// $provider_data['provider_config'] is fresh off this request, not
+			// storage — fromArray() itself stays validation-free (see its
+			// docblock), so the same check fromPost() runs is applied here too.
+			if ( 'azure' === $provider ) {
+				\DiluxOneOffload\DTOs\ProviderConfig::validate_azure_config( $provider_data['provider_config'] );
+			}
+
 			$provider_config = \DiluxOneOffload\DTOs\ProviderConfig::fromArray( $provider_data );
 			if ( ! ConfigManager::save_provider_config( $provider_config ) ) {
 				wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved: the provider configuration is invalid.', 'diluxone-offload' ) ) );
