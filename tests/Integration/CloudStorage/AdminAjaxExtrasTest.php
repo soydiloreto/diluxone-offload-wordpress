@@ -134,7 +134,10 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
         set_transient('diluxone_offload_connection_test_passed_' . $this->admin_id, ['provider' => 'azure', 'account_name' => '', 'container_name' => '', 'timestamp' => time()], 300);
         $r = $this->call('diluxone_offload_save_updated_credentials', ['provider' => 'azure', 'account_name' => '', 'account_key' => '', 'container_name' => '']);
         $this->assertFalse($r['json']['success'], $r['raw']);
-        $this->assertStringContainsString('not saved', $r['json']['data']['message']);
+        // Rejected by ProviderConfig::validate_azure_config() before it ever reaches
+        // save_provider_config(), so the message names the missing field rather
+        // than the generic "not saved" — same not-a-fatal contract either way.
+        $this->assertStringContainsString('Storage Account Name is required', $r['json']['data']['message']);
         $this->assertSame(PluginState::NOT_CONFIGURED, ConfigManager::get_state(), 'nothing was written');
     }
 
