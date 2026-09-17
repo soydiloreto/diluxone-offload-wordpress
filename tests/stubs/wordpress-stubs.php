@@ -322,6 +322,15 @@ if (!function_exists('wp_tempnam')) {
 if (!function_exists('wp_delete_file')) {
     function wp_delete_file(string $file): void { @unlink($file); }
 }
+if (!function_exists('maybe_unserialize')) {
+    function maybe_unserialize($original) {
+        if (!is_string($original) || $original === '' || !preg_match('/^(?:[aOs]:|[bidN];)/', $original)) {
+            return $original;
+        }
+        $unserialized = @unserialize($original);
+        return $unserialized === false && $original !== 'b:0;' ? $original : $unserialized;
+    }
+}
 
 // ── Hooks (no-op registry), misc helpers ────────────────────────
 //

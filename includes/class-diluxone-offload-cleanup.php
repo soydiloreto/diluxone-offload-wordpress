@@ -2,19 +2,6 @@
 /**
  * Plugin uninstall and cleanup helpers.
  *
- * Reads serialized values from the WordPress options table when scanning
- * orphaned plugin data on uninstall. The data was originally written BY
- * THIS PLUGIN to the same options table via update_option() (which
- * applies WordPress's own serialize/unserialize automatically), so the
- * Object-Injection class of attacks documented in the OWASP guidance
- * does not apply here — the bytes can only have been put there by code
- * we control. The @ silencing matches the WordPress-core pattern for
- * idempotent cleanup. These rules are intentionally suppressed
- * file-wide:
- *
- * phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged
- * phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize
- *
  * @package DiluxOneOffload
  */
 
@@ -51,8 +38,8 @@ class Cleanup {
 		$config = get_option( 'diluxone_offload_config', array() );
 
 		if ( is_string( $config ) ) {
-			$config = @unserialize( $config );
-			if ( $config === false ) {
+			$config = maybe_unserialize( $config );
+			if ( ! is_array( $config ) ) {
 				$config = array();
 			}
 		}
@@ -101,8 +88,8 @@ class Cleanup {
 		$config = get_option( 'diluxone_offload_config', array() );
 
 		if ( is_string( $config ) ) {
-			$config = @unserialize( $config );
-			if ( $config === false ) {
+			$config = maybe_unserialize( $config );
+			if ( ! is_array( $config ) ) {
 				return false;
 			}
 		}
@@ -119,8 +106,8 @@ class Cleanup {
 		$config = get_option( 'diluxone_offload_config', array() );
 
 		if ( is_string( $config ) ) {
-			$config = @unserialize( $config );
-			if ( $config === false ) {
+			$config = maybe_unserialize( $config );
+			if ( ! is_array( $config ) ) {
 				$config = array();
 			}
 		}
