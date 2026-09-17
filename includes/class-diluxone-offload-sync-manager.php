@@ -1436,9 +1436,18 @@ class SyncManager {
 
 			foreach ( $files as $file ) {
 				$relative_path = $file['file'];
-				$local_path    = $this->upload_dir['basedir'] . $relative_path;
-				$remote_path   = 'uploads/' . ltrim( $relative_path, '/' );
-				$size          = (int) $file['size'];
+
+				// The download target must stay inside uploads/: reject anything
+				// that would resolve outside it before it ever reaches fopen().
+				if ( strpos( str_replace( '\\', '/', $relative_path ), '..' ) !== false ) {
+					Logger::error( '[DiluxOne Offload SyncManager] Rejected reverse-sync path outside uploads/: ' . $relative_path );
+					DiluxOneOffloadDB::increment_error( $relative_path, 'Path traversal rejected' );
+					continue;
+				}
+
+				$local_path  = $this->upload_dir['basedir'] . $relative_path;
+				$remote_path = 'uploads/' . ltrim( $relative_path, '/' );
+				$size        = (int) $file['size'];
 
 				// ⭐ Check mode: only skip if 'continue' mode AND file exists with same size
 				$reverse_mode = $sync_meta['reverse_mode'] ?? 'continue';
