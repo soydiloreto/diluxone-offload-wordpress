@@ -310,8 +310,8 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 			 */
 			$is_loading = ( $cloud_stats === null );
 			?>
-			<div class="diluxone-offload-stats-wrap<?php echo $is_loading ? ' diluxone-offload-loading' : ''; ?>"<?php echo $is_loading ? ' aria-busy="true"' : ''; ?>>
-				<div id="stats-loading" class="diluxone-offload-loading-overlay" role="status" aria-live="polite"<?php echo $is_loading ? '' : ' style="display: none;"'; ?>>
+			<div class="diluxone-offload-stats-wrap<?php echo esc_attr( $is_loading ? ' diluxone-offload-loading' : '' ); ?>" aria-busy="<?php echo esc_attr( $is_loading ? 'true' : 'false' ); ?>">
+				<div id="stats-loading" class="diluxone-offload-loading-overlay" role="status" aria-live="polite" style="<?php echo esc_attr( $is_loading ? '' : 'display: none;' ); ?>">
 					<span class="spinner is-active"></span>
 					<p><?php esc_html_e( 'Loading storage statistics…', 'diluxone-offload' ); ?></p>
 					<p class="diluxone-offload-loading-hint">
