@@ -36,21 +36,6 @@ $has_files_in_db = $template_data['has_files_in_db'] ?? false;
 		$container_name_val    = $config['provider_config']['container_name'] ?? $config['container_name'] ?? '';
 	}
 
-	// Show success/error messages produced by the admin_post handler that
-	// already verified its own nonce and redirected back here. The reads below
-	// are display-only and never trigger side effects.
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only display of message redirected back from a nonce-verified admin_post handler.
-	if ( isset( $_GET['success'] ) ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
-		$diluxone_offload_msg = sanitize_text_field( wp_unslash( $_GET['success'] ) );
-		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $diluxone_offload_msg ) . '</p></div>';
-	}
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only display of message redirected back from a nonce-verified admin_post handler.
-	if ( isset( $_GET['error'] ) ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
-		$diluxone_offload_msg = sanitize_text_field( wp_unslash( $_GET['error'] ) );
-		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $diluxone_offload_msg ) . '</p></div>';
-	}
 	?>
 
 	<?php if ( ! $is_configured ) : ?>

@@ -349,19 +349,30 @@ class AdminRenderTest extends IntegrationTestCase {
 
     // ── Template branches ───────────────────────────────────
 
-    public function test_settings_and_provider_tabs_show_the_redirected_notice(): void {
-        foreach (['settings', 'cloud-provider'] as $tab) {
-            $_GET['success'] = 'Saved fine';
+    public function test_every_tab_shows_a_queued_notice_exactly_once(): void {
+        foreach (self::TABS as $tab) {
+            Admin::flash_notice('success', 'Saved fine <b>');
             $html = $this->render($tab);
             $this->assertStringContainsString('notice-success', $html, $tab);
-            $this->assertStringContainsString('Saved fine', $html, $tab);
-            unset($_GET['success']);
-            $_GET['error'] = 'Went wrong';
+            $this->assertStringContainsString('Saved fine &lt;b&gt;', $html, "$tab escapes the message");
+            $this->assertStringNotContainsString('notice-success', $this->render($tab), "$tab shows it once");
+
+            Admin::flash_notice('error', 'Went wrong');
             $html = $this->render($tab);
             $this->assertStringContainsString('notice-error', $html, $tab);
             $this->assertStringContainsString('Went wrong', $html, $tab);
-            unset($_GET['error']);
         }
+    }
+
+    public function test_a_message_in_the_url_is_ignored(): void {
+        $_GET['success'] = 'Not from us';
+        $_GET['error']   = 'Not from us either';
+        try {
+            $html = $this->render('settings');
+        } finally {
+            unset($_GET['success'], $_GET['error']);
+        }
+        $this->assertStringNotContainsString('Not from us', $html);
     }
 
     public function test_overview_names_the_azure_account(): void {

@@ -74,7 +74,11 @@ class AdminPostTest extends IntegrationTestCase {
         return $this->fake;
     }
 
-    /** Runs a handler with a valid nonce and returns the parsed redirect query. */
+    /**
+     * Runs a handler with a valid nonce and returns the parsed redirect query,
+     * plus the notice the handler queued for this user under 'success' or
+     * 'error' — the URL itself carries neither any more.
+     */
     private function submit(callable $handler, string $nonce_action, array $post): array {
         $_POST = $post + ['_wpnonce' => wp_create_nonce($nonce_action)];
         $_REQUEST = $_POST;
@@ -84,6 +88,13 @@ class AdminPostTest extends IntegrationTestCase {
             $query = [];
             parse_str((string) parse_url($e->location, PHP_URL_QUERY), $query);
             $this->assertStringStartsWith(admin_url('admin.php'), $e->location);
+            $this->assertArrayNotHasKey('success', $query, 'the message does not travel in the URL');
+            $this->assertArrayNotHasKey('error', $query, 'the message does not travel in the URL');
+            $notice = get_transient('diluxone_offload_notice_' . $this->admin_id);
+            if (is_array($notice)) {
+                $query[$notice['type']] = $notice['message'];
+                delete_transient('diluxone_offload_notice_' . $this->admin_id);
+            }
             return $query;
         }
         $this->fail('handler did not redirect');
