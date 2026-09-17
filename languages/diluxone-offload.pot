@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-17T06:55:22+00:00\n"
+"POT-Creation-Date: 2026-09-17T17:42:39+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: diluxone-offload\n"
@@ -782,7 +782,9 @@ msgid "Last successful connection: %s"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:1184
-msgid "File uploads are falling back to local storage."
+#: templates/admin-overview.php:218
+#: templates/admin-status.php:196
+msgid "New uploads are refused until the connection recovers."
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:1243
@@ -1313,11 +1315,6 @@ msgstr ""
 
 #: templates/admin-overview.php:205
 msgid "Files served from cloud storage"
-msgstr ""
-
-#: templates/admin-overview.php:218
-#: templates/admin-status.php:196
-msgid "Falling back to local storage for new uploads."
 msgstr ""
 
 #: templates/admin-overview.php:221

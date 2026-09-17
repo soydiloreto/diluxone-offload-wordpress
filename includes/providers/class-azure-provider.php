@@ -1153,8 +1153,14 @@ class AzureProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * Prepare a cURL handle for downloading a file from Azure Blob Storage
-	 * Used by SyncManager for parallel downloads during reverse sync (disconnect)
+	 * Prepare a cURL handle for downloading a file from Azure Blob Storage.
+	 *
+	 * Used by SyncManager for the parallel downloads of "Disconnect from
+	 * Cloud". The local path it writes to is the attachment's own path under
+	 * the uploads directory, as recorded by WordPress and resolved at runtime
+	 * with wp_upload_dir(); SyncManager has already rejected anything outside
+	 * that directory and any script or executable file name. This is the
+	 * user's media going back where WordPress expects it, not plugin data.
 	 *
 	 * @param array<string, mixed> $file_info File information ['local_path' => string, 'remote_path' => string]
 	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => resource|null]

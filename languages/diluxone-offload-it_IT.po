@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DiluxOne Offload 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/diluxone-offload\n"
-"POT-Creation-Date: 2026-09-17T06:55:22+00:00\n"
+"POT-Creation-Date: 2026-09-17T17:42:39+00:00\n"
 "PO-Revision-Date: 2026-04-26 12:00+0000\n"
 "Last-Translator: Pablo Ariel Di Loreto <pablodiloreto@gmail.com>\n"
 "Language-Team: Italian <pablodiloreto@gmail.com>\n"
@@ -841,8 +841,9 @@ msgid "Last successful connection: %s"
 msgstr "Ultima connessione riuscita: %s"
 
 #: includes/class-diluxone-offload-admin.php:1184
-msgid "File uploads are falling back to local storage."
-msgstr "I caricamenti dei file stanno passando allo storage locale."
+#: templates/admin-overview.php:218 templates/admin-status.php:196
+msgid "New uploads are refused until the connection recovers."
+msgstr "I nuovi caricamenti vengono rifiutati finché la connessione non viene ripristinata."
 
 #: includes/class-diluxone-offload-admin.php:1243
 #: includes/class-diluxone-offload-admin.php:1333
@@ -1397,10 +1398,6 @@ msgstr "Attivo"
 #: templates/admin-overview.php:205
 msgid "Files served from cloud storage"
 msgstr "File serviti dallo storage cloud"
-
-#: templates/admin-overview.php:218 templates/admin-status.php:196
-msgid "Falling back to local storage for new uploads."
-msgstr "Nel frattempo i nuovi caricamenti vanno sul disco locale."
 
 #: templates/admin-overview.php:221 templates/admin-status.php:191
 msgid "Inactive"

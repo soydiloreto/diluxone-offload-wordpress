@@ -220,56 +220,29 @@ class CloudStreamWrapperTest extends TestCase {
 		$this->assertSame( array(), $this->requests() );
 	}
 
-	// ── Connection-health fallback ──────────────────────────
+	// ── Connection health: no local fallback ────────────────
 
 	/**
-	 * With three consecutive failures recorded, writes go to the local
-	 * uploads dir instead of the cloud, so a site keeps accepting media while
-	 * the provider is down. The fallback is tracked for the admin banner.
+	 * With three consecutive failures recorded, a write is refused at open:
+	 * the caller gets false and reports it, nothing goes to the cloud, and
+	 * nothing is written to the server. The plugin never writes a file of
+	 * its own to disk, whatever the state of the connection.
 	 */
-	public function test_writes_fall_back_to_local_disk_when_the_connection_is_unhealthy(): void {
+	public function test_writes_are_refused_while_the_connection_is_down_and_nothing_lands_on_disk(): void {
 		$GLOBALS['_test_wp_options']['diluxone_offload_connection_health'] = array(
 			'status'               => 'unhealthy',
 			'consecutive_failures' => 3,
 			'error_code'           => '500',
+			'last_check'           => time(),
 		);
 		$this->answer( fn() => self::reply( 500 ) );
 
-		$ok = file_put_contents( self::PROTOCOL . '://uploads/2026/03/fallback.txt', 'kept locally' );
+		$ok = @file_put_contents( self::PROTOCOL . '://uploads/2026/03/refused.txt', 'never saved' );
 
-		$this->assertSame( 12, $ok );
+		$this->assertFalse( $ok );
 		$this->assertCount( 0, $this->requests( 'PUT' ), 'must not try the cloud' );
-		$local = WP_CONTENT_DIR . '/uploads/2026/03/fallback.txt';
-		$this->assertFileExists( $local );
-		$this->assertSame( 'kept locally', file_get_contents( $local ) );
-		$this->assertCount( 1, $GLOBALS['_test_wp_transients']['diluxone_offload_fallback_uploads'] );
-		@unlink( $local );
-	}
-
-	/**
-	 * The plugin review caught this: the fallback used to build its path out of
-	 * WP_CONTENT_DIR, so any site that keeps its media elsewhere — UPLOADS, an
-	 * upload_path option, a multisite layout — got the file written where
-	 * nobody would ever look for it.
-	 */
-	public function test_the_local_fallback_follows_a_relocated_uploads_directory(): void {
-		$elsewhere                      = sys_get_temp_dir() . '/dlx-media-elsewhere';
-		$GLOBALS['_test_wp_upload_dir'] = $elsewhere;
-
-		$GLOBALS['_test_wp_options']['diluxone_offload_connection_health'] = array(
-			'status'               => 'unhealthy',
-			'consecutive_failures' => 3,
-			'error_code'           => '500',
-		);
-		$this->answer( fn() => self::reply( 500 ) );
-
-		file_put_contents( self::PROTOCOL . '://uploads/2026/03/moved.txt', 'follows the site' );
-
-		$this->assertFileExists( $elsewhere . '/2026/03/moved.txt' );
-		$this->assertSame( 'follows the site', file_get_contents( $elsewhere . '/2026/03/moved.txt' ) );
-		$this->assertFileDoesNotExist( WP_CONTENT_DIR . '/uploads/2026/03/moved.txt', 'nothing may land in the assumed place' );
-
-		@unlink( $elsewhere . '/2026/03/moved.txt' );
+		$this->assertFileDoesNotExist( WP_CONTENT_DIR . '/uploads/2026/03/refused.txt' );
+		$this->assertArrayNotHasKey( 'diluxone_offload_fallback_uploads', $GLOBALS['_test_wp_transients'] ?? array() );
 	}
 
 	// ── upload_dir filter ───────────────────────────────────

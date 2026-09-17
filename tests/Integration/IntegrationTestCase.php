@@ -43,7 +43,6 @@ class IntegrationTestCase extends TestCase {
         'diluxone_offload_azure_stats',
         'diluxone_offload_stats',
         'diluxone_offload_sas_token',
-        'diluxone_offload_fallback_uploads',
     ];
 
     /**
