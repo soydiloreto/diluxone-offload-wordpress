@@ -1069,10 +1069,14 @@ class CloudStreamWrapper {
 
 		// This is triggered when doing things like lstat() or stat().
 		// PHP stream wrapper protocol expects errors to be raised via trigger_error()
-		// so callers like fopen() / file_exists() can detect them. We control the message
-		// ourselves (it never contains user input), but cast to string for safety.
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.PHP.DevelopmentFunctions.error_log_trigger_error -- Required by PHP stream wrapper protocol; message is internal.
-		trigger_error( (string) $error, E_USER_WARNING );
+		// so callers like fopen() / file_exists() can detect them. trigger_error()
+		// respects display_errors, and some callers here do pass dynamic text (a
+		// caught exception's message, a request path) — reachable by anyone
+		// requesting a missing attachment, not just wp-admin. Only WP_DEBUG sites
+		// get the detail; everyone else gets a fixed, uninformative message.
+		$message = ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ? (string) $error : 'Cloud storage stat failed';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.PHP.DevelopmentFunctions.error_log_trigger_error -- Required by PHP stream wrapper protocol; message is internal and WP_DEBUG-gated above.
+		trigger_error( $message, E_USER_WARNING );
 
 		return false;
 	}
