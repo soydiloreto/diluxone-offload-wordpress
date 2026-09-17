@@ -83,7 +83,7 @@ class ProviderConfig {
 					'storage_account' => sanitize_text_field( wp_unslash( $post['account_name'] ?? '' ) ),
 					'access_key'      => sanitize_text_field( wp_unslash( $post['account_key'] ?? '' ) ),
 					'container_name'  => sanitize_text_field( wp_unslash( $post['container_name'] ?? '' ) ),
-					'custom_domain'   => sanitize_text_field( wp_unslash( $post['custom_domain'] ?? '' ) ),
+					'custom_domain'   => esc_url_raw( wp_unslash( $post['custom_domain'] ?? '' ) ),
 					// NOTE: use_https removed - HTTPS is always enforced in provider
 				);
 
