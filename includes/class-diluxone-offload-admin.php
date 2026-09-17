@@ -619,7 +619,6 @@ class Admin {
 						'just_now'      => __( 'just now', 'diluxone-offload' ),
 						'storage'       => __( 'Storage', 'diluxone-offload' ),
 						'total_files'   => __( 'Total Files', 'diluxone-offload' ),
-						'error_please_update_your_credentials' => __( 'ERROR: please update your credentials', 'diluxone-offload' ),
 						'request_timed_out_try_again_later' => __( 'Request timed out. Try again later.', 'diluxone-offload' ),
 					),
 					'data' => array(),
