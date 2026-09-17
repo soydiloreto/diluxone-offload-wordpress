@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * ============
  *
  * 1. CONFIGURATION (diluxone_offload_config) - autoload=TRUE
- *    - Azure/GCP credentials, plugin settings
+ *    - Azure credentials, plugin settings
  *    - Small (~500 bytes), needed on every request (stream wrapper)
  *    - Accessed via: ConfigManager::get_config(), ConfigManager::save_config()
  *
@@ -66,7 +66,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class ConfigManager {
 
-	/** @var string Option name for configuration - Stores Azure/GCP credentials and plugin settings */
+	/** @var string Option name for configuration - Stores Azure credentials and plugin settings */
 	const CONFIG_OPTION = 'diluxone_offload_config';
 
 	/** @var string Option name for plugin state - Current state: CONFIGURED, SYNCING, SYNCED, OFFLOADING_ACTIVE */

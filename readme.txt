@@ -20,11 +20,11 @@ The plugin uses a custom PHP stream wrapper to intercept every read and write to
 
 * **Azure Blob Storage** — bring your own storage account; nothing is shared with anyone else.
 * **Transparent stream wrapper** — no URL rewriting, no regex on post content, no database migration required for URLs.
-* **Sync with resumable state machine** — start, pause, resume, cancel, retry failed files, resync from scratch.
+* **Sync with resumable state machine** — start, cancel, resume after an interruption, retry failed files, resync from scratch.
 * **Offloading mode** — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working.
-* **Connection health monitoring** — automatic fallback to local storage when cloud is unreachable, with a persistent banner in the admin.
+* **Connection health monitoring** — automatic fallback to local storage when cloud is unreachable, with a banner on the plugin's admin pages until it recovers.
 * **Custom domain / CDN support** — serve media from your own domain or CDN edge.
-* **Multisite aware** — per-site or network-level configuration.
+* **Multisite aware** — network activation supported; each site keeps its own configuration and file tracking.
 * **Debug logging toggle** — errors always go to the PHP error log; info and debug lines only when you turn on the Settings toggle.
 
 = Why a stream wrapper instead of URL rewriting =
@@ -87,7 +87,7 @@ Yes. Because the stream wrapper operates at the filesystem layer, any plugin tha
 
 = Does the plugin delete my local files automatically? =
 
-Only if you explicitly opt in. After a successful sync you can click **Delete local files** in the Sync & Offloading tab. Until you do that, files are kept in both locations.
+Only if you explicitly opt in. After a successful sync you can click **Delete Local Files** in the Sync & Offloading tab. Until you do that, files are kept in both locations.
 
 = If I delete a file from the Media Library, is it deleted from the cloud too? =
 
@@ -105,7 +105,7 @@ Go to **DiluxOne Offload → Settings → Enable detailed debug logging**. Logs 
 
 = Is the plugin multisite compatible? =
 
-Yes. You can configure per-site, or at the network level.
+Yes. It can be network-activated; each site then has its own Cloud Provider configuration and its own file-tracking table, so different sites can use different containers or accounts.
 
 = How are my Azure credentials stored? =
 
@@ -134,13 +134,13 @@ First public release.
 
 * Azure Blob Storage provider — bring-your-own credentials, files served from `https://<your-account-name>.blob.core.windows.net`.
 * Transparent stream wrapper with read/write interception — no URL rewriting, no regex on post content, no database migration required for URLs.
-* Sync state machine with pause, resume, cancel and retry of failed files.
+* Sync state machine with cancel, resume after an interruption and retry of failed files.
 * Offloading mode with optional local file deletion after a successful sync.
 * Connection health monitoring with automatic local fallback when the cloud is unreachable, and an admin banner tailored to each failure mode (unreadable credentials, `401`/`403`, `404`, network exception) with its own explanation and call to action.
 * Every tab agrees on the same state: when the connection is paused, the Overview, Sync & Offloading and Status cards all say so with the same wording and the same reason, instead of some staying green while others report the failure.
 * "Force HTTPS for cloud storage URLs" option to keep media working on installs served over plain HTTP.
 * Custom domain / CDN support.
-* Multisite support — per-site or network-level configuration.
+* Multisite support — network activation with per-site configuration and file tracking.
 * Verbose debug logging toggle in Settings (errors always log; info and debug respect the toggle).
 * Provider credentials encrypted at rest with AES-256-GCM using a key derived from the site's WordPress salts.
 * Uninstalling removes the plugin's options, transients and tracking table on every site; media files are never touched.

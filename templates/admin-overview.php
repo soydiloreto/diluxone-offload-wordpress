@@ -34,7 +34,7 @@ $is_synced     = in_array( $plugin_state, array( PluginState::SYNCED, PluginStat
 $is_offloading = $plugin_state === PluginState::OFFLOADING_ACTIVE;
 $cloud_stats   = $cloud_stats ?? null;
 
-// Health context (mirrors admin-status-tools.php) — when the cloud connection
+// Health context (mirrors admin-status.php) — when the cloud connection
 // is unhealthy, every card below shows a "paused" sub-state so the user
 // doesn't see contradictory greens like "Configured / Active" while the
 // banner above reports unreadable credentials. We do NOT mutate the
@@ -67,7 +67,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 		//
 		// NOTE: vocabulary is intentionally identical to the Status tab —
 		// "Awaiting Re-entry" for decrypt failures, "Paused (X)" for other
-		// paused states. Keep these strings in sync with admin-status-tools.php.
+		// paused states. Keep these strings in sync with admin-status.php.
 		$config_card_mode   = ( ! $is_configured || $is_paused ) ? 'status-warning' : 'status-success';
 		$config_card_icon   = ( ! $is_configured || $is_paused ) ? 'dashicons-warning' : 'dashicons-yes-alt';
 		$is_decrypt_failure = $is_paused && $pause_cause === 'decrypt_failed';

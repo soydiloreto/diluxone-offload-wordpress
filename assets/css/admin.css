@@ -83,23 +83,6 @@
     margin-top: 20px;
 }
 
-#test-connection {
-    background: #0073aa;
-    border-color: #0073aa;
-    color: #fff;
-}
-
-#test-connection:hover {
-    background: #005a87;
-    border-color: #005a87;
-}
-
-#test-connection.testing {
-    background: #646970;
-    border-color: #646970;
-    cursor: not-allowed;
-}
-
 /* Test Connection Results */
 .test-result,
 .connection-result {

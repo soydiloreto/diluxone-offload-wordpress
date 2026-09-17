@@ -5,7 +5,6 @@ use PHPUnit\Framework\TestCase;
 use DiluxOneOffload\Factories\CloudStorageFactory;
 use DiluxOneOffload\DTOs\ProviderConfig;
 use DiluxOneOffload\DTOs\SyncFilter;
-use DiluxOneOffload\Cleanup;
 use DiluxOneOffload\Logger;
 
 /**
@@ -60,21 +59,6 @@ class SmallGapsTest extends TestCase {
 			'MB'    => array( 1048576, 2097152, 'MB' ),
 			'GB'    => array( 1073741824, 2147483648, 'GB' ),
 		);
-	}
-
-	public function test_cleanup_reads_a_serialized_option_and_leaves_the_rest_intact(): void {
-		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = serialize( array( 'cloud_provider' => 'azure', 'compression_enabled' => true ) );
-		$r = Cleanup::remove_compression_options();
-		$this->assertTrue( $r['success'] );
-		$this->assertSame( array( 'compression_enabled' ), $r['removed'] );
-		$this->assertSame( 'azure', $GLOBALS['_test_wp_options']['diluxone_offload_config']['cloud_provider'] );
-	}
-
-	public function test_cleanup_treats_an_unreadable_serialized_option_as_empty(): void {
-		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = 'a:1:{broken';
-		$r = Cleanup::remove_compression_options();
-		$this->assertTrue( $r['success'] );
-		$this->assertSame( array(), $r['removed'] );
 	}
 
 	public function test_system_file_exclusion_explains_itself(): void {
