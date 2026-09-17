@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DiluxOne Offload 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/diluxone-offload\n"
-"POT-Creation-Date: 2026-09-17T17:42:39+00:00\n"
+"POT-Creation-Date: 2026-09-17T18:43:34+00:00\n"
 "PO-Revision-Date: 2026-04-26 12:00+0000\n"
 "Last-Translator: Pablo Ariel Di Loreto <pablodiloreto@gmail.com>\n"
 "Language-Team: German <pablodiloreto@gmail.com>\n"
@@ -848,7 +848,8 @@ msgstr "Letzte erfolgreiche Verbindung: %s"
 #: includes/class-diluxone-offload-admin.php:1184
 #: templates/admin-overview.php:218 templates/admin-status.php:196
 msgid "New uploads are refused until the connection recovers."
-msgstr "Neue Uploads werden abgelehnt, bis die Verbindung wiederhergestellt ist."
+msgstr ""
+"Neue Uploads werden abgelehnt, bis die Verbindung wiederhergestellt ist."
 
 #: includes/class-diluxone-offload-admin.php:1243
 #: includes/class-diluxone-offload-admin.php:1333
@@ -993,6 +994,12 @@ msgstr "Fehler beim Abschluss der Synchronisation: %s"
 #, php-format
 msgid "Error clearing failed files: %s"
 msgstr "Fehler beim Bereinigen fehlgeschlagener Dateien: %s"
+
+#. translators: %s: the error returned by the cloud provider or the network.
+#: includes/class-diluxone-offload-cloud-stream-wrapper.php:326
+#, php-format
+msgid "The file could not be uploaded to cloud storage: %s"
+msgstr "Die Datei konnte nicht in den Cloud-Speicher hochgeladen werden: %s"
 
 #. translators: %s: provider config field name (e.g. access_key)
 #: includes/class-diluxone-offload-config-manager.php:233

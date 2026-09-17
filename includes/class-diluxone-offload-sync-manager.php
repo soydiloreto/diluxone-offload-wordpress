@@ -1417,9 +1417,9 @@ class SyncManager {
 	/**
 	 * Whether a file may be written back to uploads/ by the reverse sync.
 	 *
-	 * Media and the files plugins keep there (stylesheets, JSON, logs) may;
-	 * anything the web server or a browser could execute may not, regardless
-	 * of how it got into the container: PHP in every spelling, other
+	 * Anything that was under uploads/ when it was synced may; anything the
+	 * web server or a browser could execute may not, regardless of how it
+	 * got into the container: PHP in every spelling, other
 	 * server-side scripts, shell and Windows executables, HTML, JavaScript,
 	 * and Apache control files. A double extension such as shell.php.jpg is
 	 * caught by looking at every extension in the name, not only the last.
@@ -1456,7 +1456,6 @@ class SyncManager {
 			'exe',
 			'bat',
 			'cmd',
-			'com',
 			'js',
 			'mjs',
 			'html',
@@ -1484,9 +1483,9 @@ class SyncManager {
 	 * keeps working without the plugin. Nothing here is plugin data and no
 	 * other location is possible: any other folder would leave every URL in
 	 * wp_posts pointing at a file that is not there. It runs only when the
-	 * user starts it, restores only rows this plugin tracked (files that were
-	 * in the site's own uploads directory), and never a script or executable
-	 * file name — see is_restorable_file().
+	 * user starts it, restores only what sits under the uploads/ prefix of
+	 * the site's own container, and never a script or executable file name —
+	 * see is_restorable_file().
 	 *
 	 * Downloads run in parallel with a size comparison (no MD5, for speed) and
 	 * use the same dynamic batch_size as the forward sync.
@@ -1544,10 +1543,10 @@ class SyncManager {
 					continue;
 				}
 
-				// What comes back is the site's own media and the files plugins
-				// keep under uploads/ (stylesheets, JSON, logs). A blob the
-				// container holds under a script or server-executable name is
-				// never written to disk, whatever put it there.
+				// What comes back is whatever was under uploads/ when it was
+				// synced. A blob the container holds under a script or
+				// server-executable name is never written to disk, whatever
+				// put it there.
 				if ( ! self::is_restorable_file( $relative_path ) ) {
 					Logger::error( '[DiluxOne Offload SyncManager] Reverse-sync refused a script or executable file name: ' . $relative_path );
 					DiluxOneOffloadDB::increment_error( $relative_path, 'Executable or script file refused' );

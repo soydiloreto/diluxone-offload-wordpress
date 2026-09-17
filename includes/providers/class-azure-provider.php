@@ -236,8 +236,13 @@ class AzureProvider implements CloudStorageClientInterface {
 	/**
 	 * Download file from Azure Blob Storage (internal DTO version)
 	 *
+	 * The only caller is the stream wrapper, and it always passes a
+	 * wp_tempnam() path in the PHP temp directory: the blob is read into a
+	 * scratch file that is deleted in the same request. Nothing here writes
+	 * under uploads/ or anywhere else in the WordPress install.
+	 *
 	 * @param string $remote_path Remote path in cloud
-	 * @param string $local_path Local destination path
+	 * @param string $local_path Local destination path (a temp file)
 	 * @return OperationResult
 	 */
 	private function download_file_dto( string $remote_path, string $local_path ): OperationResult {

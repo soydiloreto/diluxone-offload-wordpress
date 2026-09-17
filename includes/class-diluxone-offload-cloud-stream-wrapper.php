@@ -76,6 +76,20 @@ class CloudStreamWrapper {
 	 */
 	private static $file_cache = array();
 
+	/**
+	 * Paths whose upload failed in this request, with the reason.
+	 *
+	 * PHP ignores what stream_flush() and stream_close() return, so copy()
+	 * and file_put_contents() report success even when the PUT to the cloud
+	 * failed. WordPress would then insert an attachment for a file that is
+	 * nowhere. fail_upload_if_write_failed(), on the wp_handle_upload and
+	 * wp_handle_sideload filters, consults this list and turns the upload
+	 * into the explicit error it should have been.
+	 *
+	 * @var array<string, string>
+	 */
+	private static $write_failures = array();
+
 	/** @var int Maximum file size to cache (32MB like Infinite Uploads) */
 	const CACHE_MAX_BYTES = 33554432; // 32 * 1024 * 1024
 
@@ -160,6 +174,7 @@ class CloudStreamWrapper {
 			remove_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ), 10 );
 
 			add_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ), 10, 1 );
+			self::register_upload_result_filters();
 
 			// Re-arm HTTPS upgrade for cloud-host URLs (cheap; idempotent).
 			self::register_force_https_filters();
@@ -182,6 +197,7 @@ class CloudStreamWrapper {
 
 		// Hook into WordPress upload directory
 		add_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ), 10, 1 );
+		self::register_upload_result_filters();
 
 		// Re-upgrade cloud-host URLs to https:// when WP core's set_url_scheme()
 		// downgrades them on plain-HTTP local installs.
@@ -213,6 +229,8 @@ class CloudStreamWrapper {
 	public static function deactivate_offloading() {
 		// Remove WordPress hooks
 		remove_filter( 'upload_dir', array( __CLASS__, 'filter_upload_dir' ), 10 );
+		remove_filter( 'wp_handle_upload', array( __CLASS__, 'fail_upload_if_write_failed' ), 5 );
+		remove_filter( 'wp_handle_sideload', array( __CLASS__, 'fail_upload_if_write_failed' ), 5 );
 		self::unregister_force_https_filters();
 
 		// Unregister stream wrapper
@@ -224,6 +242,91 @@ class CloudStreamWrapper {
 		Logger::info( '[DiluxOne Offload CloudStreamWrapper] Offloading deactivated' );
 
 		return true;
+	}
+
+	/**
+	 * Make a failed cloud write fail the WordPress upload that caused it.
+	 *
+	 * Runs at priority 5 so it sees the result before any other plugin does.
+	 */
+	private static function register_upload_result_filters(): void {
+		if ( ! has_filter( 'wp_handle_upload', array( __CLASS__, 'fail_upload_if_write_failed' ) ) ) {
+			add_filter( 'wp_handle_upload', array( __CLASS__, 'fail_upload_if_write_failed' ), 5, 2 );
+		}
+		if ( ! has_filter( 'wp_handle_sideload', array( __CLASS__, 'fail_upload_if_write_failed' ) ) ) {
+			add_filter( 'wp_handle_sideload', array( __CLASS__, 'fail_upload_if_write_failed' ), 5, 2 );
+		}
+	}
+
+	/**
+	 * Remember that the write for $path did not reach the cloud.
+	 *
+	 * @param string $path   Path relative to the protocol (e.g. uploads/2026/09/a.jpg).
+	 * @param string $reason Provider or transport error.
+	 */
+	private static function note_write_failure( string $path, string $reason ): void {
+		self::$write_failures[ $path ] = $reason;
+	}
+
+	/**
+	 * Forget a recorded failure for $path (a later attempt succeeded).
+	 *
+	 * @param string $path Path relative to the protocol.
+	 */
+	private static function clear_write_failure( string $path ): void {
+		unset( self::$write_failures[ $path ] );
+	}
+
+	/**
+	 * The reason the last write for $path failed in this request, and forget it.
+	 *
+	 * @param string $path Path relative to the protocol, or a full protocol URL.
+	 * @return string|null Null when the write reached the cloud.
+	 */
+	public static function take_write_failure( string $path ): ?string {
+		$path = ltrim( str_replace( self::PROTOCOL . '://', '', $path ), '/' );
+		if ( ! isset( self::$write_failures[ $path ] ) ) {
+			return null;
+		}
+		$reason = self::$write_failures[ $path ];
+		unset( self::$write_failures[ $path ] );
+		return $reason;
+	}
+
+	/**
+	 * Filter for wp_handle_upload and wp_handle_sideload: if the file WordPress
+	 * just "moved" into the cloud never got there, hand back the error array
+	 * core expects, so media_handle_upload() returns a WP_Error and no
+	 * attachment is inserted for a file that does not exist.
+	 *
+	 * @param array<string, mixed> $upload  The upload result ('file', 'url', 'type', or 'error').
+	 * @param string               $context 'upload' or 'sideload'.
+	 * @return array<string, mixed>
+	 */
+	public static function fail_upload_if_write_failed( $upload, $context = 'upload' ) {
+		if ( ! is_array( $upload ) || isset( $upload['error'] ) || empty( $upload['file'] ) ) {
+			return $upload;
+		}
+
+		$file = (string) $upload['file'];
+		if ( strpos( $file, self::PROTOCOL . '://' ) !== 0 ) {
+			return $upload;
+		}
+
+		$reason = self::take_write_failure( $file );
+		if ( null === $reason ) {
+			return $upload;
+		}
+
+		Logger::error( '[DiluxOne Offload CloudStreamWrapper] Upload reported to WordPress as failed (' . $context . '): ' . $file . ' - ' . $reason );
+
+		return array(
+			'error' => sprintf(
+				/* translators: %s: the error returned by the cloud provider or the network. */
+				__( 'The file could not be uploaded to cloud storage: %s', 'diluxone-offload' ),
+				$reason
+			),
+		);
 	}
 
 	/**
@@ -730,6 +833,7 @@ class CloudStreamWrapper {
 		} catch ( \Exception $e ) {
 			Logger::error( '[DiluxOne Offload CloudStreamWrapper] stream_flush exception: ' . $this->path . ' - ' . $e->getMessage() );
 			\DiluxOneOffload\ConfigManager::record_connection_failure( 'exception', $e->getMessage(), 'upload' );
+			self::note_write_failure( $this->path, $e->getMessage() );
 			wp_delete_file( $temp_file );
 			return false;
 		}
@@ -745,8 +849,11 @@ class CloudStreamWrapper {
 				$error_code = $matches[1];
 			}
 			\DiluxOneOffload\ConfigManager::record_connection_failure( $error_code, $error_msg, 'upload' );
+			self::note_write_failure( $this->path, $error_msg );
 			return false;
 		}
+
+		self::clear_write_failure( $this->path );
 
 		// Auto-recovery: if was unhealthy and upload succeeded, mark healthy
 		$health = \DiluxOneOffload\ConfigManager::get_connection_health();
@@ -1332,6 +1439,7 @@ class CloudStreamWrapper {
 			$result = $cloud_client->upload_file( $temp_file, $this->path, array( 'mime_type_from_path' => $this->path ) );
 		} catch ( \Exception $e ) {
 			Logger::error( '[DiluxOne Offload CloudStreamWrapper] upload_content_to_cloud exception: ' . $this->path . ' - ' . $e->getMessage() );
+			self::note_write_failure( $this->path, $e->getMessage() );
 			wp_delete_file( $temp_file );
 			return false;
 		}
@@ -1340,6 +1448,7 @@ class CloudStreamWrapper {
 		unlink( $temp_file );
 
 		if ( $result['success'] ) {
+			self::clear_write_failure( $this->path );
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				Logger::info( '[DiluxOne Offload CloudStreamWrapper] Uploaded: ' . $this->path );
 			}
@@ -1379,6 +1488,7 @@ class CloudStreamWrapper {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				Logger::error( '[DiluxOne Offload CloudStreamWrapper] Failed to upload: ' . $this->path . ' - ' . $result['error'] );
 			}
+			self::note_write_failure( $this->path, (string) ( $result['error'] ?? 'Unknown upload error' ) );
 			return false;
 		}
 	}
