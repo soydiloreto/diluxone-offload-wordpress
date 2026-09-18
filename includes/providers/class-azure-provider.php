@@ -386,13 +386,12 @@ class AzureProvider implements CloudStorageClientInterface {
 			$url            = $base_url . '?comp=block&blockid=' . rawurlencode( $block_id );
 
 			// Two things Azure is unforgiving about here, both confirmed
-			// against the service itself:
-			// - The query parameters in the signature go in alphabetical
-			//   order, so blockid comes before comp.
-			// - Content-Type is part of the string to sign, and the WordPress
-			//   HTTP API sends application/x-www-form-urlencoded when a PUT
-			//   carries a body and no type of its own. Stating it explicitly
-			//   is what keeps the signature and the request agreeing.
+			// against the service itself. First, the query parameters in the
+			// signature go in alphabetical order, so blockid comes before
+			// comp. Second, Content-Type is part of the string to sign, and
+			// the WordPress HTTP API sends application/x-www-form-urlencoded
+			// when a PUT carries a body and no type of its own; stating it
+			// explicitly is what keeps the signature and the request agreeing.
 			$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\nblockid:{$block_id}\ncomp:block";
 			$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
