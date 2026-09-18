@@ -24,7 +24,7 @@ The plugin uses a custom PHP stream wrapper to intercept every read and write to
 * **Offloading mode** — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working.
 * **Connection health monitoring** — when the cloud is unreachable, new uploads are refused with a clear error instead of landing somewhere else, and a banner on the plugin's admin pages says why until it recovers.
 * **No plugin data on disk** — no cache, log or data files anywhere on the server. The one time the plugin writes to the uploads directory is when you disconnect, to copy your own media back to where WordPress expects it.
-* **Large files don't need large memory** — media is streamed to and from the cloud in blocks, so a video costs about the same PHP memory as a thumbnail and does not trip `memory_limit`.
+* **Large files don't need large memory** — a download goes straight to disk, and an upload is sent in 4 MiB blocks, so PHP never holds more than one block of a file at a time and a video does not trip `memory_limit`.
 * **Custom domain / CDN support** — serve media from your own domain or CDN edge.
 * **Multisite aware** — network activation supported; each site keeps its own configuration and file tracking.
 * **Debug logging toggle** — errors always go to the PHP error log; info and debug lines only when you turn on the Settings toggle.
@@ -145,7 +145,7 @@ First public release.
 * Sync state machine with cancel, resume after an interruption and retry of failed files.
 * Offloading mode with optional local file deletion after a successful sync.
 * Connection health monitoring: while the cloud is unreachable new uploads are refused with an explicit error rather than written anywhere else, and an admin banner tailored to each failure mode (unreadable credentials, `401`/`403`, `404`, network exception) explains it with its own call to action.
-* Transfers stream: a download is written straight to disk by the WordPress HTTP API, and an upload larger than one 4 MiB block is sent block by block with Put Block / Put Block List, so no file is ever held whole in PHP memory.
+* Transfers stream: a download is written straight to disk by the WordPress HTTP API, and an upload larger than one 4 MiB block is sent block by block with Put Block / Put Block List, so the memory a transfer needs is bounded by the block size instead of the file size.
 * Every tab agrees on the same state: when the connection is paused, the Overview, Sync & Offloading and Status cards all say so with the same wording and the same reason, instead of some staying green while others report the failure.
 * "Force HTTPS for cloud storage URLs" option to keep media working on installs served over plain HTTP.
 * Custom domain / CDN support.
