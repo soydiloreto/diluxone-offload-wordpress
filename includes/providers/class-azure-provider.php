@@ -371,10 +371,20 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		$block_ids   = array();
 		$block_index = 0;
+		$bytes_read  = 0;
 
 		while ( ! feof( $fp ) ) {
 			$chunk = fread( $fp, self::BLOCK_SIZE );
-			if ( false === $chunk || '' === $chunk ) {
+
+			// A read error and the end of the file both stop the loop, but only
+			// one of them means the blob is complete. Committing after a failed
+			// read would store a truncated file and call it a success.
+			if ( false === $chunk ) {
+				fclose( $fp );
+				return UploadResult::failure( 'Could not read block ' . $block_index . ' of: ' . $local_path );
+			}
+
+			if ( '' === $chunk ) {
 				break;
 			}
 
@@ -422,6 +432,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				return UploadResult::failure( 'Upload failed on block ' . $block_index . ' with status: ' . $code );
 			}
 
+			$bytes_read += $content_length;
 			++$block_index;
 		}
 
@@ -429,6 +440,12 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		if ( empty( $block_ids ) ) {
 			return UploadResult::failure( 'Could not read local file: ' . $local_path );
+		}
+
+		// Last guard before the blob becomes visible: the blocks Azure is about
+		// to assemble have to add up to the file we were asked to upload.
+		if ( $bytes_read !== $file_size ) {
+			return UploadResult::failure( 'Read ' . $bytes_read . ' of ' . $file_size . ' bytes from: ' . $local_path );
 		}
 
 		// Commit. This request also carries the blob's content type, which is
@@ -1221,9 +1238,22 @@ class AzureProvider implements CloudStorageClientInterface {
 			}
 
 			$block_index = 0;
+			$bytes_read  = 0;
 			while ( ! feof( $fp ) ) {
 				$chunk = fread( $fp, $chunk_size );
-				if ( $chunk === false || strlen( $chunk ) === 0 ) {
+
+				// A read error is not the end of the file: stopping here and
+				// committing would publish a truncated blob as a success.
+				if ( $chunk === false ) {
+					fclose( $fp );
+					return array(
+						'success'     => false,
+						'error'       => "Failed to read block {$block_index} of {$local_path}",
+						'file_handle' => null,
+					);
+				}
+
+				if ( strlen( $chunk ) === 0 ) {
 					break;
 				}
 
@@ -1287,10 +1317,20 @@ class AzureProvider implements CloudStorageClientInterface {
 					);
 				}
 
+				$bytes_read += $content_length;
 				++$block_index;
 			}
 
 			fclose( $fp );
+
+			// The blocks Azure is about to assemble have to add up to the file.
+			if ( $bytes_read !== $file_size ) {
+				return array(
+					'success'     => false,
+					'error'       => "Read {$bytes_read} of {$file_size} bytes from {$local_path}",
+					'file_handle' => null,
+				);
+			}
 
 			// Commit blocks with Put Block List
 			$url  = "{$endpoint}/{$this->container_name}/{$encoded_path}?comp=blocklist";
