@@ -70,6 +70,180 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 		return array( 'response' => array( 'code' => $code, 'message' => '' ), 'body' => $body, 'headers' => $headers );
 	}
 
+	// ── Streaming: nothing holds a whole file in memory ──────
+
+	/**
+	 * The guarantee the whole change exists for: writing a file much larger
+	 * than the memory we allow ourselves must not grow PHP's heap by anything
+	 * like the size of the file. Before this, stream_write() concatenated
+	 * every chunk into a string property and a big upload died on
+	 * memory_limit.
+	 */
+	public function test_writing_a_large_file_does_not_hold_it_in_memory(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+
+		$chunk = str_repeat( 'x', 1024 * 1024 ); // 1 MB per write
+		$before = memory_get_usage( true );
+
+		$fh = fopen( self::P . '://uploads/big.bin', 'w' );
+		for ( $i = 0; $i < 12; $i++ ) {
+			fwrite( $fh, $chunk );
+		}
+		$peak = memory_get_usage( true ) - $before;
+		fclose( $fh );
+
+		$this->assertLessThan( 4 * 1024 * 1024, $peak, '12 MB written must not cost 12 MB of memory' );
+	}
+
+	/**
+	 * A blob past the cache ceiling is served from the temp file the download
+	 * streamed into, and never read into memory — the size is asked for first,
+	 * so the content is only loaded when it is small enough to be worth
+	 * keeping. The read itself still works.
+	 */
+	public function test_a_blob_past_the_cache_ceiling_is_read_without_being_cached(): void {
+		$big                      = str_repeat( 'y', CloudStreamWrapper::CACHE_MAX_BYTES + 1 );
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 200, $big );
+
+		$fh = fopen( self::P . '://uploads/big-read.bin', 'r' );
+		$this->assertNotFalse( $fh );
+		$this->assertSame( str_repeat( 'y', 16 ), fread( $fh, 16 ), 'served from the streamed temp file' );
+		fclose( $fh );
+
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 200, 'from-cloud' );
+		$this->assertSame( 'from-cloud', file_get_contents( self::P . '://uploads/big-read.bin' ), 'it was never cached' );
+	}
+
+	/** A download is streamed to the destination file, not buffered. */
+	public function test_a_download_is_streamed_straight_to_the_destination(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 200, 'streamed-bytes' );
+
+		$fh = fopen( self::P . '://uploads/streamed.txt', 'r' );
+		$this->assertNotFalse( $fh );
+		$this->assertSame( 'streamed-bytes', stream_get_contents( $fh ) );
+		fclose( $fh );
+
+		$args = $GLOBALS['_test_wp_http_log'][0]['args'];
+		$this->assertTrue( $args['stream'] ?? false, 'the request asks the transport to stream' );
+		$this->assertNotEmpty( $args['filename'] ?? '', 'and names the file to stream into' );
+	}
+
+	/**
+	 * Streaming writes the body whatever the status is, so an Azure error
+	 * document must not be left behind looking like the blob.
+	 */
+	public function test_a_failed_download_leaves_no_file_behind(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 403, '<Error><Code>AuthenticationFailed</Code></Error>' );
+
+		$before = glob( sys_get_temp_dir() . '/*' ) ?: array();
+		$this->assertFalse( @fopen( self::P . '://uploads/denied.txt', 'r' ) );
+		$after = glob( sys_get_temp_dir() . '/*' ) ?: array();
+
+		$this->assertSame( count( $before ), count( $after ), 'the partial file is removed' );
+	}
+
+	// ── Writes reach the cloud on every closing path ─────────
+
+	/** file_put_contents(): fopen → fwrite → fflush → fclose. */
+	public function test_a_flushed_write_is_uploaded_once(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+
+		$this->assertSame( 5, file_put_contents( self::P . '://uploads/flushed.txt', 'hello' ) );
+
+		$puts = array_filter( $GLOBALS['_test_wp_http_log'], fn( $r ) => 'PUT' === $r['method'] );
+		$this->assertCount( 1, $puts, 'uploaded exactly once' );
+		$this->assertSame( 'hello', $puts[ array_key_first( $puts ) ]['args']['body'] );
+	}
+
+	/**
+	 * fopen/fwrite/fclose with no fflush: PHP never calls stream_flush(), so
+	 * stream_close() is the only chance. Getting this wrong means WordPress
+	 * records an attachment for a file that never reached Azure.
+	 */
+	public function test_a_write_closed_without_flushing_is_still_uploaded(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+
+		$fh = fopen( self::P . '://uploads/unflushed.txt', 'w' );
+		fwrite( $fh, 'closed without flush' );
+		fclose( $fh );
+
+		$puts = array_values( array_filter( $GLOBALS['_test_wp_http_log'], fn( $r ) => 'PUT' === $r['method'] ) );
+		$this->assertCount( 1, $puts, 'the close uploaded it' );
+		$this->assertSame( 'closed without flush', $puts[0]['args']['body'] );
+	}
+
+	/** Opening for writing and closing without writing uploads nothing. */
+	public function test_opening_for_writing_and_writing_nothing_uploads_nothing(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+
+		$fh = fopen( self::P . '://uploads/untouched.txt', 'w' );
+		fclose( $fh );
+
+		$this->assertSame( array(), array_filter( $GLOBALS['_test_wp_http_log'], fn( $r ) => 'PUT' === $r['method'] ) );
+	}
+
+	/**
+	 * A file past one block goes up block by block, and every block request
+	 * states its own Content-Type.
+	 *
+	 * That header is not decoration: Azure signs it, and the WordPress HTTP
+	 * API fills in application/x-www-form-urlencoded for a PUT that does not
+	 * state one, which made the service answer 403 for every block. The stub
+	 * answers 201 to anything, so what this test can defend is the shape of
+	 * the request — verified against the real service when it was written.
+	 */
+	public function test_a_file_past_one_block_is_uploaded_in_blocks_that_state_their_content_type(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+
+		$fh = fopen( self::P . '://uploads/blocks.css', 'w' );
+		for ( $i = 0; $i < 5; $i++ ) {
+			fwrite( $fh, str_repeat( 'c', 1024 * 1024 ) ); // 5 MB: two blocks
+		}
+		fclose( $fh );
+
+		$puts = array_values( array_filter( $GLOBALS['_test_wp_http_log'], fn( $r ) => 'PUT' === $r['method'] ) );
+		$blocks = array_values( array_filter( $puts, fn( $r ) => strpos( $r['url'], 'comp=block&' ) !== false ) );
+		$commit = array_values( array_filter( $puts, fn( $r ) => strpos( $r['url'], 'comp=blocklist' ) !== false ) );
+
+		$this->assertCount( 2, $blocks, 'two blocks for 5 MB' );
+		$this->assertCount( 1, $commit, 'and one commit' );
+
+		foreach ( $blocks as $block ) {
+			$this->assertNotEmpty( $block['args']['headers']['Content-Type'] ?? '', 'every block states its Content-Type' );
+			$this->assertLessThanOrEqual( 4 * 1024 * 1024, strlen( $block['args']['body'] ), 'no request carries more than one block' );
+		}
+
+		// The blob's own type is set when the list is committed — this is what
+		// a browser reads, and what breaks a site's CSS when it is wrong.
+		$this->assertSame( 'text/css', $commit[0]['args']['headers']['x-ms-blob-content-type'] ?? '' );
+	}
+
+	/** A write stream reports the size of what has been written so far. */
+	public function test_fstat_on_a_temp_backed_write_reports_the_written_size(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 201 );
+
+		$fh = fopen( self::P . '://uploads/sized.txt', 'w' );
+		fwrite( $fh, '0123456789' );
+		$stat = fstat( $fh );
+		fclose( $fh );
+
+		$this->assertSame( 10, $stat['size'] );
+	}
+
+	/** A failed upload must not be reported to the caller as a success. */
+	public function test_a_rejected_write_reports_failure_and_records_it(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::reply( 500, 'nope' );
+
+		$fh = fopen( self::P . '://uploads/rejected.txt', 'w' );
+		fwrite( $fh, 'x' );
+		$this->assertFalse( @fflush( $fh ) );
+		fclose( $fh );
+
+		$this->assertSame( 'unhealthy', ConfigManager::get_connection_health()['status'] );
+		$upload = array( 'file' => self::P . '://uploads/rejected.txt', 'url' => 'https://x/y', 'type' => 'text/plain' );
+		$this->assertArrayHasKey( 'error', CloudStreamWrapper::fail_upload_if_write_failed( $upload, 'upload' ) );
+	}
+
 	private function unhealthy( int $failures = 3 ): void {
 		$GLOBALS['_test_wp_options']['diluxone_offload_connection_health'] = array(
 			'status'               => 'unhealthy',
@@ -312,7 +486,9 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 		fwrite( $fh, 'twelve bytes' );
 		$st = fstat( $fh );
 		$this->assertSame( 12, $st['size'] );
-		$this->assertSame( 0100777, $st['mode'] );
+		// The stat comes from the temp file backing the stream, so the mode is
+		// a real regular file's, not the synthetic one the buffer reported.
+		$this->assertSame( 0100000, $st['mode'] & 0170000, 'a regular file' );
 		fclose( $fh );
 	}
 

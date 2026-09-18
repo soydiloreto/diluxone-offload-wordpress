@@ -48,8 +48,20 @@ class CloudStreamWrapper {
 	/** @var resource|false|null Current file handle (null before stream_open, false on fopen failure, resource otherwise) */
 	private $handle = null;
 
-	/** @var string|null Temp file backing $handle in read mode; removed on close. */
+	/** @var string|null Temp file backing $handle; removed on close. */
 	private $temp_file = null;
+
+	/**
+	 * Whether bytes have been written since the last successful upload.
+	 *
+	 * A write stream is backed by a temp file, so there is no buffer to
+	 * compare against the cache to tell whether anything changed. PHP also
+	 * ignores what stream_flush() and stream_close() return, so this is what
+	 * keeps a file from being uploaded twice — or, worse, not at all.
+	 *
+	 * @var bool
+	 */
+	private bool $dirty = false;
 
 	/** @var string Current file path */
 	private $path = '';
@@ -597,6 +609,7 @@ class CloudStreamWrapper {
 		$this->mode     = $mode;
 		$this->position = 0;
 		$this->content  = '';
+		$this->dirty    = false;
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			Logger::debug( '[DiluxOne Offload CloudStreamWrapper] Opening: ' . $this->path . ' (mode: ' . $mode . ')' );
@@ -612,7 +625,7 @@ class CloudStreamWrapper {
 		if ( strpos( $mode, 'r' ) !== false && strpos( $mode, '+' ) !== false ) {
 			$cached_content = $this->cache_get( $this->path );
 			if ( $cached_content === null ) {
-				$temp_file = wp_tempnam( $this->path );
+				$temp_file = self::tempnam( $this->path );
 				try {
 					$result = $cloud_client->download_file( $this->path, $temp_file );
 				} catch ( \Exception $e ) {
@@ -643,7 +656,7 @@ class CloudStreamWrapper {
 				}
 
 				// Write cached content to temp file
-				$temp_file = wp_tempnam( $this->path );
+				$temp_file = self::tempnam( $this->path );
 				file_put_contents( $temp_file, $cached_content );
 				$this->temp_file = $temp_file;
 				$this->handle    = fopen( $temp_file, $mode );
@@ -655,7 +668,7 @@ class CloudStreamWrapper {
 				Logger::debug( '[DiluxOne Offload CloudStreamWrapper] Cache MISS: ' . $this->path );
 			}
 
-			$temp_file = wp_tempnam( $this->path );
+			$temp_file = self::tempnam( $this->path );
 
 			try {
 				$result = $cloud_client->download_file( $this->path, $temp_file );
@@ -666,10 +679,17 @@ class CloudStreamWrapper {
 			}
 
 			if ( $result['success'] ) {
-				// Cache the downloaded content for future reads
-				$content = file_get_contents( $temp_file );
-				if ( $content !== false ) {
-					$this->cache_set( $this->path, $content );
+				// Cache the downloaded content for future reads — but ask the
+				// size first. Reading a 300 MB video into memory only to find
+				// out it is too big to cache would throw away the whole point
+				// of having streamed it to disk.
+				clearstatcache( true, $temp_file );
+				$size = filesize( $temp_file );
+				if ( false !== $size && $size <= self::CACHE_MAX_BYTES ) {
+					$content = file_get_contents( $temp_file );
+					if ( $content !== false ) {
+						$this->cache_set( $this->path, $content );
+					}
 				}
 
 				$this->temp_file = $temp_file;
@@ -699,7 +719,7 @@ class CloudStreamWrapper {
 			// Write/Append mode - prepare for writing
 			if ( strpos( $mode, 'a' ) !== false ) {
 				// Append: try to download first; a 404 simply means a new file.
-				$temp_file = wp_tempnam( $this->path );
+				$temp_file = self::tempnam( $this->path );
 				try {
 					$result = $cloud_client->download_file( $this->path, $temp_file );
 
@@ -716,11 +736,58 @@ class CloudStreamWrapper {
 				// a failed download without an exception, or an exception.
 				wp_delete_file( $temp_file );
 				// On failure $this->content stays empty, i.e. a new file.
+				return true;
 			}
+
+			// Plain write: back the stream with a temp file so the bytes reach
+			// disk as they arrive instead of piling up in a PHP string. A video
+			// then costs the same memory as a thumbnail. Append and r+ keep the
+			// buffer: they have to start from the blob's current contents, and
+			// neither is a path WordPress uses for media.
+			$temp_file = self::tempnam( $this->path );
+			$handle    = fopen( $temp_file, 'w+b' );
+			if ( false === $handle ) {
+				Logger::error( '[DiluxOne Offload CloudStreamWrapper] Could not open a temp file to write: ' . $this->path );
+				wp_delete_file( $temp_file );
+				return false;
+			}
+
+			$this->temp_file = $temp_file;
+			$this->handle    = $handle;
+
 			return true;
 		}
 
 		return false;
+	}
+
+	/**
+	 * Whether this stream is a write backed by a temp file on disk.
+	 *
+	 * True for 'w' modes, false for a read (which also has a handle, but must
+	 * never be uploaded) and for append/r+ (which stay on the buffer).
+	 */
+	private function is_temp_backed_write(): bool {
+		return null !== $this->handle
+			&& null !== $this->temp_file
+			&& strpos( $this->mode, 'w' ) !== false;
+	}
+
+	/**
+	 * Create a temp file, loading wp_tempnam() if this request has not.
+	 *
+	 * It lives in wp-admin/includes/file.php, which is not loaded on every
+	 * request that can end up writing media.
+	 *
+	 * @param string $path Name hint for the temp file.
+	 * @return string
+	 */
+	private static function tempnam( string $path ): string {
+		if ( ! function_exists( 'wp_tempnam' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		return wp_tempnam( $path );
 	}
 
 	/**
@@ -750,7 +817,11 @@ class CloudStreamWrapper {
 	public function stream_write( $data ) {
 		if ( $this->handle ) {
 			$written = fwrite( $this->handle, $data );
-			return $written === false ? 0 : $written;
+			if ( false === $written ) {
+				return 0;
+			}
+			$this->dirty = true;
+			return $written;
 		}
 
 		// Write to content buffer
@@ -795,6 +866,22 @@ class CloudStreamWrapper {
 			return false;
 		}
 
+		// A write backed by a temp file: the bytes are already on disk, so the
+		// file goes to the cloud from there. Returning fflush() alone would
+		// tell file_put_contents() the write succeeded while nothing ever left
+		// the server, and WordPress would record an attachment for a file that
+		// does not exist.
+		$write_handle = $this->handle;
+		if ( $this->is_temp_backed_write() && is_resource( $write_handle ) ) {
+			fflush( $write_handle );
+
+			if ( ! $this->dirty ) {
+				return true;
+			}
+
+			return $this->upload_temp_file();
+		}
+
 		// If using temp file handle, flush it
 		if ( $this->handle ) {
 			return fflush( $this->handle );
@@ -822,7 +909,7 @@ class CloudStreamWrapper {
 		}
 
 		// Create temporary file with buffered content
-		$temp_file = wp_tempnam( $this->path );
+		$temp_file = self::tempnam( $this->path );
 		file_put_contents( $temp_file, $this->content );
 
 		// Upload to cloud (single PUT request)
@@ -904,11 +991,134 @@ class CloudStreamWrapper {
 	}
 
 	/**
+	 * Send the temp file backing this write stream to the cloud.
+	 *
+	 * The provider reads it from disk, so the file never passes through PHP
+	 * memory here either, whatever its size.
+	 *
+	 * @return bool
+	 */
+	private function upload_temp_file(): bool {
+		// One attempt per set of bytes. Clearing this up front is what keeps a
+		// failed flush from being retried by stream_close(), which would send
+		// the file twice and count the failure twice against the health
+		// threshold. A later fwrite() sets it again, so new bytes still get
+		// their own attempt.
+		$this->dirty = false;
+
+		$cloud_client = self::get_cloud_client();
+		if ( ! $cloud_client ) {
+			Logger::error( '[DiluxOne Offload CloudStreamWrapper] upload: cloud client not available: ' . $this->path );
+			self::note_write_failure( $this->path, 'Cloud client not available' );
+			return false;
+		}
+
+		clearstatcache( true, (string) $this->temp_file );
+		$size = filesize( (string) $this->temp_file );
+		if ( false === $size ) {
+			Logger::error( '[DiluxOne Offload CloudStreamWrapper] upload: could not size the temp file for ' . $this->path );
+			self::note_write_failure( $this->path, 'Could not read the file to upload' );
+			return false;
+		}
+
+		try {
+			$result = $cloud_client->upload_file(
+				(string) $this->temp_file,
+				$this->path,
+				array( 'mime_type_from_path' => $this->path )
+			);
+		} catch ( \Exception $e ) {
+			Logger::error( '[DiluxOne Offload CloudStreamWrapper] upload exception: ' . $this->path . ' - ' . $e->getMessage() );
+			\DiluxOneOffload\ConfigManager::record_connection_failure( 'exception', $e->getMessage(), 'upload' );
+			self::note_write_failure( $this->path, $e->getMessage() );
+			return false;
+		}
+
+		if ( empty( $result['success'] ) ) {
+			$error_msg = $result['error'] ?? 'Unknown upload error';
+			Logger::info( '[DiluxOne Offload CloudStreamWrapper] upload failed: ' . $this->path . ' - ' . $error_msg );
+			$error_code = '';
+			if ( preg_match( '/(\d{3})/', $error_msg, $matches ) ) {
+				$error_code = $matches[1];
+			}
+			\DiluxOneOffload\ConfigManager::record_connection_failure( $error_code, $error_msg, 'upload' );
+			self::note_write_failure( $this->path, $error_msg );
+			return false;
+		}
+
+		self::clear_write_failure( $this->path );
+
+		// Auto-recovery: if was unhealthy and upload succeeded, mark healthy
+		$health = \DiluxOneOffload\ConfigManager::get_connection_health();
+		if ( $health['status'] === 'unhealthy' ) {
+			\DiluxOneOffload\ConfigManager::record_connection_success();
+		}
+
+		// Cache the stat so the read that usually follows a write does not pay
+		// for a HEAD request. The mode has to say "regular file": with a zero
+		// mode is_file() answers false and callers decide the upload vanished.
+		self::$stat_cache[ $this->path ] = array(
+			0         => 0,
+			'dev'     => 0,
+			1         => 0,
+			'ino'     => 0,
+			2         => 33188,
+			'mode'    => 33188,  // Regular file with 0644 permissions
+			3         => 1,
+			'nlink'   => 1,
+			4         => 0,
+			'uid'     => 0,
+			5         => 0,
+			'gid'     => 0,
+			6         => 0,
+			'rdev'    => 0,
+			7         => $size,
+			'size'    => $size,
+			8         => time(),
+			'atime'   => time(),
+			9         => time(),
+			'mtime'   => time(),
+			10        => time(),
+			'ctime'   => time(),
+			11        => -1,
+			'blksize' => -1,
+			12        => -1,
+			'blocks'  => -1,
+		);
+
+		// And cache the content for an immediate read back — but only when it
+		// is small enough to be worth holding. Reading a 300 MB video here
+		// just to discover it is too big to cache would undo the point of
+		// streaming it to disk in the first place.
+		if ( $size <= self::CACHE_MAX_BYTES ) {
+			$content = file_get_contents( (string) $this->temp_file );
+			if ( false !== $content ) {
+				$this->cache_set( $this->path, $content );
+			}
+		}
+
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			Logger::debug( '[DiluxOne Offload CloudStreamWrapper] Uploaded ' . $this->path . ' (' . $size . ' bytes)' );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Stream wrapper: Close file
 	 *
 	 * @return bool
 	 */
 	public function stream_close() {
+		// fopen()/fwrite()/fclose() without fflush() never reaches
+		// stream_flush(), so this is the last chance to get those bytes to the
+		// cloud — and it has to happen before the handle and its temp file go.
+		$write_handle = $this->handle;
+		if ( $this->dirty && $this->is_temp_backed_write() && is_resource( $write_handle ) ) {
+			fflush( $write_handle );
+			$this->upload_temp_file();
+		}
+
 		if ( $this->handle ) {
 			fclose( $this->handle );
 			$this->handle = null;
@@ -1430,7 +1640,7 @@ class CloudStreamWrapper {
 		}
 
 		// Create temporary file with content
-		$temp_file = wp_tempnam( $this->path );
+		$temp_file = self::tempnam( $this->path );
 		file_put_contents( $temp_file, $this->content );
 
 		// Direct PUT to cloud (no validation)

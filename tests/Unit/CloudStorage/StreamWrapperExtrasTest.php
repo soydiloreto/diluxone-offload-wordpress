@@ -117,7 +117,10 @@ class StreamWrapperExtrasTest extends TestCase {
 		$fh = fopen( self::P . '://uploads/seek.txt', 'w' );
 		fwrite( $fh, 'abcdef' );
 		$this->assertSame( 6, ftell( $fh ) );
-		$this->assertTrue( feof( $fh ) );
+		// A write stream is a real file handle now, so feof() answers the way
+		// it does for any file: false until a read runs past the end, not
+		// "the cursor is at the end" as the old in-memory buffer reported.
+		$this->assertFalse( feof( $fh ) );
 		$this->assertSame( 0, fseek( $fh, 2 ) );
 		$this->assertSame( 2, ftell( $fh ) );
 		fwrite( $fh, 'XY' );
