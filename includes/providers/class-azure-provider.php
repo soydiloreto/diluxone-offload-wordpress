@@ -54,6 +54,28 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class AzureProvider implements CloudStorageClientInterface {
 
+	/**
+	 * Bytes per block, and the largest file sent in a single Put Blob request.
+	 *
+	 * It is the ceiling on how much of a file this class ever holds at once:
+	 * a bigger file is read and sent one block at a time. Azure allows far
+	 * larger single writes, and Microsoft's own SDK draws this same line at
+	 * 32 MiB; 4 MiB keeps the ceiling well under any memory_limit worth
+	 * supporting.
+	 */
+	private const BLOCK_SIZE = 4194304;
+
+	/**
+	 * Content-Type sent with — and signed into — each Put Block request.
+	 *
+	 * A block has no type of its own; the blob's type is set when the block
+	 * list is committed. What matters is that the header and the signature
+	 * say the same thing, because the WordPress HTTP API fills in
+	 * application/x-www-form-urlencoded for a PUT that does not state one,
+	 * and Azure then rejects the request.
+	 */
+	private const BLOCK_CONTENT_TYPE = 'application/octet-stream';
+
 	/** @var string */
 	private string $storage_account;
 	/** @var string */
@@ -179,17 +201,34 @@ class AzureProvider implements CloudStorageClientInterface {
 			// Normalize remote path (remove leading slash)
 			$remote_path = ltrim( $remote_path, '/' );
 
-			$url          = $this->endpoint . '/' . $this->container_name . '/' . $remote_path;
-			$file_content = file_get_contents( $local_path );
-			if ( $file_content === false ) {
-				return UploadResult::failure( 'Could not read local file: ' . $local_path );
-			}
-
 			// ⭐ CRITICAL FIX: Use destination path for MIME type detection (not temp file path)
 			// Temp files from wp_tempnam() have no extension, causing 'application/octet-stream'
 			// For CSS/JS files, browser REQUIRES correct Content-Type (text/css, application/javascript)
 			$path_for_mime = $options['mime_type_from_path'] ?? $local_path;
 			$content_type  = MimeHelper::get_mime_type( $path_for_mime );
+
+			// The signature below is computed over the body, so the size has to
+			// be the size of what is actually on disk right now.
+			clearstatcache( true, $local_path );
+			$file_size = filesize( $local_path );
+			if ( false === $file_size ) {
+				return UploadResult::failure( 'Could not read local file: ' . $local_path );
+			}
+
+			// Anything larger than a single block is sent block by block, so no
+			// request body — and no PHP string — ever holds more than one block,
+			// whatever the file weighs. Microsoft's own SDK splits the same way,
+			// at a larger threshold. Below the threshold the read is bounded by
+			// it, which is what keeps a single PUT from being a memory risk.
+			if ( $file_size > self::BLOCK_SIZE ) {
+				return $this->upload_file_in_blocks( $local_path, $remote_path, $content_type, $file_size );
+			}
+
+			$url          = $this->endpoint . '/' . $this->container_name . '/' . $remote_path;
+			$file_content = file_get_contents( $local_path );
+			if ( $file_content === false ) {
+				return UploadResult::failure( 'Could not read local file: ' . $local_path );
+			}
 
 			// Get auth headers (already includes x-ms-blob-type)
 			$headers = $this->get_auth_headers( 'PUT', $url, $file_content, $content_type );
@@ -236,6 +275,11 @@ class AzureProvider implements CloudStorageClientInterface {
 	/**
 	 * Download file from Azure Blob Storage (internal DTO version)
 	 *
+	 * The response is streamed straight to $local_path by the WordPress HTTP
+	 * API, so the blob never passes through PHP memory and a large video costs
+	 * no more than a small image. This is what core's own download_url() does,
+	 * and what Microsoft's Azure plugin does to fetch a blob.
+	 *
 	 * The only caller is the stream wrapper, and it always passes a
 	 * wp_tempnam() path in the PHP temp directory: the blob is read into a
 	 * scratch file that is deleted in the same request. Nothing here writes
@@ -252,41 +296,184 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'GET', $url );
 
+			// Create directory if it doesn't exist — the transport opens the
+			// destination itself and will not create the path for us.
+			$dir = dirname( $local_path );
+			if ( ! is_dir( $dir ) ) {
+				wp_mkdir_p( $dir );
+			}
+
 			$response = wp_remote_get(
 				$url,
 				array(
-					'headers' => $headers,
-					'timeout' => 300,
+					'headers'     => $headers,
+					'timeout'     => 300,
+					'stream'      => true,
+					'filename'    => $local_path,
+					'redirection' => 0,
 				)
 			);
 
 			if ( is_wp_error( $response ) ) {
+				// A transport that failed mid-body still leaves the partial file.
+				if ( file_exists( $local_path ) ) {
+					wp_delete_file( $local_path );
+				}
 				return OperationResult::failure( 'Download failed: ' . $response->get_error_message() );
 			}
 
 			$response_code = wp_remote_retrieve_response_code( $response );
 
 			if ( $response_code === 200 ) {
-				$file_content = wp_remote_retrieve_body( $response );
+				return OperationResult::success();
+			}
 
-				// Create directory if it doesn't exist
-				$dir = dirname( $local_path );
-				if ( ! is_dir( $dir ) ) {
-					wp_mkdir_p( $dir );
-				}
-
-				if ( file_put_contents( $local_path, $file_content ) !== false ) {
-					return OperationResult::success();
-				}
-
-				return OperationResult::failure( 'Failed to write local file: ' . $local_path );
+			// Streaming writes the body whatever the status is, so on an error
+			// the file now holds Azure's XML error document, not the blob.
+			if ( file_exists( $local_path ) ) {
+				wp_delete_file( $local_path );
 			}
 
 			return OperationResult::failure( 'Download failed with status: ' . $response_code );
 
 		} catch ( \Exception $e ) {
+			if ( file_exists( $local_path ) ) {
+				wp_delete_file( $local_path );
+			}
 			return OperationResult::failure( 'Download error: ' . $e->getMessage() );
 		}
+	}
+
+	/**
+	 * Upload a file with Put Block / Put Block List.
+	 *
+	 * Each request carries exactly one block, so neither a PHP string nor a
+	 * request body ever holds more than BLOCK_SIZE bytes, no matter how large
+	 * the file is. This is the path Microsoft documents for large blobs, and
+	 * every request goes through the WordPress HTTP API.
+	 *
+	 * @param string $local_path   File to upload.
+	 * @param string $remote_path  Destination path, already normalised, NOT url-encoded.
+	 * @param string $content_type MIME type to store on the blob.
+	 * @param int    $file_size    Size of $local_path in bytes.
+	 * @return UploadResult
+	 */
+	private function upload_file_in_blocks( string $local_path, string $remote_path, string $content_type, int $file_size ): UploadResult {
+		$fp = fopen( $local_path, 'rb' );
+		if ( ! $fp ) {
+			return UploadResult::failure( 'Could not open local file: ' . $local_path );
+		}
+
+		// The URL is encoded; the signature always uses the unencoded path.
+		$encoded_path = implode( '/', array_map( 'rawurlencode', explode( '/', $remote_path ) ) );
+		$base_url     = $this->endpoint . '/' . $this->container_name . '/' . $encoded_path;
+		$resource     = '/' . $this->storage_account . '/' . $this->container_name . '/' . $remote_path;
+
+		$block_ids   = array();
+		$block_index = 0;
+
+		while ( ! feof( $fp ) ) {
+			$chunk = fread( $fp, self::BLOCK_SIZE );
+			if ( false === $chunk || '' === $chunk ) {
+				break;
+			}
+
+			$block_id    = base64_encode( str_pad( (string) $block_index, 6, '0', STR_PAD_LEFT ) );
+			$block_ids[] = $block_id;
+
+			$date           = gmdate( 'D, d M Y H:i:s T' );
+			$content_length = strlen( $chunk );
+			$url            = $base_url . '?comp=block&blockid=' . rawurlencode( $block_id );
+
+			// Two things Azure is unforgiving about here, both confirmed
+			// against the service itself:
+			// - The query parameters in the signature go in alphabetical
+			//   order, so blockid comes before comp.
+			// - Content-Type is part of the string to sign, and the WordPress
+			//   HTTP API sends application/x-www-form-urlencoded when a PUT
+			//   carries a body and no type of its own. Stating it explicitly
+			//   is what keeps the signature and the request agreeing.
+			$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\nblockid:{$block_id}\ncomp:block";
+			$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
+
+			$response = wp_remote_request(
+				$url,
+				array(
+					'method'  => 'PUT',
+					'headers' => array(
+						'Authorization'  => 'SharedKey ' . $this->storage_account . ':' . $signature,
+						'Content-Type'   => self::BLOCK_CONTENT_TYPE,
+						'Content-Length' => (string) $content_length,
+						'x-ms-date'      => $date,
+						'x-ms-version'   => '2020-04-08',
+					),
+					'body'    => $chunk,
+					'timeout' => 300,
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				fclose( $fp );
+				return UploadResult::failure( 'Upload failed on block ' . $block_index . ': ' . $response->get_error_message() );
+			}
+
+			$code = wp_remote_retrieve_response_code( $response );
+			if ( 201 !== $code ) {
+				fclose( $fp );
+				return UploadResult::failure( 'Upload failed on block ' . $block_index . ' with status: ' . $code );
+			}
+
+			++$block_index;
+		}
+
+		fclose( $fp );
+
+		if ( empty( $block_ids ) ) {
+			return UploadResult::failure( 'Could not read local file: ' . $local_path );
+		}
+
+		// Commit. This request also carries the blob's content type, which is
+		// what a browser needs for the CSS and JS a page builder writes.
+		$block_list_xml = '<?xml version="1.0" encoding="utf-8"?><BlockList>';
+		foreach ( $block_ids as $block_id ) {
+			$block_list_xml .= '<Latest>' . $block_id . '</Latest>';
+		}
+		$block_list_xml .= '</BlockList>';
+
+		$date           = gmdate( 'D, d M Y H:i:s T' );
+		$content_length = strlen( $block_list_xml );
+		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\nx-ms-blob-content-type:{$content_type}\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\ncomp:blocklist";
+		$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
+
+		$response = wp_remote_request(
+			$base_url . '?comp=blocklist',
+			array(
+				'method'  => 'PUT',
+				'headers' => array(
+					'Authorization'          => 'SharedKey ' . $this->storage_account . ':' . $signature,
+					'Content-Type'           => 'application/xml',
+					'Content-Length'         => (string) $content_length,
+					'x-ms-blob-content-type' => $content_type,
+					'x-ms-date'              => $date,
+					'x-ms-version'           => '2020-04-08',
+				),
+				'body'    => $block_list_xml,
+				'timeout' => 300,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return UploadResult::failure( 'Upload failed on commit: ' . $response->get_error_message() );
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( 201 !== $code ) {
+			return UploadResult::failure( 'Upload failed on commit with status: ' . $code );
+		}
+
+		Logger::debug( '[DiluxOne Offload AzureProvider] Uploaded ' . $remote_path . ' in ' . count( $block_ids ) . ' blocks (' . $file_size . ' bytes)' );
+
+		return UploadResult::success( $base_url, $remote_path );
 	}
 
 	/**
@@ -1050,8 +1237,12 @@ class AzureProvider implements CloudStorageClientInterface {
 				$date           = gmdate( 'D, d M Y H:i:s T' );
 				$content_length = strlen( $chunk );
 
-				// ⭐ CRITICAL: Signature must use UNENCODED path (Azure requirement)
-				$string_to_sign = "PUT\n\n\n{$content_length}\n\n\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$remote_path}\ncomp:block\nblockid:{$block_id}";
+				// ⭐ CRITICAL: Signature must use UNENCODED path (Azure requirement),
+				// query parameters in alphabetical order, and the Content-Type
+				// stated explicitly — the WordPress HTTP API otherwise sends
+				// application/x-www-form-urlencoded and Azure answers 403. See
+				// upload_file_in_blocks() for the same two rules.
+				$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$remote_path}\nblockid:{$block_id}\ncomp:block";
 				$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
 				$block_response = wp_remote_request(
@@ -1060,6 +1251,7 @@ class AzureProvider implements CloudStorageClientInterface {
 						'method'  => 'PUT',
 						'headers' => array(
 							'Authorization'  => 'SharedKey ' . $this->storage_account . ':' . $signature,
+							'Content-Type'   => self::BLOCK_CONTENT_TYPE,
 							'Content-Length' => (string) $content_length,
 							'x-ms-date'      => $date,
 							'x-ms-version'   => '2020-04-08',
